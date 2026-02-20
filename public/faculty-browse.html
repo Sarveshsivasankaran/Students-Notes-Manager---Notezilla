@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Faculty - Notezilla</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .navbar {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: #6366f1;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #6366f1;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: #dc2626;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .search-bar input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .filter-select {
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        .faculty-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .faculty-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .faculty-card:hover {
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+            transform: translateY(-4px);
+        }
+
+        .faculty-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .faculty-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .faculty-email {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+
+        .faculty-rating {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #f59e0b;
+        }
+
+        .faculty-subjects {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .faculty-subjects strong {
+            color: #1e293b;
+        }
+
+        .btn-view {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-view:hover {
+            transform: scale(1.02);
+        }
+
+        .sections-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 16px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -19px;
+            padding-bottom: 16px;
+        }
+
+        .tab.active {
+            color: #6366f1;
+            border-bottom-color: #6366f1;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state p {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Navbar -->
+        <div class="navbar">
+            <div class="logo"><img src="/images/notezilla-logo.svg" alt="Notezilla" style="height:36px;"></div>
+            <div class="nav-links">
+                <a href="#bookmarks">My Bookmarks</a>
+                <div class="user-menu">
+                    <span id="userName" style="font-size: 13px; color: #64748b;"></span>
+                    <button class="btn-logout" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <div class="header">
+            <h1>👨‍🏫 Browse Faculty</h1>
+            <p>Explore faculty profiles and access their course materials</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="sections-tabs">
+            <button class="tab active" onclick="switchTab('faculty')">Faculty Profiles</button>
+            <button class="tab" onclick="switchTab('subjects')">Subjects</button>
+            <button class="tab" onclick="switchTab('notes')">All Notes</button>
+        </div>
+
+        <!-- Search & Filter -->
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Search faculty or subjects..." onkeyup="handleSearch()">
+            <select id="filterSelect" class="filter-select" onchange="handleFilter()">
+                <option value="">All Departments</option>
+                <option value="CSE">Computer Science</option>
+                <option value="ECE">Electronics</option>
+                <option value="EEE">Electrical</option>
+                <option value="MECH">Mechanical</option>
+                <option value="CIVIL">Civil</option>
+            </select>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+        <!-- Faculty Section -->
+        <div id="facultySection">
+            <div id="facultyGrid" class="faculty-grid"></div>
+        </div>
+
+        <!-- Subjects Section -->
+        <div id="subjectsSection" style="display: none;">
+            <div id="subjectsGrid" class="faculty-grid"></div>
+        </div>
+
+        <!-- Notes Section -->
+        <div id="notesSection" style="display: none;">
+            <div id="notesGrid" class="faculty-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        let allFaculty = [];
+        let allSubjects = [];
+        let allNotes = [];
+        let currentTab = 'faculty';
+
+        // Initialize
+        window.addEventListener('load', () => {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            document.getElementById('userName').textContent = user.name || 'User';
+
+            if (user.role !== 'student') {
+                showError('This is a student interface. Please log in as a student.');
+                setTimeout(() => logout(), 2000);
+                return;
+            }
+
+            loadFaculty();
+            loadSubjects();
+            loadNotes();
+        });
+
+        async function loadFaculty() {
+            try {
+                const response = await fetch(`${API_URL}/faculty`);
+                const data = await response.json();
+                allFaculty = data.data || [];
+                displayFaculty(allFaculty);
+            } catch (error) {
+                console.error('Error loading faculty:', error);
+                showError('Failed to load faculty profiles');
+            }
+        }
+
+        async function loadSubjects() {
+            try {
+                const response = await fetch(`${API_URL}/subjects`);
+                const data = await response.json();
+                allSubjects = data.data || [];
+                displaySubjects(allSubjects);
+            } catch (error) {
+                console.error('Error loading subjects:', error);
+                showError('Failed to load subjects');
+            }
+        }
+
+        async function loadNotes() {
+            try {
+                const response = await fetch(`${API_URL}/notes`);
+                const data = await response.json();
+                allNotes = data.data || [];
+                displayNotes(allNotes);
+            } catch (error) {
+                console.error('Error loading notes:', error);
+                showError('Failed to load notes');
+            }
+        }
+
+        function displayFaculty(faculty) {
+            const grid = document.getElementById('facultyGrid');
+            if (faculty.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><p>No faculty found</p></div>';
+                return;
+            }
+
+            grid.innerHTML = faculty.map(f => `
+                <div class="faculty-card" onclick="viewFacultyProfile('${f._id}')">
+                    <div class="faculty-avatar">👨‍🏫</div>
+                    <div class="faculty-name">${f.name || 'Unknown'}</div>
+                    <div class="faculty-email">${f.email || ''}</div>
+                    <div class="faculty-rating">
+                        ⭐ ${f.averageRating ? f.averageRating.toFixed(1) : 'New'} · ${f.totalDownloads || 0} downloads
+                    </div>
+                    <div class="faculty-subjects">
+                        <strong>Subjects:</strong><br>
+                        ${f.subjects && f.subjects.length > 0 ? f.subjects.map(s => s.name).join(', ') : 'No subjects yet'}
+                    </div>
+                    <button class="btn-view">View Profile</button>
+                </div>
+            `).join('');
+        }
+
+        function displaySubjects(subjects) {
+            const grid = document.getElementById('subjectsGrid');
+            if (subjects.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><p>No subjects found</p></div>';
+                return;
+            }
+
+            grid.innerHTML = subjects.map(s => `
+                <div class="faculty-card" onclick="viewSubject('${s._id}')">
+                    <div class="faculty-avatar">📚</div>
+                    <div class="faculty-name">${s.name}</div>
+                    <div class="faculty-email">${s.code}</div>
+                    <div class="faculty-rating">
+                        Department: ${s.department} · Sem ${s.semester}
+                    </div>
+                    <div class="faculty-subjects">
+                        <strong>Credits:</strong> ${s.credits}<br>
+                        <strong>Faculty:</strong> ${s.faculty && s.faculty.length > 0 ? s.faculty.map(f => f.name).join(', ') : 'Unassigned'}
+                    </div>
+                    <button class="btn-view">View Subject</button>
+                </div>
+            `).join('');
+        }
+
+        function displayNotes(notes) {
+            const grid = document.getElementById('notesGrid');
+            if (notes.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><p>No notes found</p></div>';
+                return;
+            }
+
+            grid.innerHTML = notes.map(n => `
+                <div class="faculty-card" onclick="viewNote('${n._id}')">
+                    <div class="faculty-avatar">📄</div>
+                    <div class="faculty-name">${n.title}</div>
+                    <div class="faculty-email">Unit ${n.unit} · Semester ${n.semester}</div>
+                    <div class="faculty-rating">
+                        📥 ${n.downloads || 0} downloads · Type: ${n.type}
+                    </div>
+                    <div class="faculty-subjects">
+                        <strong>Subject:</strong> ${n.subject?.name || 'Unknown'}<br>
+                        <strong>Faculty:</strong> ${n.faculty?.name || 'Unknown'}
+                    </div>
+                    <button class="btn-view">View Note</button>
+                </div>
+            `).join('');
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+
+            // Update buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update sections
+            document.getElementById('facultySection').style.display = tab === 'faculty' ? 'block' : 'none';
+            document.getElementById('subjectsSection').style.display = tab === 'subjects' ? 'block' : 'none';
+            document.getElementById('notesSection').style.display = tab === 'notes' ? 'block' : 'none';
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+
+            if (currentTab === 'faculty') {
+                const filtered = allFaculty.filter(f =>
+                    f.name.toLowerCase().includes(query) ||
+                    f.email.toLowerCase().includes(query)
+                );
+                displayFaculty(filtered);
+            } else if (currentTab === 'subjects') {
+                const filtered = allSubjects.filter(s =>
+                    s.name.toLowerCase().includes(query) ||
+                    s.code.toLowerCase().includes(query)
+                );
+                displaySubjects(filtered);
+            } else if (currentTab === 'notes') {
+                const filtered = allNotes.filter(n =>
+                    n.title.toLowerCase().includes(query)
+                );
+                displayNotes(filtered);
+            }
+        }
+
+        function handleFilter() {
+            const dept = document.getElementById('filterSelect').value;
+
+            if (currentTab === 'faculty') {
+                // Can filter by faculty department if needed
+                displayFaculty(allFaculty);
+            } else if (currentTab === 'subjects') {
+                const filtered = dept ? allSubjects.filter(s => s.department === dept) : allSubjects;
+                displaySubjects(filtered);
+            }
+        }
+
+        function viewFacultyProfile(facultyId) {
+            // Store for next page
+            localStorage.setItem('selectedFacultyId', facultyId);
+            // In real app, navigate to faculty-detail.html
+            alert('Faculty Detail Page - Coming Soon');
+        }
+
+        function viewSubject(subjectId) {
+            localStorage.setItem('selectedSubjectId', subjectId);
+            alert('Subject Detail Page - Coming Soon');
+        }
+
+        function viewNote(noteId) {
+            localStorage.setItem('selectedNoteId', noteId);
+            alert('Note Viewer - Coming Soon');
+        }
+
+        function showError(message) {
+            const el = document.getElementById('errorMessage');
+            el.textContent = message;
+            el.style.display = 'block';
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 5000);
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+
+</html>

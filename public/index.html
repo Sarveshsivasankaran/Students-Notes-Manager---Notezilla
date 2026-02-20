@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notezilla | Student Notes Manager</title>
+    <meta name="description"
+        content="A premium, lightweight notes manager for students to organize their academic life efficiently.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Lucide Icons for nice UI -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <img src="/images/notezilla-logo.svg" alt="Notezilla" class="site-logo">
+            </div>
+
+            <!-- User Profile Section -->
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-info">
+                    <p class="user-name" id="userName">User</p>
+                    <p class="user-email" id="userEmail">email@example.com</p>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" id="nav-all">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>All Notes</span>
+                </button>
+                <button class="nav-item" id="nav-fav">
+                    <i data-lucide="star"></i>
+                    <span>Favorites</span>
+                </button>
+                <button class="nav-item" id="nav-archive">
+                    <i data-lucide="archive"></i>
+                    <span>Archive</span>
+                </button>
+            </nav>
+
+            <div class="categories">
+                <h3>Categories</h3>
+                <div class="category-list" id="category-filter">
+                    <!-- Categories will be injected here -->
+                </div>
+            </div>
+
+            <button class="btn-logout" id="logout-btn">
+                <i data-lucide="log-out"></i>
+                <span>Logout</span>
+            </button>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="search-container">
+                    <i data-lucide="search"></i>
+                    <input type="text" id="search-input" placeholder="Search notes...">
+                </div>
+                <button class="btn-primary" id="add-note-btn">
+                    <i data-lucide="plus"></i>
+                    <span>New Note</span>
+                </button>
+            </header>
+
+            <section class="notes-grid" id="notes-grid">
+                <!-- Notes will be injected here -->
+                <div class="empty-state">
+                    <i data-lucide="notebook-pen" size="48"></i>
+                    <p>No notes found. Start by creating one!</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal for Adding/Editing Notes -->
+    <div class="modal" id="note-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Create New Note</h2>
+                <button class="close-btn" id="close-modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="note-form">
+                <div class="form-group">
+                    <label for="note-title">Title</label>
+                    <input type="text" id="note-title" placeholder="Enter title..." required>
+                </div>
+                <div class="form-group">
+                    <label for="note-category">Category</label>
+                    <input type="text" id="note-category" list="category-options"
+                        placeholder="Select or type a category..." required>
+                    <datalist id="category-options">
+                        <option value="General">
+                        <option value="Mathematics">
+                        <option value="Science">
+                        <option value="History">
+                        <option value="Personal">
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label for="note-text">Content</label>
+                    <textarea id="note-text" rows="8" placeholder="Start typing your thoughts..." required></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="cancel-note">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Note</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Theme Toggle (Optional but nice) -->
+    <button class="theme-toggle" id="theme-toggle">
+        <i data-lucide="moon"></i>
+    </button>
+
+    <script src="/script.js"></script>
+    <script src="/app.js"></script>
+    <script>
+        // Initialize icons
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>
