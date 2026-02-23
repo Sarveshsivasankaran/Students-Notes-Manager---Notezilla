@@ -4,135 +4,387 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notezilla | Student Notes Manager</title>
-    <meta name="description"
-        content="A premium, lightweight notes manager for students to organize their academic life efficiently.">
-    <!-- Google Fonts -->
+    <title>Notezilla | Modern Student Notes Management</title>
+    <link rel="icon" type="image/svg+xml" href="images/notezilla-logo.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Main Stylesheet -->
-    <link rel="stylesheet" href="style.css">
-    <!-- Lucide Icons for nice UI -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #8b5cf6;
+            --accent: #f43f5e;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--dark);
+            color: white;
+            overflow-x: hidden;
+            line-height: 1.5;
+        }
+
+        /* Animated Background */
+        .bg-blobs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #0f172a 100%);
+        }
+
+        .blob {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: var(--primary);
+            filter: blur(80px);
+            opacity: 0.15;
+            border-radius: 50%;
+            animation: move 20s infinite alternate;
+        }
+
+        .blob-1 {
+            top: -100px;
+            right: -100px;
+            background: var(--primary-light);
+        }
+
+        .blob-2 {
+            bottom: -100px;
+            left: -100px;
+            background: var(--primary);
+            animation-delay: -5s;
+        }
+
+        .blob-3 {
+            top: 40%;
+            left: 30%;
+            background: var(--accent);
+            width: 300px;
+            height: 300px;
+            animation-delay: -10s;
+        }
+
+        @keyframes move {
+            from {
+                transform: translate(0, 0) scale(1);
+            }
+
+            to {
+                transform: translate(100px, 100px) scale(1.2);
+            }
+        }
+
+        /* Navigation */
+        nav {
+            padding: 24px 80px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            background: rgba(15, 23, 42, 0.5);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-weight: 500;
+            transition: 0.3s;
+            font-size: 15px;
+        }
+
+        .nav-links a:hover {
+            color: white;
+        }
+
+        .btn-glass {
+            padding: 10px 24px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            text-decoration: none;
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+            text-decoration: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 120px 80px;
+            display: flex;
+            align-items: center;
+            gap: 60px;
+        }
+
+        .hero-content {
+            flex: 1;
+            max-width: 600px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 100px;
+            color: var(--primary-light);
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            font-size: 72px;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            background: linear-gradient(to bottom right, #fff 30%, rgba(255, 255, 255, 0.5) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 40px;
+            max-width: 500px;
+        }
+
+        .hero-visual {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+        }
+
+        .hero-image {
+            width: 100%;
+            max-width: 500px;
+            filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
+            border-radius: 20px;
+            transform: perspective(1000px) rotateY(-15deg) rotateX(10deg);
+            transition: 0.5s;
+        }
+
+        .hero-visual:hover .hero-image {
+            transform: perspective(1000px) rotateY(0deg) rotateX(0deg);
+        }
+
+        /* Features */
+        .features {
+            padding: 100px 80px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+        }
+
+        .feature-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            padding: 40px;
+            border-radius: 24px;
+            transition: 0.3s;
+        }
+
+        .feature-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-10px);
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 24px;
+        }
+
+        .feature-card h3 {
+            font-size: 22px;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 15px;
+        }
+
+        footer {
+            padding: 60px 80px;
+            text-align: center;
+            border-top: 1px solid var(--glass-border);
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 14px;
+        }
+
+        @media (max-width: 1024px) {
+
+            nav,
+            .hero,
+            .features,
+            footer {
+                padding: 40px;
+            }
+
+            .hero {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .hero-content {
+                max-width: 100%;
+            }
+
+            .hero p {
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .hero h1 {
+                font-size: 50px;
+            }
+        }
+    </style>
 </head>
 
 <body>
-    <div class="app-container">
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar">
-            <div class="logo">
-                <img src="/images/notezilla-logo.svg" alt="Notezilla" class="site-logo">
-            </div>
-
-            <!-- User Profile Section -->
-            <div class="user-profile">
-                <div class="user-avatar" id="userAvatar">U</div>
-                <div class="user-info">
-                    <p class="user-name" id="userName">User</p>
-                    <p class="user-email" id="userEmail">email@example.com</p>
-                </div>
-            </div>
-
-            <nav class="nav-menu">
-                <button class="nav-item active" id="nav-all">
-                    <i data-lucide="layout-dashboard"></i>
-                    <span>All Notes</span>
-                </button>
-                <button class="nav-item" id="nav-fav">
-                    <i data-lucide="star"></i>
-                    <span>Favorites</span>
-                </button>
-                <button class="nav-item" id="nav-archive">
-                    <i data-lucide="archive"></i>
-                    <span>Archive</span>
-                </button>
-            </nav>
-
-            <div class="categories">
-                <h3>Categories</h3>
-                <div class="category-list" id="category-filter">
-                    <!-- Categories will be injected here -->
-                </div>
-            </div>
-
-            <button class="btn-logout" id="logout-btn">
-                <i data-lucide="log-out"></i>
-                <span>Logout</span>
-            </button>
-        </aside>
-
-        <!-- Main Content Area -->
-        <main class="main-content">
-            <header class="top-bar">
-                <div class="search-container">
-                    <i data-lucide="search"></i>
-                    <input type="text" id="search-input" placeholder="Search notes...">
-                </div>
-                <button class="btn-primary" id="add-note-btn">
-                    <i data-lucide="plus"></i>
-                    <span>New Note</span>
-                </button>
-            </header>
-
-            <section class="notes-grid" id="notes-grid">
-                <!-- Notes will be injected here -->
-                <div class="empty-state">
-                    <i data-lucide="notebook-pen" size="48"></i>
-                    <p>No notes found. Start by creating one!</p>
-                </div>
-            </section>
-        </main>
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
     </div>
 
-    <!-- Modal for Adding/Editing Notes -->
-    <div class="modal" id="note-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title">Create New Note</h2>
-                <button class="close-btn" id="close-modal">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <form id="note-form">
-                <div class="form-group">
-                    <label for="note-title">Title</label>
-                    <input type="text" id="note-title" placeholder="Enter title..." required>
-                </div>
-                <div class="form-group">
-                    <label for="note-category">Category</label>
-                    <input type="text" id="note-category" list="category-options"
-                        placeholder="Select or type a category..." required>
-                    <datalist id="category-options">
-                        <option value="General">
-                        <option value="Mathematics">
-                        <option value="Science">
-                        <option value="History">
-                        <option value="Personal">
-                    </datalist>
-                </div>
-                <div class="form-group">
-                    <label for="note-text">Content</label>
-                    <textarea id="note-text" rows="8" placeholder="Start typing your thoughts..." required></textarea>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-secondary" id="cancel-note">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Note</button>
-                </div>
-            </form>
+    <nav>
+        <a href="/" class="logo">
+            <img src="images/notezilla-logo.svg" alt="Notezilla" style="height:32px; filter: brightness(0) invert(1);">
+            <span>Notezilla</span>
+        </a>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#about">About</a>
+            <a href="login.html" class="btn-glass">Sign In</a>
+            <a href="signup.html" class="btn-primary">Get Started</a>
         </div>
-    </div>
+    </nav>
 
-    <!-- Theme Toggle (Optional but nice) -->
-    <button class="theme-toggle" id="theme-toggle">
-        <i data-lucide="moon"></i>
-    </button>
+    <header class="hero">
+        <div class="hero-content">
+            <span class="badge">Academic Repository 2.0</span>
+            <h1>The smarter way to manage academic notes</h1>
+            <p>Access high-quality course materials, rate faculty content, and organize your studies with Notezilla's
+                premium academic platform.</p>
+            <div class="hero-actions">
+                <a href="signup.html" class="btn-primary" style="padding: 16px 40px; font-size: 16px;">Create Free
+                    Account</a>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <img src="https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=1000"
+                alt="Notes" class="hero-image">
+        </div>
+    </header>
 
-    <script src="/script.js"></script>
-    <script src="/app.js"></script>
+    <section class="features" id="features">
+        <div class="feature-card">
+            <div class="feature-icon">📁</div>
+            <h3>Structured Repository</h3>
+            <p>Notes organized by department, semester, and faculty. Find exactly what you need in seconds.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⭐</div>
+            <h3>Faculty Ratings</h3>
+            <p>High-quality content verified by students. Download from the most helpful instructors.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3>Secure Verification</h3>
+            <p>All materials are reviewed by admins before publishing to ensure academic integrity.</p>
+        </div>
+    </section>
+
+    <footer>
+        &copy; 2024 Notezilla Team. Designed for Rajalakshmi Engineering College.
+    </footer>
+
     <script>
-        // Initialize icons
-        lucide.createIcons();
+        // Check if user is already logged in
+        const user = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+        if (user && token) {
+            const userData = JSON.parse(user);
+            if (userData.role === 'student') window.location.href = 'faculty-browse.html';
+            else if (userData.role === 'staff') window.location.href = 'staff-upload.html';
+        }
     </script>
 </body>
 

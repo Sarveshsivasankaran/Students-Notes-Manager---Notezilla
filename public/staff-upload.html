@@ -5,10 +5,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload Notes - Notezilla</title>
+    <link rel="icon" type="image/svg+xml" href="images/notezilla-logo.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-light: #8b5cf6;
+            --dark: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -17,89 +26,98 @@
 
         body {
             font-family: 'Outfit', sans-serif;
-            background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%);
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            color: white;
             min-height: 100vh;
             padding: 20px;
         }
 
         .container {
-            max-width: 600px;
+            max-width: 650px;
             margin: 0 auto;
         }
 
         .navbar {
-            background: white;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
             padding: 16px 24px;
-            border-radius: 12px;
+            border-radius: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
 
-        .logo {
-            font-size: 20px;
-            font-weight: 700;
-            color: #6366f1;
+        .logo img {
+            height: 36px;
+            filter: brightness(0) invert(1);
         }
 
         .user-menu {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
 
         .btn-logout {
             padding: 8px 16px;
-            background: #ef4444;
+            background: rgba(239, 68, 68, 0.2);
             color: white;
-            border: none;
-            border-radius: 6px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: 0.3s;
         }
 
         .btn-logout:hover {
-            background: #dc2626;
+            background: #ef4444;
         }
 
         .card {
-            background: white;
-            border-radius: 12px;
-            padding: 32px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
         }
 
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 32px;
         }
 
         .header h1 {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1e293b;
+            font-size: 32px;
+            font-weight: 800;
             margin-bottom: 8px;
+            background: linear-gradient(to right, #fff, var(--primary-light));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .header p {
-            color: #64748b;
-            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 15px;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         label {
             display: block;
-            font-size: 14px;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         input[type="text"],
@@ -107,21 +125,23 @@
         select,
         textarea {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-family: 'Outfit', sans-serif;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: white;
+            font-family: inherit;
             font-size: 14px;
-            transition: all 0.3s;
+            transition: 0.3s;
         }
 
-        input[type="text"]:focus,
-        input[type="number"]:focus,
+        input:focus,
         select:focus,
         textarea:focus {
             outline: none;
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
         }
 
         textarea {
@@ -129,26 +149,31 @@
             min-height: 100px;
         }
 
+        option {
+            background: #0f172a;
+            color: white;
+        }
+
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 20px;
         }
 
         .file-upload {
             position: relative;
-            border: 2px dashed #cbd5e1;
-            border-radius: 8px;
-            padding: 20px;
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 32px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s;
-            background: #f8fafc;
+            transition: 0.3s;
+            background: rgba(255, 255, 255, 0.02);
         }
 
         .file-upload:hover {
-            border-color: #6366f1;
-            background: #f0f4ff;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.04);
         }
 
         .file-upload input[type="file"] {
@@ -156,120 +181,142 @@
         }
 
         .file-upload-text {
-            color: #64748b;
+            color: rgba(255, 255, 255, 0.5);
             font-size: 14px;
+            font-weight: 500;
         }
 
         .file-upload-icon {
-            font-size: 32px;
-            margin-bottom: 8px;
+            font-size: 40px;
+            margin-bottom: 12px;
+            display: block;
         }
 
         .file-selected {
             color: #22c55e;
-            font-size: 13px;
-            margin-top: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 12px;
         }
 
         .note-type-selector {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+            gap: 12px;
         }
 
         .type-option {
-            padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s;
-            background: white;
+            transition: 0.3s;
         }
 
         .type-option:hover {
-            border-color: #6366f1;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .type-option.selected {
-            border-color: #6366f1;
-            background: #eef2ff;
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .type-option-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+            display: block;
         }
 
         .type-option-label {
-            display: block;
             font-size: 12px;
-            color: #64748b;
-            margin-top: 4px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+        }
+
+        .type-option.selected .type-option-label {
+            color: var(--primary-light);
         }
 
         .btn-upload {
             width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 20px;
+            transition: 0.3s;
+            margin-top: 12px;
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);
         }
 
         .btn-upload:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
-        }
-
-        .btn-upload:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
         }
 
         .info-box {
-            background: #eff6ff;
+            background: rgba(59, 130, 246, 0.1);
             border-left: 4px solid #3b82f6;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            color: #1e40af;
-            margin-bottom: 20px;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            color: #93c5fd;
+            margin-bottom: 24px;
+            line-height: 1.5;
         }
 
         .success-message {
-            background: #dcfce7;
+            background: rgba(34, 197, 94, 0.1);
             border-left: 4px solid #22c55e;
-            padding: 12px;
-            border-radius: 6px;
-            color: #15803d;
-            font-size: 13px;
+            padding: 16px;
+            border-radius: 12px;
+            color: #86efac;
+            font-size: 14px;
             display: none;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .error-message {
-            background: #fee2e2;
+            background: rgba(239, 68, 68, 0.1);
             border-left: 4px solid #ef4444;
-            padding: 12px;
-            border-radius: 6px;
-            color: #991b1b;
-            font-size: 13px;
+            padding: 16px;
+            border-radius: 12px;
+            color: #fca5a5;
+            font-size: 14px;
             display: none;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .loading {
             display: none;
             text-align: center;
-            color: #6366f1;
-            font-size: 13px;
-            margin-top: 10px;
+            color: var(--primary-light);
+            font-size: 14px;
+            margin-top: 16px;
+            font-weight: 500;
+            animation: pulse 1.5s infinite;
         }
 
-        .loading.show {
-            display: block;
+        @keyframes pulse {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
         }
     </style>
 </head>
@@ -278,7 +325,8 @@
     <div class="container">
         <!-- Navbar -->
         <div class="navbar">
-            <div class="logo"><img src="/images/notezilla-logo.svg" alt="Notezilla" style="height:36px;"></div>
+            <div class="logo"><img src="images/notezilla-logo.svg" alt="Notezilla"
+                    style="height:36px; filter: brightness(0) invert(1);"></div>
             <div class="user-menu">
                 <span id="userName" style="font-size: 13px; color: #64748b;"></span>
                 <button class="btn-logout" onclick="logout()">Logout</button>
@@ -398,8 +446,17 @@
             }
 
             if (!user.isApproved) {
-                showError('Your account is pending admin approval. You cannot upload yet.');
-                setTimeout(() => logout(), 3000);
+                // Show pending approval UI instead of kicking them out
+                document.getElementById('uploadForm').style.display = 'none';
+                const header = document.querySelector('.header p');
+                header.textContent = 'Account Pending Approval';
+                header.style.color = '#fbbf24';
+
+                showError('Your account is currently pending administrator approval. Once approved, you will be able to upload notes and manage materials.');
+
+                // Add a logout link for convenience since they're stuck here
+                const infoBox = document.querySelector('.info-box');
+                infoBox.innerHTML = 'ℹ️ Your registration has been received. Please wait for an administrator to verify your credentials. <br><br> <a href="#" onclick="logout()" style="color: var(--primary-light); font-weight: 700; text-decoration: none;">Log out and try later</a>';
                 return;
             }
 
@@ -417,7 +474,7 @@
                 const subjectSelect = document.getElementById('subject');
                 subjects.forEach(subject => {
                     const option = document.createElement('option');
-                    option.value = subject._id;
+                    option.value = subject.id;
                     option.textContent = `${subject.name} (${subject.code})`;
                     subjectSelect.appendChild(option);
                 });
@@ -519,13 +576,13 @@
                             'Authorization': `Bearer ${token}`
                         },
                         body: JSON.stringify({
-                            subject,
+                            subject_id: subject,
                             title,
                             type: selectedType,
                             unit,
                             semester,
-                            fileUrl,
-                            fileName
+                            file_url: fileUrl,
+                            file_name: fileName
                         })
                     });
 

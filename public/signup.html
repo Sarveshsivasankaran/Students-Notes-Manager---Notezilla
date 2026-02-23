@@ -5,10 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - Notezilla</title>
+    <link rel="icon" type="image/svg+xml" href="images/notezilla-logo.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-light: #8b5cf6;
+            --dark: #0f172a;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -17,7 +24,7 @@
 
         body {
             font-family: 'Outfit', sans-serif;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -26,14 +33,30 @@
         }
 
         .container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
             width: 100%;
             max-width: 450px;
             padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             max-height: 90vh;
             overflow-y: auto;
+        }
+
+        /* Custom Scrollbar for the glass container */
+        .container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
         }
 
         .header {
@@ -41,27 +64,23 @@
             margin-bottom: 30px;
         }
 
-        .logo-section {
-            margin-bottom: 20px;
-        }
-
-        .logo {
-            font-size: 24px;
-            font-weight: 700;
-            color: #6366f1;
-            margin-bottom: 10px;
+        .logo-section img {
+            width: 150px;
+            display: block;
+            margin: 0 auto 8px;
+            filter: brightness(0) invert(1);
         }
 
         .title {
             font-size: 28px;
             font-weight: 700;
-            color: #1e293b;
+            color: #ffffff;
             margin-bottom: 8px;
         }
 
         .subtitle {
             font-size: 14px;
-            color: #64748b;
+            color: rgba(255, 255, 255, 0.5);
         }
 
         .form-group {
@@ -70,28 +89,39 @@
 
         label {
             display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: #1e293b;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
             margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         input,
         select {
             width: 100%;
             padding: 12px 14px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
             font-size: 14px;
-            font-family: 'Outfit', sans-serif;
-            transition: all 0.3s;
+            color: white;
+            font-family: inherit;
+            transition: 0.3s;
         }
 
         input:focus,
         select:focus {
             outline: none;
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+        }
+
+        /* Select styling fix for dark background */
+        option {
+            background: #1e1b4b;
+            color: white;
         }
 
         .form-row {
@@ -102,36 +132,32 @@
 
         .btn-signup {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: 12px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 20px;
+            transition: 0.3s;
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);
+            margin-top: 10px;
         }
 
         .btn-signup:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
-        }
-
-        .btn-signup:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
         }
 
         .divider {
             margin: 25px 0;
             display: flex;
             align-items: center;
-            gap: 10px;
-            color: #94a3b8;
-            font-size: 13px;
+            gap: 16px;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 12px;
+            font-weight: 700;
         }
 
         .divider::before,
@@ -139,78 +165,153 @@
             content: '';
             flex: 1;
             height: 1px;
-            background: #e2e8f0;
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .login-link {
             text-align: center;
             font-size: 14px;
-            color: #64748b;
+            color: rgba(255, 255, 255, 0.5);
         }
 
         .login-link a {
-            color: #6366f1;
+            color: white;
             text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .login-link a:hover {
-            color: #8b5cf6;
+            font-weight: 700;
         }
 
         .error-message {
-            color: #ef4444;
+            color: #fb7185;
             font-size: 13px;
-            margin-top: 5px;
+            margin-bottom: 20px;
             display: none;
+            padding: 12px;
+            background: rgba(251, 113, 133, 0.1);
+            border-radius: 8px;
+            text-align: center;
         }
 
         .error-message.show {
             display: block;
         }
 
+        .success-message {
+            color: #22c55e;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+            padding: 12px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
         .loading {
             display: none;
             text-align: center;
-            color: #6366f1;
-            font-size: 13px;
+            color: var(--primary-light);
+            font-size: 14px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            animation: pulse 1.5s infinite;
         }
 
         .loading.show {
             display: block;
         }
 
+        @keyframes pulse {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
+        }
+
         .role-selector {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 18px;
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
         .role-option {
+            position: relative;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
+            flex-direction: column;
             align-items: center;
             gap: 8px;
         }
 
-        .role-option input[type="radio"] {
-            width: auto;
+        .role-option:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(99, 102, 241, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .role-option.selected {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+        }
+
+        .role-option input {
+            position: absolute;
+            opacity: 0;
             cursor: pointer;
+        }
+
+        .role-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
         }
 
         .role-option label {
             margin: 0;
+            color: white;
             cursor: pointer;
-            font-weight: 500;
+            text-transform: none;
+            font-size: 14px;
+            font-weight: 600;
         }
 
         .role-fields {
-            background: #f1f5f9;
-            padding: 12px;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 24px;
+            border-radius: 20px;
             display: none;
-            margin-bottom: 15px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            animation: slideDown 0.4s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .role-fields.show {
@@ -218,9 +319,13 @@
         }
 
         .role-fields p {
-            font-size: 12px;
-            color: #64748b;
-            margin: 0 0 10px 0;
+            font-size: 13px;
+            color: var(--primary-light);
+            margin-bottom: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
     </style>
 </head>
@@ -229,8 +334,7 @@
     <div class="container">
         <div class="header">
             <div class="logo-section">
-                <img src="/images/notezilla-logo.svg" alt="Notezilla"
-                    style="width:180px;display:block;margin:0 auto 8px;">
+                <img src="images/notezilla-logo.svg" alt="Notezilla">
             </div>
             <h1 class="title">Sign Up</h1>
             <p class="subtitle">Create your account and start managing notes</p>
@@ -240,13 +344,15 @@
             <div class="form-group">
                 <label>Select Your Role</label>
                 <div class="role-selector">
-                    <div class="role-option">
+                    <div class="role-option selected" onclick="document.getElementById('roleStudent').click()">
+                        <div class="role-icon">👨‍🎓</div>
                         <input type="radio" id="roleStudent" name="role" value="student" required checked>
-                        <label for="roleStudent">👨‍🎓 Student</label>
+                        <label for="roleStudent">Student</label>
                     </div>
-                    <div class="role-option">
+                    <div class="role-option" onclick="document.getElementById('roleStaff').click()">
+                        <div class="role-icon">👨‍🏫</div>
                         <input type="radio" id="roleStaff" name="role" value="staff" required>
-                        <label for="roleStaff">👨‍🏫 Staff</label>
+                        <label for="roleStaff">Staff</label>
                     </div>
                 </div>
             </div>
@@ -272,7 +378,7 @@
 
             <!-- Student-specific fields -->
             <div id="studentFields" class="role-fields show">
-                <p>Student Details</p>
+                <p><span>🎓</span> Academic Details</p>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="department">Department</label>
@@ -306,7 +412,10 @@
 
             <!-- Staff-specific fields -->
             <div id="staffFields" class="role-fields">
-                <p>⏳ Note: Staff accounts require admin approval before activation</p>
+                <p><span>⏳</span> Verification Required</p>
+                <div style="font-size: 13px; color: rgba(255, 255, 255, 0.6); line-height: 1.6;">
+                    Staff accounts must be verified by an administrator before you can upload notes.
+                </div>
             </div>
 
             <div class="error-message" id="signupError"></div>
@@ -347,21 +456,34 @@
         roleInputs.forEach(input => {
             input.addEventListener('change', (e) => {
                 const role = e.target.value;
-                const emailNote = document.getElementById('emailNote');
+                const emailNoteField = document.getElementById('emailNote');
+
+                // Update UI selection
+                document.querySelectorAll('.role-option').forEach(opt => opt.classList.remove('selected'));
+                e.target.closest('.role-option').classList.add('selected');
+
                 if (role === 'student') {
                     studentFields.classList.add('show');
                     staffFields.classList.remove('show');
                     departmentInput.required = true;
                     semesterInput.required = true;
-                    emailNote.textContent = '(Must be @rajalakshmi.edu.in)';
+                    emailNoteField.textContent = '(Must be @rajalakshmi.edu.in)';
                 } else if (role === 'staff') {
                     studentFields.classList.remove('show');
                     staffFields.classList.add('show');
                     departmentInput.required = false;
                     semesterInput.required = false;
-                    emailNote.textContent = '';
+                    emailNoteField.textContent = '';
                 }
             });
+        });
+
+        // Initial state
+        window.addEventListener('load', () => {
+            const emailNoteField = document.getElementById('emailNote');
+            if (document.getElementById('roleStudent').checked) {
+                emailNoteField.textContent = '(Must be @rajalakshmi.edu.in)';
+            }
         });
 
         signupForm.addEventListener('submit', async (e) => {
@@ -439,8 +561,16 @@
                     ? 'Registration successful! Awaiting admin approval. Redirecting...'
                     : 'Account created successfully! Redirecting...';
                 showSuccess(message);
+
                 setTimeout(() => {
-                    window.location.href = 'index.html';
+                    if (data.user.role === 'student') {
+                        window.location.href = 'faculty-browse.html';
+                    } else if (data.user.role === 'staff') {
+                        // Redirect to portal which handles pending state
+                        window.location.href = 'staff-upload.html';
+                    } else {
+                        window.location.href = 'login.html';
+                    }
                 }, 1500);
             } catch (error) {
                 console.error('Signup error:', error);

@@ -101,12 +101,31 @@ app.post('/api/auth/signup', async (req, res) => {
             });
         }
 
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 6 characters'
+            });
+        }
+
+        if (role === 'student' && (!department || !semester)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Department and semester are required for students'
+            });
+        }
+
         // Check if email already exists
-        const { data: existingUser } = await supabase
+        const { data: existingUser, error: checkError } = await supabase
             .from('users')
             .select('id')
             .eq('email', email.toLowerCase())
-            .single();
+            .maybeSingle(); // Better than single() for existence check
+
+        if (checkError) {
+            console.error('Email check error:', checkError);
+            throw checkError;
+        }
 
         if (existingUser) {
             return res.status(400).json({
@@ -128,13 +147,14 @@ app.post('/api/auth/signup', async (req, res) => {
                 password: hashedPassword,
                 role,
                 department: role === 'student' ? department : null,
-                semester: role === 'student' ? semester : null,
+                semester: role === 'student' ? parseInt(semester) : null,
                 is_approved: role === 'staff' ? false : true
             })
-            .select()
+            .select('*')
             .single();
 
         if (userError) {
+            console.error('User creation error:', userError);
             throw userError;
         }
 
@@ -166,7 +186,8 @@ app.post('/api/auth/signup', async (req, res) => {
                 id: newUser.id,
                 name: newUser.name,
                 email: newUser.email,
-                role: newUser.role
+                role: newUser.role,
+                isApproved: newUser.is_approved
             }
         });
     } catch (error) {
@@ -248,7 +269,8 @@ app.post('/api/auth/login', async (req, res) => {
                 id: user.id,
                 name: user.name,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                isApproved: user.is_approved
             }
         });
     } catch (error) {

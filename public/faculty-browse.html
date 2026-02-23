@@ -5,10 +5,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browse Faculty - Notezilla</title>
+    <link rel="icon" type="image/svg+xml" href="images/notezilla-logo.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-light: #8b5cf6;
+            --dark: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -17,7 +26,8 @@
 
         body {
             font-family: 'Outfit', sans-serif;
-            background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%);
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            color: white;
             min-height: 100vh;
             padding: 20px;
         }
@@ -28,249 +38,239 @@
         }
 
         .navbar {
-            background: white;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
             padding: 16px 24px;
-            border-radius: 12px;
+            border-radius: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
 
-        .logo {
-            font-size: 20px;
-            font-weight: 700;
-            color: #6366f1;
+        .logo img {
+            height: 36px;
+            filter: brightness(0) invert(1);
         }
 
         .nav-links {
             display: flex;
-            gap: 20px;
+            gap: 24px;
             align-items: center;
         }
 
         .nav-links a {
-            color: #64748b;
+            color: rgba(255, 255, 255, 0.6);
             text-decoration: none;
             font-size: 14px;
             font-weight: 500;
-            transition: color 0.3s;
+            transition: 0.3s;
         }
 
         .nav-links a:hover {
-            color: #6366f1;
-        }
-
-        .user-menu {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            color: white;
         }
 
         .btn-logout {
             padding: 8px 16px;
-            background: #ef4444;
+            background: rgba(239, 68, 68, 0.2);
             color: white;
-            border: none;
-            border-radius: 6px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: 0.3s;
         }
 
         .btn-logout:hover {
-            background: #dc2626;
+            background: #ef4444;
         }
 
         .header {
-            margin-bottom: 30px;
+            margin-bottom: 40px;
+            text-align: center;
         }
 
         .header h1 {
-            font-size: 32px;
-            color: #1e293b;
-            margin-bottom: 8px;
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: linear-gradient(to right, #fff, var(--primary-light));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .header p {
-            color: #64748b;
-            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 16px;
         }
 
         .search-bar {
             display: flex;
-            gap: 12px;
-            margin-bottom: 30px;
+            gap: 16px;
+            margin-bottom: 40px;
+            background: var(--card-bg);
+            padding: 8px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
         }
 
         .search-bar input {
             flex: 1;
-            padding: 12px 16px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-family: 'Outfit', sans-serif;
-            font-size: 14px;
-            transition: all 0.3s;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-family: inherit;
+            font-size: 15px;
         }
 
         .search-bar input:focus {
             outline: none;
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
 
         .filter-select {
-            padding: 12px 16px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-family: 'Outfit', sans-serif;
-            font-size: 14px;
-            background: white;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: white;
+            font-family: inherit;
             cursor: pointer;
-            transition: all 0.3s;
         }
 
-        .filter-select:focus {
-            outline: none;
-            border-color: #6366f1;
+        .filter-select option {
+            background: #0f172a;
         }
 
         .faculty-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
             margin-bottom: 40px;
         }
 
         .faculty-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            transition: 0.3s;
             cursor: pointer;
+            backdrop-filter: blur(10px);
         }
 
         .faculty-card:hover {
-            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
-            transform: translateY(-4px);
+            transform: translateY(-8px);
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         }
 
         .faculty-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 24px;
-            margin-bottom: 12px;
+            font-size: 28px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.2);
         }
 
         .faculty-name {
-            font-size: 16px;
-            font-weight: 600;
-            color: #1e293b;
+            font-size: 18px;
+            font-weight: 700;
             margin-bottom: 4px;
         }
 
         .faculty-email {
-            font-size: 12px;
-            color: #64748b;
-            margin-bottom: 12px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 20px;
         }
 
         .faculty-rating {
             display: flex;
             align-items: center;
-            gap: 4px;
-            margin-bottom: 12px;
-            font-size: 13px;
-            color: #f59e0b;
+            gap: 6px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            color: #fbbf24;
         }
 
         .faculty-subjects {
-            font-size: 12px;
-            color: #64748b;
-            margin-bottom: 12px;
-            line-height: 1.5;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 24px;
+            line-height: 1.6;
         }
 
         .faculty-subjects strong {
-            color: #1e293b;
+            color: white;
         }
 
         .btn-view {
             width: 100%;
-            padding: 10px;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
             color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: 0.3s;
         }
 
-        .btn-view:hover {
-            transform: scale(1.02);
+        .faculty-card:hover .btn-view {
+            background: var(--primary);
+            border-color: var(--primary);
         }
 
         .sections-tabs {
             display: flex;
-            gap: 12px;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 16px;
+            gap: 32px;
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0;
         }
 
         .tab {
-            padding: 8px 16px;
+            padding: 16px 8px;
             background: none;
             border: none;
-            font-family: 'Outfit', sans-serif;
-            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
             font-weight: 600;
-            color: #94a3b8;
             cursor: pointer;
-            transition: all 0.3s;
             border-bottom: 3px solid transparent;
-            margin-bottom: -19px;
-            padding-bottom: 16px;
+            transition: 0.3s;
         }
 
         .tab.active {
-            color: #6366f1;
-            border-bottom-color: #6366f1;
+            color: var(--primary-light);
+            border-bottom-color: var(--primary-light);
         }
 
         .loading {
             text-align: center;
-            padding: 40px;
-            color: #64748b;
-        }
-
-        .error-message {
-            background: #fee2e2;
-            color: #991b1b;
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            padding: 60px;
+            color: rgba(255, 255, 255, 0.4);
         }
 
         .empty-state {
             text-align: center;
-            padding: 60px 20px;
-            color: #94a3b8;
-        }
-
-        .empty-state p {
-            margin-bottom: 20px;
+            padding: 80px 20px;
+            background: var(--card-bg);
+            border-radius: 24px;
+            border: 1px dashed var(--border);
+            color: rgba(255, 255, 255, 0.4);
         }
     </style>
 </head>
@@ -279,7 +279,7 @@
     <div class="container">
         <!-- Navbar -->
         <div class="navbar">
-            <div class="logo"><img src="/images/notezilla-logo.svg" alt="Notezilla" style="height:36px;"></div>
+            <div class="logo"><img src="images/notezilla-logo.svg" alt="Notezilla" style="height:36px;"></div>
             <div class="nav-links">
                 <a href="#bookmarks">My Bookmarks</a>
                 <div class="user-menu">
@@ -401,7 +401,7 @@
             }
 
             grid.innerHTML = faculty.map(f => `
-                <div class="faculty-card" onclick="viewFacultyProfile('${f._id}')">
+                <div class="faculty-card" onclick="viewFacultyProfile('${f.id}')">
                     <div class="faculty-avatar">👨‍🏫</div>
                     <div class="faculty-name">${f.name || 'Unknown'}</div>
                     <div class="faculty-email">${f.email || ''}</div>
@@ -425,7 +425,7 @@
             }
 
             grid.innerHTML = subjects.map(s => `
-                <div class="faculty-card" onclick="viewSubject('${s._id}')">
+                <div class="faculty-card" onclick="viewSubject('${s.id}')">
                     <div class="faculty-avatar">📚</div>
                     <div class="faculty-name">${s.name}</div>
                     <div class="faculty-email">${s.code}</div>
@@ -449,7 +449,7 @@
             }
 
             grid.innerHTML = notes.map(n => `
-                <div class="faculty-card" onclick="viewNote('${n._id}')">
+                <div class="faculty-card" onclick="viewNote('${n.id}', '${n.fileUrl}')">
                     <div class="faculty-avatar">📄</div>
                     <div class="faculty-name">${n.title}</div>
                     <div class="faculty-email">Unit ${n.unit} · Semester ${n.semester}</div>
@@ -514,20 +514,27 @@
         }
 
         function viewFacultyProfile(facultyId) {
-            // Store for next page
             localStorage.setItem('selectedFacultyId', facultyId);
-            // In real app, navigate to faculty-detail.html
-            alert('Faculty Detail Page - Coming Soon');
+            window.location.href = 'faculty-detail.html';
         }
 
         function viewSubject(subjectId) {
             localStorage.setItem('selectedSubjectId', subjectId);
-            alert('Subject Detail Page - Coming Soon');
+            // In real app, navigate to subject-detail.html
+            alert('Subject Details - Filtering notes for this subject');
+            document.getElementById('searchInput').value = '';
+            switchTab('notes');
         }
 
-        function viewNote(noteId) {
+        function viewNote(noteId, url) {
             localStorage.setItem('selectedNoteId', noteId);
-            alert('Note Viewer - Coming Soon');
+            if (url && url !== 'undefined') {
+                // Track download
+                fetch(`${API_URL}/notes/${noteId}/download`, { method: 'POST' });
+                window.open(url, '_blank');
+            } else {
+                alert('Notes file not available');
+            }
         }
 
         function showError(message) {
