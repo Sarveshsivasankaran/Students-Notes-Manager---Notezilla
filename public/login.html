@@ -135,7 +135,8 @@
             font-weight: 700;
         }
 
-        .divider::before, .divider::after {
+        .divider::before,
+        .divider::after {
             content: '';
             flex: 1;
             height: 1px;
@@ -184,14 +185,40 @@
         }
 
         @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
         }
 
-        @supports (-webkit-backdrop-filter: none) {
+        @supports (-webkit-backdrop-filter: none) or (backdrop-filter: none) {
             .container {
                 -webkit-backdrop-filter: blur(20px);
+                backdrop-filter: blur(20px);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+                border: none;
+                border-radius: 0;
+            }
+
+            body {
+                padding: 0;
+                display: block;
+            }
+
+            .header h1 {
+                font-size: 28px;
             }
         }
     </style>
@@ -201,7 +228,8 @@
     <div class="container">
         <div class="header">
             <div class="logo-section">
-                <img src="images/notezilla-logo.PNG" alt="Notezilla" style="width:160px; filter: brightness(0) invert(1);">
+                <img src="images/notezilla-logo.PNG" alt="Notezilla"
+                    style="width:160px; filter: brightness(0) invert(1);">
             </div>
             <h1 class="title">Login</h1>
             <p class="subtitle">Welcome back!</p>
@@ -245,7 +273,7 @@
         var passwordError = document.getElementById('passwordError');
         var loading = document.getElementById('loading');
 
-        loginForm.addEventListener('submit', async function(e) {
+        loginForm.addEventListener('submit', async function (e) {
             e.preventDefault();
             clearErrors();
 
@@ -281,7 +309,7 @@
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
 
-                setTimeout(function() {
+                setTimeout(function () {
                     if (data.user.role === 'student') {
                         window.location.href = 'faculty-browse.html';
                     } else if (data.user.role === 'staff') {
@@ -301,7 +329,7 @@
 
         function clearErrors() {
             var elements = [emailError, passwordError, loginError];
-            elements.forEach(function(el) {
+            elements.forEach(function (el) {
                 el.textContent = '';
                 el.classList.remove('show');
             });

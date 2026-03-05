@@ -272,6 +272,61 @@
             border: 1px dashed var(--border);
             color: rgba(255, 255, 255, 0.4);
         }
+
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                gap: 16px;
+                padding: 16px;
+                text-align: center;
+            }
+
+            .nav-links {
+                flex-direction: column;
+                gap: 12px;
+                width: 100%;
+            }
+
+            .user-menu {
+                justify-content: center;
+                flex-direction: column;
+                gap: 12px;
+                width: 100%;
+            }
+
+            .search-bar {
+                flex-direction: column;
+            }
+
+            .sections-tabs {
+                flex-direction: column;
+                gap: 8px;
+                border-bottom: none;
+            }
+
+            .tab {
+                width: 100%;
+                border-bottom: 1px solid var(--border);
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.02);
+            }
+
+            .tab.active {
+                background: rgba(99, 102, 241, 0.1);
+            }
+
+            .faculty-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 28px;
+            }
+
+            .header p {
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 
@@ -279,7 +334,8 @@
     <div class="container">
         <!-- Navbar -->
         <div class="navbar">
-            <div class="logo"><img src="images/notezilla-logo.PNG" alt="Notezilla" style="height:36px;"></div>
+            <div class="logo"><img src="images/notezilla-logo.PNG" alt="Notezilla" style="width:120px; height:70px;">
+            </div>
             <div class="nav-links">
                 <a href="#bookmarks">My Bookmarks</a>
                 <div class="user-menu">
@@ -291,7 +347,7 @@
 
         <!-- Header -->
         <div class="header">
-            <h1>👨‍🏫 Browse Faculty</h1>
+            <span>👨‍🏫<h1>Browse Faculty</h1> </span>
             <p>Explore faculty profiles and access their course materials</p>
         </div>
 

@@ -232,6 +232,7 @@
                 grid-template-columns: 1fr;
                 text-align: center;
                 gap: 24px;
+                padding: 24px;
             }
 
             .profile-avatar {
@@ -240,10 +241,21 @@
 
             .profile-stats {
                 justify-content: center;
+                flex-wrap: wrap;
             }
 
             .stat-item {
                 text-align: center;
+            }
+
+            .navbar {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+
+            .notes-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>

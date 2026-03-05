@@ -97,7 +97,8 @@
             letter-spacing: 0.05em;
         }
 
-        input, select {
+        input,
+        select {
             width: 100%;
             padding: 9px 10px;
             background: rgba(255, 255, 255, 0.05);
@@ -109,7 +110,8 @@
             transition: 0.3s;
         }
 
-        input:focus, select:focus {
+        input:focus,
+        select:focus {
             outline: none;
             border-color: var(--primary);
             background: rgba(255, 255, 255, 0.08);
@@ -157,7 +159,8 @@
             font-weight: 700;
         }
 
-        .divider::before, .divider::after {
+        .divider::before,
+        .divider::after {
             content: '';
             flex: 1;
             height: 1px;
@@ -176,7 +179,9 @@
             font-weight: 700;
         }
 
-        .error-message, .success-message, .loading {
+        .error-message,
+        .success-message,
+        .loading {
             font-size: 11px;
             padding: 8px;
             margin-bottom: 8px;
@@ -202,7 +207,9 @@
             font-weight: 500;
         }
 
-        .error-message.show, .success-message.show, .loading.show {
+        .error-message.show,
+        .success-message.show,
+        .loading.show {
             display: block;
         }
 
@@ -211,9 +218,17 @@
         }
 
         @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
         }
 
         .role-selector {
@@ -278,8 +293,15 @@
         }
 
         @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-6px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .role-fields.show {
@@ -300,9 +322,31 @@
             margin-bottom: 6px;
         }
 
-        @supports (-webkit-backdrop-filter: none) {
+        @supports (-webkit-backdrop-filter: none) or (backdrop-filter: none) {
             .container {
                 -webkit-backdrop-filter: blur(20px);
+                backdrop-filter: blur(20px);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+                border: none;
+                border-radius: 0;
+            }
+
+            body {
+                padding: 0;
+                display: block;
+            }
+
+            .header h1 {
+                font-size: 28px;
+            }
+
+            .role-selector {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -312,7 +356,8 @@
     <div class="container">
         <div class="header">
             <div class="logo-section">
-                <img src="images/notezilla-logo.PNG" alt="Notezilla" style="width:160px; filter: brightness(0) invert(1);">
+                <img src="images/notezilla-logo.PNG" alt="Notezilla"
+                    style="width:160px; filter: brightness(0) invert(1);">
             </div>
             <h1 class="title">Sign Up</h1>
             <p class="subtitle">Create your account</p>
@@ -427,12 +472,12 @@
         const studentFields = document.getElementById('studentFields');
         const staffFields = document.getElementById('staffFields');
 
-        roleInputs.forEach(function(input) {
-            input.addEventListener('change', function(e) {
+        roleInputs.forEach(function (input) {
+            input.addEventListener('change', function (e) {
                 var role = e.target.value;
                 var emailNoteField = document.getElementById('emailNote');
 
-                document.querySelectorAll('.role-option').forEach(function(opt) {
+                document.querySelectorAll('.role-option').forEach(function (opt) {
                     opt.classList.remove('selected');
                 });
                 e.target.closest('.role-option').classList.add('selected');
@@ -453,14 +498,14 @@
             });
         });
 
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             var emailNoteField = document.getElementById('emailNote');
             if (document.getElementById('roleStudent').checked) {
                 emailNoteField.textContent = '(@rajalakshmi.edu.in)';
             }
         });
 
-        signupForm.addEventListener('submit', async function(e) {
+        signupForm.addEventListener('submit', async function (e) {
             e.preventDefault();
             clearErrors();
 
@@ -515,7 +560,7 @@
                     : 'Account created successfully!';
                 showSuccess(message);
 
-                setTimeout(function() {
+                setTimeout(function () {
                     if (data.user.role === 'student') {
                         window.location.href = 'faculty-browse.html';
                     } else if (data.user.role === 'staff') {
@@ -533,7 +578,7 @@
         });
 
         function clearErrors() {
-            [nameError, emailError, passwordError, signupError, signupSuccess].forEach(function(el) {
+            [nameError, emailError, passwordError, signupError, signupSuccess].forEach(function (el) {
                 el.textContent = '';
                 el.classList.remove('show');
             });

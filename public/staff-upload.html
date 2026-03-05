@@ -318,6 +318,36 @@
                 opacity: 0.5;
             }
         }
+
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                gap: 16px;
+                padding: 16px;
+                text-align: center;
+            }
+
+            .user-menu {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .note-type-selector {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                padding: 24px;
+            }
+
+            .header h1 {
+                font-size: 26px;
+            }
+        }
     </style>
 </head>
 
