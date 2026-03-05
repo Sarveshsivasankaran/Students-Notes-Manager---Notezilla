@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - Notezilla</title>
-    <link rel="icon" type="image/svg+xml" href="images/notezilla-logo.svg">
+    <link rel="icon" type="image/png" href="images/notezilla-logo.PNG">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -29,25 +29,25 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 16px;
         }
 
         .container {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
+            border-radius: 20px;
             width: 100%;
-            max-width: 450px;
-            padding: 40px;
+            max-width: 400px;
+            padding: 24px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            max-height: 90vh;
+            max-height: 95vh;
             overflow-y: auto;
         }
 
-        /* Custom Scrollbar for the glass container */
         .container::-webkit-scrollbar {
-            width: 6px;
+            width: 4px;
         }
 
         .container::-webkit-scrollbar-track {
@@ -56,69 +56,66 @@
 
         .container::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
+            border-radius: 8px;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 16px;
         }
 
         .logo-section img {
-            width: 150px;
+            width: 120px;
             display: block;
-            margin: 0 auto 8px;
+            margin: 0 auto 4px;
             filter: brightness(0) invert(1);
         }
 
         .title {
-            font-size: 28px;
+            font-size: 22px;
             font-weight: 700;
             color: #ffffff;
-            margin-bottom: 8px;
+            margin-bottom: 2px;
         }
 
         .subtitle {
-            font-size: 14px;
+            font-size: 12px;
             color: rgba(255, 255, 255, 0.5);
         }
 
         .form-group {
-            margin-bottom: 18px;
+            margin-bottom: 10px;
         }
 
         label {
             display: block;
-            font-size: 13px;
+            font-size: 10px;
             font-weight: 600;
             color: rgba(255, 255, 255, 0.8);
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
 
-        input,
-        select {
+        input, select {
             width: 100%;
-            padding: 12px 14px;
+            padding: 9px 10px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            font-size: 14px;
+            border-radius: 8px;
+            font-size: 13px;
             color: white;
             font-family: inherit;
             transition: 0.3s;
         }
 
-        input:focus,
-        select:focus {
+        input:focus, select:focus {
             outline: none;
             border-color: var(--primary);
             background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
         }
 
-        /* Select styling fix for dark background */
         option {
             background: #1e1b4b;
             color: white;
@@ -127,41 +124,40 @@
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 8px;
         }
 
         .btn-signup {
             width: 100%;
-            padding: 14px;
+            padding: 10px;
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 16px;
+            border-radius: 8px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: 0.3s;
-            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);
-            margin-top: 10px;
+            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.2);
+            margin-top: 4px;
         }
 
         .btn-signup:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
         }
 
         .divider {
-            margin: 25px 0;
+            margin: 12px 0;
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
             color: rgba(255, 255, 255, 0.2);
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
         }
 
-        .divider::before,
-        .divider::after {
+        .divider::before, .divider::after {
             content: '';
             flex: 1;
             height: 1px;
@@ -170,7 +166,7 @@
 
         .login-link {
             text-align: center;
-            font-size: 14px;
+            font-size: 12px;
             color: rgba(255, 255, 255, 0.5);
         }
 
@@ -180,96 +176,76 @@
             font-weight: 700;
         }
 
-        .error-message {
-            color: #fb7185;
-            font-size: 13px;
-            margin-bottom: 20px;
-            display: none;
-            padding: 12px;
-            background: rgba(251, 113, 133, 0.1);
-            border-radius: 8px;
+        .error-message, .success-message, .loading {
+            font-size: 11px;
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 6px;
             text-align: center;
         }
 
-        .error-message.show {
-            display: block;
+        .error-message {
+            color: #fb7185;
+            display: none;
+            background: rgba(251, 113, 133, 0.1);
         }
 
         .success-message {
             color: #22c55e;
-            font-size: 13px;
-            margin-bottom: 20px;
             display: none;
-            padding: 12px;
             background: rgba(34, 197, 94, 0.1);
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .success-message.show {
-            display: block;
         }
 
         .loading {
             display: none;
-            text-align: center;
             color: var(--primary-light);
-            font-size: 14px;
-            margin-bottom: 15px;
             font-weight: 500;
-            animation: pulse 1.5s infinite;
         }
 
-        .loading.show {
+        .error-message.show, .success-message.show, .loading.show {
             display: block;
         }
 
+        .loading.show {
+            animation: pulse 1.5s infinite;
+        }
+
         @keyframes pulse {
-            0% {
-                opacity: 0.5;
-            }
-
-            50% {
-                opacity: 1;
-            }
-
-            100% {
-                opacity: 0.5;
-            }
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
         }
 
         .role-selector {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: 8px;
+            margin-bottom: 12px;
         }
 
         .role-option {
             position: relative;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 16px;
+            border-radius: 10px;
+            padding: 8px;
             text-align: center;
             cursor: pointer;
             transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 2px;
         }
 
         .role-option:hover {
             background: rgba(255, 255, 255, 0.06);
             border-color: rgba(99, 102, 241, 0.4);
-            transform: translateY(-2px);
         }
 
         .role-option.selected {
             background: rgba(99, 102, 241, 0.1);
             border-color: var(--primary);
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
         }
 
         .role-option input {
@@ -279,8 +255,7 @@
         }
 
         .role-icon {
-            font-size: 24px;
-            margin-bottom: 4px;
+            font-size: 18px;
         }
 
         .role-option label {
@@ -288,30 +263,23 @@
             color: white;
             cursor: pointer;
             text-transform: none;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
         }
 
         .role-fields {
             background: rgba(255, 255, 255, 0.02);
-            padding: 24px;
-            border-radius: 20px;
+            padding: 10px;
+            border-radius: 10px;
             display: none;
-            margin-bottom: 24px;
+            margin-bottom: 10px;
             border: 1px solid rgba(255, 255, 255, 0.05);
-            animation: slideDown 0.4s ease-out;
+            animation: slideDown 0.3s ease-out;
         }
 
         @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .role-fields.show {
@@ -319,13 +287,23 @@
         }
 
         .role-fields p {
-            font-size: 13px;
+            font-size: 11px;
             color: var(--primary-light);
-            margin-bottom: 16px;
+            margin-bottom: 6px;
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
+        }
+
+        .role-fields .form-group {
+            margin-bottom: 6px;
+        }
+
+        @supports (-webkit-backdrop-filter: none) {
+            .container {
+                -webkit-backdrop-filter: blur(20px);
+            }
         }
     </style>
 </head>
@@ -334,15 +312,15 @@
     <div class="container">
         <div class="header">
             <div class="logo-section">
-                <img src="images/notezilla-logo.svg" alt="Notezilla">
+                <img src="images/notezilla-logo.PNG" alt="Notezilla">
             </div>
             <h1 class="title">Sign Up</h1>
-            <p class="subtitle">Create your account and start managing notes</p>
+            <p class="subtitle">Create your account</p>
         </div>
 
         <form id="signupForm">
             <div class="form-group">
-                <label>Select Your Role</label>
+                <label>Select Role</label>
                 <div class="role-selector">
                     <div class="role-option selected" onclick="document.getElementById('roleStudent').click()">
                         <div class="role-icon">👨‍🎓</div>
@@ -364,8 +342,7 @@
             </div>
 
             <div class="form-group">
-                <label for="email">Email Address <span id="emailNote"
-                        style="font-size: 12px; color: #6366f1;"></span></label>
+                <label for="email">Email <span id="emailNote" style="font-size: 10px; color: #6366f1;"></span></label>
                 <input type="email" id="email" name="email" placeholder="Enter your email" required>
                 <div class="error-message" id="emailError"></div>
             </div>
@@ -376,14 +353,13 @@
                 <div class="error-message" id="passwordError"></div>
             </div>
 
-            <!-- Student-specific fields -->
             <div id="studentFields" class="role-fields show">
-                <p><span>🎓</span> Academic Details</p>
+                <p>🎓 Academic Details</p>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="department">Department</label>
                         <select id="department" name="department">
-                            <option value="">Select Department</option>
+                            <option value="">Select</option>
                             <option value="CSE">CSE</option>
                             <option value="ECE">ECE</option>
                             <option value="EEE">EEE</option>
@@ -396,7 +372,7 @@
                     <div class="form-group">
                         <label for="semester">Semester</label>
                         <select id="semester" name="semester">
-                            <option value="">Select Semester</option>
+                            <option value="">Select</option>
                             <option value="1">1st</option>
                             <option value="2">2nd</option>
                             <option value="3">3rd</option>
@@ -410,17 +386,16 @@
                 </div>
             </div>
 
-            <!-- Staff-specific fields -->
             <div id="staffFields" class="role-fields">
-                <p><span>⏳</span> Verification Required</p>
-                <div style="font-size: 13px; color: rgba(255, 255, 255, 0.6); line-height: 1.6;">
+                <p>⏳ Verification Required</p>
+                <div style="font-size: 11px; color: rgba(255, 255, 255, 0.6); line-height: 1.5;">
                     Staff accounts must be verified by an administrator before you can upload notes.
                 </div>
             </div>
 
             <div class="error-message" id="signupError"></div>
             <div class="success-message" id="signupSuccess"></div>
-            <div class="loading" id="loading">Creating your account...</div>
+            <div class="loading" id="loading">Creating account...</div>
 
             <button type="submit" class="btn-signup" id="submitBtn">Create Account</button>
         </form>
@@ -433,7 +408,7 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:5000/api';
+        const API_URL = '/api';
 
         const signupForm = document.getElementById('signupForm');
         const roleInputs = document.querySelectorAll('input[name="role"]');
@@ -452,14 +427,14 @@
         const studentFields = document.getElementById('studentFields');
         const staffFields = document.getElementById('staffFields');
 
-        // Role selector event listeners
-        roleInputs.forEach(input => {
-            input.addEventListener('change', (e) => {
-                const role = e.target.value;
-                const emailNoteField = document.getElementById('emailNote');
+        roleInputs.forEach(function(input) {
+            input.addEventListener('change', function(e) {
+                var role = e.target.value;
+                var emailNoteField = document.getElementById('emailNote');
 
-                // Update UI selection
-                document.querySelectorAll('.role-option').forEach(opt => opt.classList.remove('selected'));
+                document.querySelectorAll('.role-option').forEach(function(opt) {
+                    opt.classList.remove('selected');
+                });
                 e.target.closest('.role-option').classList.add('selected');
 
                 if (role === 'student') {
@@ -467,7 +442,7 @@
                     staffFields.classList.remove('show');
                     departmentInput.required = true;
                     semesterInput.required = true;
-                    emailNoteField.textContent = '(Must be @rajalakshmi.edu.in)';
+                    emailNoteField.textContent = '(@rajalakshmi.edu.in)';
                 } else if (role === 'staff') {
                     studentFields.classList.remove('show');
                     staffFields.classList.add('show');
@@ -478,72 +453,52 @@
             });
         });
 
-        // Initial state
-        window.addEventListener('load', () => {
-            const emailNoteField = document.getElementById('emailNote');
+        window.addEventListener('load', function() {
+            var emailNoteField = document.getElementById('emailNote');
             if (document.getElementById('roleStudent').checked) {
-                emailNoteField.textContent = '(Must be @rajalakshmi.edu.in)';
+                emailNoteField.textContent = '(@rajalakshmi.edu.in)';
             }
         });
 
-        signupForm.addEventListener('submit', async (e) => {
+        signupForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             clearErrors();
 
-            const name = nameInput.value.trim();
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-            const role = document.querySelector('input[name="role"]:checked').value;
-            const department = departmentInput.value;
-            const semester = semesterInput.value;
+            var name = nameInput.value.trim();
+            var email = emailInput.value.trim();
+            var password = passwordInput.value;
+            var role = document.querySelector('input[name="role"]:checked').value;
+            var department = departmentInput.value;
+            var semester = semesterInput.value;
 
-            // Validation
-            if (!name) {
-                showError('nameError', 'Please enter your name');
+            if (!name) { showError('nameError', 'Please enter your name'); return; }
+            if (!email) { showError('emailError', 'Please enter your email'); return; }
+            if (role === 'student' && email.indexOf('@rajalakshmi.edu.in') === -1) {
+                showError('emailError', 'Students must use @rajalakshmi.edu.in email');
                 return;
             }
-            if (!email) {
-                showError('emailError', 'Please enter your email');
-                return;
-            }
-            // Students must use @rajalakshmi.edu.in email
-            if (role === 'student' && !email.endsWith('@rajalakshmi.edu.in')) {
-                showError('emailError', 'Students must use @rajalakshmi.edu.in email address');
-                return;
-            }
-            if (password.length < 6) {
-                showError('passwordError', 'Password must be at least 6 characters');
-                return;
-            }
-            if (role === 'student' && !department) {
-                showError('signupError', 'Please select your department');
-                return;
-            }
-            if (role === 'student' && !semester) {
-                showError('signupError', 'Please select your semester');
-                return;
-            }
+            if (password.length < 6) { showError('passwordError', 'Password must be at least 6 characters'); return; }
+            if (role === 'student' && !department) { showError('signupError', 'Please select your department'); return; }
+            if (role === 'student' && !semester) { showError('signupError', 'Please select your semester'); return; }
 
             try {
                 submitBtn.disabled = true;
                 loading.classList.add('show');
 
-                const response = await fetch(`${API_URL}/auth/signup`, {
+                var response = await fetch(API_URL + '/auth/signup', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        name,
-                        email,
-                        password,
-                        role,
+                        name: name,
+                        email: email,
+                        password: password,
+                        role: role,
                         department: role === 'student' ? department : null,
                         semester: role === 'student' ? parseInt(semester) : null
                     })
                 });
 
-                const data = await response.json();
+                var data = await response.json();
 
                 if (!data.success) {
                     showError('signupError', data.message);
@@ -552,21 +507,18 @@
                     return;
                 }
 
-                // Save token and user info
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
 
-                // Show success and redirect
-                const message = role === 'staff'
-                    ? 'Registration successful! Awaiting admin approval. Redirecting...'
-                    : 'Account created successfully! Redirecting...';
+                var message = role === 'staff'
+                    ? 'Registration successful! Awaiting admin approval.'
+                    : 'Account created successfully!';
                 showSuccess(message);
 
-                setTimeout(() => {
+                setTimeout(function() {
                     if (data.user.role === 'student') {
                         window.location.href = 'faculty-browse.html';
                     } else if (data.user.role === 'staff') {
-                        // Redirect to portal which handles pending state
                         window.location.href = 'staff-upload.html';
                     } else {
                         window.location.href = 'login.html';
@@ -581,20 +533,20 @@
         });
 
         function clearErrors() {
-            [nameError, emailError, passwordError, signupError, signupSuccess].forEach(el => {
+            [nameError, emailError, passwordError, signupError, signupSuccess].forEach(function(el) {
                 el.textContent = '';
                 el.classList.remove('show');
             });
         }
 
         function showError(elementId, message) {
-            const el = document.getElementById(elementId);
+            var el = document.getElementById(elementId);
             el.textContent = message;
             el.classList.add('show');
         }
 
         function showSuccess(message) {
-            const el = document.getElementById('signupSuccess');
+            var el = document.getElementById('signupSuccess');
             el.textContent = message;
             el.classList.add('show');
         }

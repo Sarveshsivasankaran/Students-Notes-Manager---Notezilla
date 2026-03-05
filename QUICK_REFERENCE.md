@@ -2,18 +2,19 @@
 
 ## 🚀 Start (60 seconds)
 
-```bash
+```
+bash
 npm install
 npm start
-# Open http://localhost:3000/public/signup.html
+# Open http://localhost:5000/public/signup.html
 ```
 
 ## 👥 User Roles
 
 | Role | Signup | Approval | Can Do |
 |------|--------|----------|--------|
-| **Student** | ✅ Email + dept + sem | ✅ Auto | Browse, rate, bookmark notes |
-| **Staff** | ✅ Email only | ⏳ Admin | Upload notes (after approval) |
+| **Student** | ✅ @rajalakshmi.edu.in + dept + sem | ✅ Auto | Browse, rate, bookmark notes |
+| **Staff** | ✅ Any email | ⏳ Admin | Upload notes (after approval) |
 | **Admin** | ❌ Manual only | ✅ Auto | Approve staff, verify notes, view stats |
 
 ## 🗂️ Database
@@ -48,7 +49,7 @@ GET    /api/notes              # Search notes
 ```
 POST   /api/ratings            # Rate note
 POST   /api/bookmarks          # Save note
-DELETE /api/bookmarks/{id}     # Unsave note
+DELETE /api/bookmarks/:noteId  # Unsave note
 ```
 
 ### Staff Upload
@@ -60,10 +61,10 @@ POST   /api/notes/:id/download # Track downloads
 
 ### Admin
 ```
-GET    /api/admin/pending-staff     # Pending approvals
-POST   /api/admin/approve-staff/:id # Approve account
-GET    /api/admin/pending-notes     # Unverified content
-POST   /api/admin/verify-note/:id   # Publish note
+GET    /api/admin/pending-staff      # Pending approvals
+POST   /api/admin/approve-staff/:id  # Approve account
+GET    /api/admin/pending-notes      # Unverified content
+POST   /api/admin/verify-note/:id    # Publish note
 ```
 
 ## 📄 Pages
@@ -73,8 +74,11 @@ POST   /api/admin/verify-note/:id   # Publish note
 | Signup | `/public/signup.html` | New users | Register with role selection |
 | Login | `/public/login.html` | All | Get authentication token |
 | Browse | `/public/faculty-browse.html` | Students | Discover faculty, subjects, notes |
+| Faculty Detail | `/public/faculty-detail.html` | Students | View faculty profile and notes |
+| Note Detail | `/public/note-detail.html` | Students | View note with ratings |
 | Upload | `/public/staff-upload.html` | Faculty | Submit course materials |
-| Dashboard | `/index.html` | All | Main hub (legacy) |
+| Admin | `/public/admin.html` | Admin | Approve and verify |
+| Landing | `/public/index.html` | All | Landing page |
 
 ## 🎨 Colors & Theme
 
@@ -83,16 +87,19 @@ POST   /api/admin/verify-note/:id   # Publish note
 - Success: `#22c55e` (Green)
 - Error: `#ef4444` (Red)
 - Font: Outfit (Google Fonts)
-- Icons: Lucide (CDN)
 
 ## 🔒 Authentication
 
-```javascript
+```
+javascript
 // Login
-const token = await fetch('/api/auth/login', {
+const response = await fetch('/api/auth/login', {
   method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email, password })
 });
+const data = await response.json();
+const token = data.token;
 
 // Use token
 headers: { 'Authorization': `Bearer ${token}` }
@@ -112,9 +119,9 @@ Student/Faculty
     ↓
 Upload/Select File
     ↓
-Cloud Storage (S3/Firebase)
+Cloud Storage (S3/Firebase/Supabase Storage)
     ↓
-Store URL in MongoDB
+Store URL in Supabase PostgreSQL
     ↓
 Admin Verification
     ↓
@@ -128,29 +135,35 @@ Visible to Students
 3. **Tokens**: Expire in 7 days
 4. **Staff**: Blocked until admin approves
 5. **Notes**: Hidden until admin verifies
+6. **Students**: Must use @rajalakshmi.edu.in email
 
 ## 🐛 Common Issues
 
 | Issue | Solution |
 |-------|----------|
-| MongoDB error | Ensure `mongod` running or check Atlas connection |
+| Supabase error | Check SUPABASE_URL and SUPABASE_ANON_KEY in .env |
+| Table not found | Run SUPABASE_SCHEMA.sql in Supabase SQL Editor |
 | CORS error | Update origin in `app.use(cors())` |
 | Token invalid | Login again, token expired |
 | Cannot upload | Only staff can upload, must be approved |
 | Note not visible | Admin must verify before publication |
+| Student email rejected | Students must use @rajalakshmi.edu.in |
 
 ## 📝 Environment (.env)
 
-```env
-MONGODB_URI=mongodb://localhost:27017/notezilla
+```
+env
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
 JWT_SECRET=your_secret_key_here
 NODE_ENV=development
-PORT=3000
+PORT=5000
 ```
 
 ## ✅ Test Checklist
 
-- [ ] Student signup with department/semester
+- [ ] Student signup with @rajalakshmi.edu.in email
+- [ ] Staff signup with any email
 - [ ] Staff signup and wait for approval
 - [ ] Admin approves staff
 - [ ] Staff uploads note
@@ -164,6 +177,7 @@ PORT=3000
 ## 🎯 MVP Complete
 
 ✅ Authentication (3 roles)
+✅ Email domain validation (@rajalakshmi.edu.in)
 ✅ Faculty profiles
 ✅ Subject browsing
 ✅ Note uploads
@@ -176,13 +190,11 @@ PORT=3000
 ## 🚀 Deploy Checklist
 
 - [ ] Change JWT_SECRET
-- [ ] Use MongoDB Atlas
-- [ ] Configure AWS S3/Firebase
+- [ ] Use Supabase (not local)
+- [ ] Configure storage (Supabase Storage or S3)
 - [ ] Enable HTTPS
-- [ ] Create first admin
+- [ ] Create first admin manually in Supabase
 - [ ] Test all workflows
-- [ ] Setup error logging
-- [ ] Configure email (optional)
 
 ## 📱 Responsive Breakpoints
 
@@ -195,7 +207,7 @@ All pages auto-adapt ✨
 ## 🎓 Learning Paths
 
 ### Student:
-1. Sign up → Browse faculty → Explore subjects → Download notes → Rate → Bookmark
+1. Sign up with @rajalakshmi.edu.in → Browse faculty → Explore subjects → Download notes → Rate → Bookmark
 
 ### Staff:
 1. Sign up → Wait approval → Login → Upload notes → Track downloads → See ratings
@@ -205,4 +217,4 @@ All pages auto-adapt ✨
 
 ---
 
-**Questions?** Check SETUP.md for complete API documentation and examples.
+**Questions?** Check README.md or GET_STARTED.md for complete setup instructions.

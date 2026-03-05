@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note Details - Notezilla</title>
+    <link rel="icon" type="image/svg+xml" href="images/notezilla-logo.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-light: #8b5cf6;
+            --dark: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.1);
+            --success: #22c55e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            padding: 16px 24px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .logo img {
+            height: 32px;
+            filter: brightness(0) invert(1);
+        }
+
+        .back-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255, 255, 255, 0.5);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            transition: 0.3s;
+        }
+
+        .back-link:hover {
+            color: white;
+            transform: translateX(-4px);
+        }
+
+        .note-header {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+
+        .note-type-badge {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 12px;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary-light);
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .note-title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+
+        .note-meta {
+            display: flex;
+            gap: 24px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .note-actions {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: 0.3s;
+            font-family: inherit;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+        }
+
+        .btn-bookmark {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border: 1px solid var(--border);
+        }
+
+        .btn-bookmark.bookmarked {
+            background: rgba(251, 191, 36, 0.1);
+            border-color: #fbbf24;
+            color: #fbbf24;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Ratings Section */
+        .ratings-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .rating-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .rating-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .rating-value {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--primary-light);
+            display: block;
+        }
+
+        .rating-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .rating-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .rating-bar-fill {
+            height: 100%;
+            background: var(--primary-light);
+            border-radius: 4px;
+        }
+
+        /* Rating Form */
+        .rating-form {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .rating-form h3 {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .rating-group {
+            margin-bottom: 20px;
+        }
+
+        .rating-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 10px;
+        }
+
+        .star-rating {
+            display: flex;
+            gap: 8px;
+        }
+
+        .star {
+            font-size: 28px;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.2);
+            transition: 0.2s;
+        }
+
+        .star.active,
+        .star:hover {
+            color: #fbbf24;
+        }
+
+        .rating-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .rating-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .success-message {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 4px solid var(--success);
+            padding: 16px;
+            border-radius: 12px;
+            color: #86efac;
+            font-size: 14px;
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .rating-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .note-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Navbar -->
+        <nav class="navbar">
+            <a href="faculty-browse.html" class="logo">
+                <img src="images/notezilla-logo.svg" alt="Notezilla">
+            </a>
+            <div id="userDisplay" style="font-size: 14px; color: #64748b;"></div>
+        </nav>
+
+        <a href="javascript:history.back()" class="back-link">← Back to Previous</a>
+
+        <!-- Note Header -->
+        <div id="noteHeader" class="note-header">
+            <div class="loading">Loading note details...</div>
+        </div>
+
+        <!-- Ratings Section -->
+        <div id="ratingsSection" class="ratings-section">
+            <h2 class="section-title">⭐ Ratings & Reviews</h2>
+            <div id="ratingStats"></div>
+            <div id="ratingFormContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Use relative API path for flexibility across environments
+        const API_URL = '/api';
+        const noteId = localStorage.getItem('selectedNoteId');
+
+        if (!noteId) {
+            window.location.href = 'faculty-browse.html';
+        }
+
+        let noteData = null;
+        let userRating = null;
+
+        window.addEventListener('load', async () => {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            document.getElementById('userDisplay').textContent = user.name || '';
+
+            if (user.role !== 'student') {
+                document.getElementById('ratingFormContainer').innerHTML = 
+                    '<div class="empty-state">Only students can submit ratings</div>';
+            }
+
+            await fetchNoteDetails();
+            await fetchRatings();
+            
+            if (user.role === 'student') {
+                renderRatingForm();
+            }
+        });
+
+        async function fetchNoteDetails() {
+            try {
+                const response = await fetch(`${API_URL}/notes/${noteId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    noteData = data.data;
+                    renderNoteHeader(noteData);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function fetchRatings() {
+            try {
+                const response = await fetch(`${API_URL}/ratings/note/${noteId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderRatingStats(data.data);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function renderNoteHeader(note) {
+            const header = document.getElementById('noteHeader');
+            header.innerHTML = `
+                <span class="note-type-badge">${note.type}</span>
+                <h1 class="note-title">${note.title}</h1>
+                <div class="note-meta">
+                    <span>📚 ${note.subjects?.name || 'Unknown'}</span>
+                    <span>👨‍🏫 ${note.faculty?.users?.name || 'Unknown'}</span>
+                    <span>📅 Unit ${note.unit} · Sem ${note.semester}</span>
+                    <span>📥 ${note.downloads || 0} downloads</span>
+                </div>
+                <div class="note-actions">
+                    <button class="btn btn-download" onclick="downloadNote()">
+                        📥 Download PDF
+                    </button>
+                    <button class="btn btn-bookmark" id="bookmarkBtn" onclick="toggleBookmark()">
+                        ⭐ Bookmark
+                    </button>
+                </div>
+            `;
+            
+            // Check if bookmarked
+            checkBookmarkStatus();
+        }
+
+        function renderRatingStats(data) {
+            const stats = document.getElementById('ratingStats');
+            
+            if (!data.totalRatings || data.totalRatings === 0) {
+                stats.innerHTML = '<div class="empty-state">No ratings yet. Be the first to rate!</div>';
+                return;
+            }
+
+            const ratings = data.averageRatings;
+            stats.innerHTML = `
+                <div class="rating-stats">
+                    <div class="rating-card">
+                        <span class="rating-value">${ratings.clarity}</span>
+                        <span class="rating-label">Clarity</span>
+                        <div class="rating-bar">
+                            <div class="rating-bar-fill" style="width: ${(ratings.clarity / 5) * 100}%"></div>
+                        </div>
+                    </div>
+                    <div class="rating-card">
+                        <span class="rating-value">${ratings.completeness}</span>
+                        <span class="rating-label">Completeness</span>
+                        <div class="rating-bar">
+                            <div class="rating-bar-fill" style="width: ${(ratings.completeness / 5) * 100}%"></div>
+                        </div>
+                    </div>
+                    <div class="rating-card">
+                        <span class="rating-value">${ratings.helpfulness}</span>
+                        <span class="rating-label">Helpfulness</span>
+                        <div class="rating-bar">
+                            <div class="rating-bar-fill" style="width: ${(ratings.helpfulness / 5) * 100}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <p style="text-align: center; color: rgba(255,255,255,0.5); font-size: 14px;">
+                    Based on ${data.totalRatings} rating${data.totalRatings !== 1 ? 's' : ''}
+                </p>
+            `;
+        }
+
+        function renderRatingForm() {
+            const container = document.getElementById('ratingFormContainer');
+            container.innerHTML = `
+                <div class="rating-form">
+                    <h3>Rate This Note</h3>
+                    <div class="success-message" id="ratingSuccess"></div>
+                    
+                    <div class="rating-group">
+                        <label>Clarity (1-5)</label>
+                        <div class="star-rating" id="clarityRating">
+                            ${[1,2,3,4,5].map(i => `<span class="star" data-value="${i}" onclick="setRating('clarity', ${i})">★</span>`).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="rating-group">
+                        <label>Completeness (1-5)</label>
+                        <div class="star-rating" id="completenessRating">
+                            ${[1,2,3,4,5].map(i => `<span class="star" data-value="${i}" onclick="setRating('completeness', ${i})">★</span>`).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="rating-group">
+                        <label>Helpfulness (1-5)</label>
+                        <div class="star-rating" id="helpfulnessRating">
+                            ${[1,2,3,4,5].map(i => `<span class="star" data-value="${i}" onclick="setRating('helpfulness', ${i})">★</span>`).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="rating-group">
+                        <label>Review (Optional)</label>
+                        <textarea id="reviewText" placeholder="Share your experience with this note..."></textarea>
+                    </div>
+                    
+                    <button class="btn-submit" id="submitRatingBtn" onclick="submitRating()">
+                        Submit Rating
+                    </button>
+                </div>
+            `;
+            
+            userRating = { clarity: 0, completeness: 0, helpfulness: 0 };
+        }
+
+        function setRating(type, value) {
+            userRating[type] = value;
+            
+            // Update stars visually
+            const container = document.getElementById(`${type}Rating`);
+            const stars = container.querySelectorAll('.star');
+            stars.forEach((star, index) => {
+                if (index < value) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+        }
+
+        async function submitRating() {
+            if (!userRating.clarity || !userRating.completeness || !userRating.helpfulness) {
+                alert('Please provide ratings for all categories');
+                return;
+            }
+
+            const reviewText = document.getElementById('reviewText').value;
+            const submitBtn = document.getElementById('submitRatingBtn');
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/ratings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        note_id: noteId,
+                        clarity_rating: userRating.clarity,
+                        completeness_rating: userRating.completeness,
+                        helpfulness_rating: userRating.helpfulness,
+                        review_text: reviewText
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const successEl = document.getElementById('ratingSuccess');
+                    successEl.textContent = '✓ Rating submitted successfully!';
+                    successEl.classList.add('show');
+                    
+                    setTimeout(() => {
+                        fetchRatings();
+                    }, 1000);
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error submitting rating');
+            }
+
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Rating';
+        }
+
+        async function downloadNote() {
+            if (noteData && noteData.file_url) {
+                // Track download
+                await fetch(`${API_URL}/notes/${noteId}/download`, { method: 'POST' });
+                window.open(noteData.file_url, '_blank');
+            } else {
+                alert('File not available');
+            }
+        }
+
+        async function checkBookmarkStatus() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            try {
+                const response = await fetch(`${API_URL}/bookmarks`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const isBookmarked = data.data.some(b => b.noteId === noteId);
+                    updateBookmarkButton(isBookmarked);
+                }
+            } catch (error) {
+                console.error('Error checking bookmark:', error);
+            }
+        }
+
+        function updateBookmarkButton(isBookmarked) {
+            const btn = document.getElementById('bookmarkBtn');
+            if (isBookmarked) {
+                btn.classList.add('bookmarked');
+                btn.innerHTML = '✓ Bookmarked';
+            }
+        }
+
+        async function toggleBookmark() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please login to bookmark notes');
+                return;
+            }
+
+            const btn = document.getElementById('bookmarkBtn');
+            const isBookmarked = btn.classList.contains('bookmarked');
+
+            try {
+                if (isBookmarked) {
+                    // Remove bookmark
+                    await fetch(`${API_URL}/bookmarks/${noteId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    btn.classList.remove('bookmarked');
+                    btn.innerHTML = '⭐ Bookmark';
+                } else {
+                    // Add bookmark
+                    await fetch(`${API_URL}/bookmarks`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ note_id: noteId })
+                    });
+                    btn.classList.add('bookmarked');
+                    btn.innerHTML = '✓ Bookmarked';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating bookmark');
+            }
+        }
+    </script>
+</body>
+
+</html>

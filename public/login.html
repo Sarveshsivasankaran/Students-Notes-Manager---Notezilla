@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Notezilla</title>
-    <link rel="icon" type="image/svg+xml" href="images/notezilla-logo.svg">
+    <link rel="icon" type="image/png" href="images/notezilla-logo.PNG">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -15,7 +15,6 @@
             --primary-light: #8b5cf6;
             --dark: #0f172a;
         }
-
 
         * {
             margin: 0;
@@ -30,62 +29,70 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 16px;
         }
 
         .container {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
+            border-radius: 20px;
             width: 100%;
-            max-width: 420px;
-            padding: 48px;
+            max-width: 380px;
+            padding: 24px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
         .header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 20px;
         }
 
         .logo-section {
-            margin-bottom: 24px;
+            margin-bottom: 16px;
+        }
+
+        .logo-section img {
+            width: 130px;
+            display: block;
+            margin: 0 auto;
+            filter: brightness(0) invert(1);
         }
 
         .title {
-            font-size: 32px;
+            font-size: 22px;
             font-weight: 700;
             color: #ffffff;
-            margin-bottom: 8px;
+            margin-bottom: 2px;
         }
 
         .subtitle {
-            font-size: 14px;
+            font-size: 12px;
             color: rgba(255, 255, 255, 0.5);
         }
 
         .form-group {
-            margin-bottom: 24px;
+            margin-bottom: 12px;
         }
 
         label {
             display: block;
-            font-size: 13px;
+            font-size: 10px;
             font-weight: 600;
             color: rgba(255, 255, 255, 0.8);
-            margin-bottom: 10px;
+            margin-bottom: 4px;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
 
         input {
             width: 100%;
-            padding: 14px 16px;
+            padding: 10px 12px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            font-size: 15px;
+            border-radius: 8px;
+            font-size: 13px;
             color: white;
             font-family: inherit;
             transition: 0.3s;
@@ -95,41 +102,40 @@
             outline: none;
             border-color: var(--primary);
             background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
         }
 
         .btn-login {
             width: 100%;
-            padding: 14px;
+            padding: 11px;
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 16px;
+            border-radius: 8px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: 0.3s;
-            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);
-            margin-top: 10px;
+            box-shadow: 0 8px 16px rgba(99, 102, 241, 0.2);
+            margin-top: 6px;
         }
 
         .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
         }
 
         .divider {
-            margin: 32px 0;
+            margin: 16px 0;
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
             color: rgba(255, 255, 255, 0.2);
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
         }
 
-        .divider::before,
-        .divider::after {
+        .divider::before, .divider::after {
             content: '';
             flex: 1;
             height: 1px;
@@ -138,7 +144,7 @@
 
         .signup-link {
             text-align: center;
-            font-size: 14px;
+            font-size: 12px;
             color: rgba(255, 255, 255, 0.5);
         }
 
@@ -150,12 +156,12 @@
 
         .error-message {
             color: #fb7185;
-            font-size: 13px;
-            margin-bottom: 20px;
+            font-size: 11px;
+            margin-bottom: 10px;
             display: none;
-            padding: 12px;
+            padding: 8px;
             background: rgba(251, 113, 133, 0.1);
-            border-radius: 8px;
+            border-radius: 6px;
             text-align: center;
         }
 
@@ -167,8 +173,8 @@
             display: none;
             text-align: center;
             color: var(--primary-light);
-            font-size: 14px;
-            margin-bottom: 20px;
+            font-size: 12px;
+            margin-bottom: 10px;
             font-weight: 500;
         }
 
@@ -178,24 +184,15 @@
         }
 
         @keyframes pulse {
-            0% {
-                opacity: 0.5;
-            }
-
-            50% {
-                opacity: 1;
-            }
-
-            100% {
-                opacity: 0.5;
-            }
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
         }
 
-        .logo-section img {
-            width: 180px;
-            display: block;
-            margin: 0 auto 8px;
-            filter: brightness(0) invert(1);
+        @supports (-webkit-backdrop-filter: none) {
+            .container {
+                -webkit-backdrop-filter: blur(20px);
+            }
         }
     </style>
 </head>
@@ -204,10 +201,10 @@
     <div class="container">
         <div class="header">
             <div class="logo-section">
-                <img src="images/notezilla-logo.svg" alt="Notezilla">
+                <img src="images/notezilla-logo.PNG" alt="Notezilla" style="width:150px; filter: brightness(0) invert(1);">
             </div>
             <h1 class="title">Login</h1>
-            <p class="subtitle">Welcome back! Sign in to your account</p>
+            <p class="subtitle">Welcome back!</p>
         </div>
 
         <form id="loginForm">
@@ -237,25 +234,24 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:5000/api';
+        var API_URL = '/api';
 
-        const loginForm = document.getElementById('loginForm');
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const submitBtn = document.getElementById('submitBtn');
-        const loginError = document.getElementById('loginError');
-        const emailError = document.getElementById('emailError');
-        const passwordError = document.getElementById('passwordError');
-        const loading = document.getElementById('loading');
+        var loginForm = document.getElementById('loginForm');
+        var emailInput = document.getElementById('email');
+        var passwordInput = document.getElementById('password');
+        var submitBtn = document.getElementById('submitBtn');
+        var loginError = document.getElementById('loginError');
+        var emailError = document.getElementById('emailError');
+        var passwordError = document.getElementById('passwordError');
+        var loading = document.getElementById('loading');
 
-        loginForm.addEventListener('submit', async (e) => {
+        loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             clearErrors();
 
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
+            var email = emailInput.value.trim();
+            var password = passwordInput.value;
 
-            // Validation
             if (!email || !password) {
                 showError('loginError', 'Please fill in all fields');
                 return;
@@ -265,15 +261,15 @@
                 submitBtn.disabled = true;
                 loading.classList.add('show');
 
-                const response = await fetch(`${API_URL}/auth/login`, {
+                var response = await fetch(API_URL + '/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ email: email, password: password })
                 });
 
-                const data = await response.json();
+                var data = await response.json();
 
                 if (!data.success) {
                     showError('loginError', data.message);
@@ -282,12 +278,10 @@
                     return;
                 }
 
-                // Save token and user info
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
 
-                // Redirect based on role
-                setTimeout(() => {
+                setTimeout(function() {
                     if (data.user.role === 'student') {
                         window.location.href = 'faculty-browse.html';
                     } else if (data.user.role === 'staff') {
@@ -306,14 +300,15 @@
         });
 
         function clearErrors() {
-            [emailError, passwordError, loginError].forEach(el => {
+            var elements = [emailError, passwordError, loginError];
+            elements.forEach(function(el) {
                 el.textContent = '';
                 el.classList.remove('show');
             });
         }
 
         function showError(elementId, message) {
-            const el = document.getElementById(elementId);
+            var el = document.getElementById(elementId);
             el.textContent = message;
             el.classList.add('show');
         }
