@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Note Details - Notezilla</title>
-    <link rel="icon" type="image/svg+xml" href="images/notezilla-logo.svg">
+    <link rel="icon" type="image/png" href="images/notezilla-logo.PNG">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -330,11 +330,11 @@
             .rating-stats {
                 grid-template-columns: 1fr;
             }
-            
+
             .note-actions {
                 flex-direction: column;
             }
-            
+
             .btn {
                 justify-content: center;
             }
@@ -347,7 +347,7 @@
         <!-- Navbar -->
         <nav class="navbar">
             <a href="faculty-browse.html" class="logo">
-                <img src="images/notezilla-logo.svg" alt="Notezilla">
+                <img src="images/notezilla-logo.PNG" alt="Notezilla">
             </a>
             <div id="userDisplay" style="font-size: 14px; color: #64748b;"></div>
         </nav>
@@ -384,13 +384,13 @@
             document.getElementById('userDisplay').textContent = user.name || '';
 
             if (user.role !== 'student') {
-                document.getElementById('ratingFormContainer').innerHTML = 
+                document.getElementById('ratingFormContainer').innerHTML =
                     '<div class="empty-state">Only students can submit ratings</div>';
             }
 
             await fetchNoteDetails();
             await fetchRatings();
-            
+
             if (user.role === 'student') {
                 renderRatingForm();
             }
@@ -400,7 +400,7 @@
             try {
                 const response = await fetch(`${API_URL}/notes/${noteId}`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     noteData = data.data;
                     renderNoteHeader(noteData);
@@ -414,7 +414,7 @@
             try {
                 const response = await fetch(`${API_URL}/ratings/note/${noteId}`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     renderRatingStats(data.data);
                 }
@@ -443,14 +443,14 @@
                     </button>
                 </div>
             `;
-            
+
             // Check if bookmarked
             checkBookmarkStatus();
         }
 
         function renderRatingStats(data) {
             const stats = document.getElementById('ratingStats');
-            
+
             if (!data.totalRatings || data.totalRatings === 0) {
                 stats.innerHTML = '<div class="empty-state">No ratings yet. Be the first to rate!</div>';
                 return;
@@ -497,21 +497,21 @@
                     <div class="rating-group">
                         <label>Clarity (1-5)</label>
                         <div class="star-rating" id="clarityRating">
-                            ${[1,2,3,4,5].map(i => `<span class="star" data-value="${i}" onclick="setRating('clarity', ${i})">★</span>`).join('')}
+                            ${[1, 2, 3, 4, 5].map(i => `<span class="star" data-value="${i}" onclick="setRating('clarity', ${i})">★</span>`).join('')}
                         </div>
                     </div>
                     
                     <div class="rating-group">
                         <label>Completeness (1-5)</label>
                         <div class="star-rating" id="completenessRating">
-                            ${[1,2,3,4,5].map(i => `<span class="star" data-value="${i}" onclick="setRating('completeness', ${i})">★</span>`).join('')}
+                            ${[1, 2, 3, 4, 5].map(i => `<span class="star" data-value="${i}" onclick="setRating('completeness', ${i})">★</span>`).join('')}
                         </div>
                     </div>
                     
                     <div class="rating-group">
                         <label>Helpfulness (1-5)</label>
                         <div class="star-rating" id="helpfulnessRating">
-                            ${[1,2,3,4,5].map(i => `<span class="star" data-value="${i}" onclick="setRating('helpfulness', ${i})">★</span>`).join('')}
+                            ${[1, 2, 3, 4, 5].map(i => `<span class="star" data-value="${i}" onclick="setRating('helpfulness', ${i})">★</span>`).join('')}
                         </div>
                     </div>
                     
@@ -525,13 +525,13 @@
                     </button>
                 </div>
             `;
-            
+
             userRating = { clarity: 0, completeness: 0, helpfulness: 0 };
         }
 
         function setRating(type, value) {
             userRating[type] = value;
-            
+
             // Update stars visually
             const container = document.getElementById(`${type}Rating`);
             const stars = container.querySelectorAll('.star');
@@ -552,7 +552,7 @@
 
             const reviewText = document.getElementById('reviewText').value;
             const submitBtn = document.getElementById('submitRatingBtn');
-            
+
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
 
@@ -579,7 +579,7 @@
                     const successEl = document.getElementById('ratingSuccess');
                     successEl.textContent = '✓ Rating submitted successfully!';
                     successEl.classList.add('show');
-                    
+
                     setTimeout(() => {
                         fetchRatings();
                     }, 1000);
@@ -614,7 +614,7 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();
-                
+
                 if (data.success) {
                     const isBookmarked = data.data.some(b => b.noteId === noteId);
                     updateBookmarkButton(isBookmarked);

@@ -140,6 +140,21 @@ create index if not exists idx_bookmarks_note_id on student_bookmarks ( note_id 
 -- ========================================
 -- Enable RLS (Row Level Security) - Optional
 -- ========================================
+
+-- 8. NOTE VERSIONS TABLE
+create table if not exists note_versions (
+   id          uuid primary key default gen_random_uuid(),
+   note_id     uuid not null references notes ( id ) on delete cascade,
+   version     integer not null,
+   file_url    text not null,
+   file_name   text,
+   file_size   integer,
+   created_at  timestamp with time zone default now()
+);
+
+-- Note Versions Index
+create index if not exists idx_note_versions_note_id on note_versions ( note_id );
+
 -- Uncomment to enable RLS for security
 
 -- ALTER TABLE users ENABLE ROW LEVEL SECURITY;

@@ -86,7 +86,7 @@ app.post('/api/auth/signup', async (req, res) => {
             });
         }
 
-        if (!['student', 'staff', 'admin'].includes(role)) {
+        if (!['student', 'staff'].includes(role)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid role'
@@ -788,6 +788,20 @@ app.put('/api/notes/:id', authenticateToken, requireRole(['staff']), async (req,
     try {
         const { title, type, file_url, file_name } = req.body;
 
+        // Get faculty ID to ensure ownership
+        const { data: faculty } = await supabase
+            .from('faculty')
+            .select('id')
+            .eq('user_id', req.userId)
+            .single();
+
+        if (!faculty) {
+            return res.status(403).json({
+                success: false,
+                message: 'Faculty profile not found'
+            });
+        }
+
         // Get current note
         const { data: currentNote } = await supabase
             .from('notes')
@@ -799,6 +813,13 @@ app.put('/api/notes/:id', authenticateToken, requireRole(['staff']), async (req,
             return res.status(404).json({
                 success: false,
                 message: 'Note not found'
+            });
+        }
+
+        if (currentNote.faculty_id !== faculty.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to edit this note'
             });
         }
 

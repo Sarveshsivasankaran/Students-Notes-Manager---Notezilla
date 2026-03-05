@@ -326,7 +326,8 @@
 
     <nav>
         <a href="/" class="logo">
-            <img src="images/notezilla-logo.PNG" alt="Notezilla" style="width: 200px; height:120px; filter: brightness(0) invert(1);">
+            <img src="images/notezilla-logo.PNG" alt="Notezilla"
+                style="width: 200px; height:120px; filter: brightness(0) invert(1);">
         </a>
         <div class="nav-links">
             <a href="#features">Features</a>
@@ -348,7 +349,7 @@
         </div>
         <div class="hero-visual">
             <img src="https://www.rajalakshmi.org/_next/image?url=%2Fassets%2Fsuggest.PNG&w=256&q=75"
-               style="width:auto height:auto" alt="Notes" class="hero-image">
+                style="width:auto; height:auto;" alt="Notes" class="hero-image">
         </div>
     </header>
 
@@ -382,6 +383,7 @@
             const userData = JSON.parse(user);
             if (userData.role === 'student') window.location.href = 'faculty-browse.html';
             else if (userData.role === 'staff') window.location.href = 'staff-upload.html';
+            else if (userData.role === 'admin') window.location.href = 'admin.html';
         }
     </script>
 </body>
