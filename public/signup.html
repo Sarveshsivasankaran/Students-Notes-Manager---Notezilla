@@ -30,6 +30,7 @@
             justify-content: center;
             align-items: center;
             padding: 16px;
+            overflow: hidden;
         }
 
         .container {
@@ -39,21 +40,48 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px;
             width: 100%;
-            max-width: 400px;
-            padding: 20px;
+            max-width: 750px;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-height: 90vh;
+        }
+
+        .left-panel {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+        }
+
+        .left-panel img {
+            width: 80%;
+            max-width: 200px;
+            filter: brightness(0) invert(1);
+        }
+
+        .right-panel {
+            flex: 1.2;
+            padding: 24px 32px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow-y: auto;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .right-panel::-webkit-scrollbar {
+            display: none;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 16px;
-        }
-
-        .logo-section img {
-            width: 120px;
-            display: block;
-            margin: 0 auto 4px;
-            filter: brightness(0) invert(1);
+            margin-bottom: 12px;
         }
 
         .title {
@@ -314,21 +342,35 @@
             }
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 768px) {
             body {
                 padding: 12px;
-                display: flex;
-                align-items: flex-start;
+                align-items: center;
+                overflow: hidden;
             }
 
             .container {
-                padding: 20px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 16px;
+                flex-direction: column;
+                max-width: 400px;
+                max-height: 95vh;
             }
 
-            .header h1 {
-                font-size: 24px;
+            .left-panel {
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 12px;
+            }
+
+            .left-panel img {
+                max-width: 140px;
+            }
+
+            .right-panel {
+                padding: 16px;
+            }
+
+            .header .title {
+                font-size: 20px;
             }
 
             .role-selector {
@@ -340,16 +382,18 @@
 
 <body>
     <div class="container">
-        <div class="header">
-            <div class="logo-section">
-                <img src="images/notezilla-logo.PNG" alt="Notezilla"
-                    style="width:160px; filter: brightness(0) invert(1);">
-            </div>
-            <h1 class="title">Sign Up</h1>
-            <p class="subtitle">Create your account</p>
+        <div class="left-panel">
+            <a href="index.html">
+                <img src="images/notezilla-logo.PNG" alt="Notezilla" style="width: 200px; height: 145px;">
+            </a>
         </div>
+        <div class="right-panel">
+            <div class="header">
+                <h1 class="title">Sign Up</h1>
+                <p class="subtitle">Create your account</p>
+            </div>
 
-        <form id="signupForm">
+            <form id="signupForm">
             <div class="form-group">
                 <label>Select Role</label>
                 <div class="role-selector">
@@ -431,10 +475,11 @@
             <button type="submit" class="btn-signup" id="submitBtn">Create Account</button>
         </form>
 
-        <div class="divider">OR</div>
+            <div class="divider">OR</div>
 
-        <div class="login-link">
-            Already have an account? <a href="login.html">Login here</a>
+            <div class="login-link">
+                Already have an account? <a href="login.html">Login here</a>
+            </div>
         </div>
     </div>
 
