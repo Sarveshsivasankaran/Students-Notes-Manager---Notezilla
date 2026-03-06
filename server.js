@@ -1292,6 +1292,69 @@ app.post('/api/admin/verify-note/:id', authenticateToken, requireRole(['admin'])
     }
 });
 
+// ==================== CHATBOT ROUTE ====================
+
+/**
+ * POST Gemini Chatbot Helper
+ * POST /api/chat
+ */
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { message } = req.body;
+        const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+        if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
+            return res.status(200).json({ 
+                success: true, 
+                response: "Note: Gemini API Key is not configured in the server's .env file. Please add it to enable AI responses." 
+            });
+        }
+
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const systemPrompt = `You are Aadhi, an AI support assistant for Notezilla. 
+Notezilla is an academic repository designed for Rajalakshmi Engineering College.
+Students can view, download, and rate notes. They must sign up with @rajalakshmi.edu.in emails.
+Staff can upload notes but require admin verification first.
+Admins review and approve staff accounts.
+Departments supported: CSE, ECE, EEE, MECH, CIVIL, BioMed.
+Keep your answers concise, friendly, and helpful. Format your responses with simple text (no markdown formatting if possible as it will be rendered as raw text, but line breaks are okay).
+
+User question: ${message}`;
+
+        // dynamic import for fetch since Node.js 16/18+ supports fetch but standard express doesn't always have it auto-imported unless Node 18+
+        // However node 18+ fetch is global. Let's assume global fetch is available.
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: systemPrompt }]
+                }]
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+            return res.status(200).json({ 
+                success: true, 
+                response: data.candidates[0].content.parts[0].text 
+            });
+        } else {
+            return res.status(200).json({ 
+                success: true, 
+                response: "Sorry, I'm having trouble analyzing that right now." 
+            });
+        }
+    } catch (error) {
+        console.error('Gemini Chat error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interacting with Gemini API'
+        });
+    }
+});
+
 // ==================== ERROR HANDLING ====================
 
 app.use((err, req, res, next) => {
