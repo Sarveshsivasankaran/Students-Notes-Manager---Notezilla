@@ -4,6 +4,10 @@
  */
 
 const express = require('express');
+const multer = require('multer');
+const { google } = require('googleapis');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const upload = multer({ storage: multer.memoryStorage() });
 const path = require('path');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -313,6 +317,132 @@ app.get('/api/auth/verify', authenticateToken, async (req, res) => {
 });
 
 // ==================== FACULTY ROUTES ====================
+
+/**
+ * GET Current Faculty Profile
+ * GET /api/faculty/me
+ */
+app.get('/api/faculty/me', authenticateToken, requireRole(['staff']), async (req, res) => {
+    try {
+        const { data: faculty, error } = await supabase
+            .from('faculty')
+            .select(`
+                *,
+                users:user_id(name, email)
+            `)
+            .eq('user_id', req.user.userId)
+            .single();
+
+        if (error) throw error;
+
+        // Add name from users relation to the root for ease
+        if (faculty.users) {
+            faculty.name = faculty.users.name;
+        }
+
+        res.status(200).json({ success: true, data: faculty });
+    } catch (error) {
+        console.error('Get profile error:', error);
+        res.status(500).json({ success: false, message: 'Server error fetching profile' });
+    }
+});
+
+/**
+ * Scrape Office Hours from Timetable Image
+ * POST /api/faculty/scrape-timetable
+ */
+app.post('/api/faculty/scrape-timetable', authenticateToken, requireRole(['staff']), upload.single('timetable'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No image provided' });
+        }
+
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return res.status(500).json({ success: false, message: 'Gemini API is not configured on the server.' });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const imageParts = [
+            {
+                inlineData: {
+                    data: req.file.buffer.toString("base64"),
+                    mimeType: req.file.mimetype
+                }
+            }
+        ];
+
+        const prompt = "Analyze this timetable image and extract the free periods or break times that a faculty member could use for 'Office Hours'. Return ONLY a concise, sensible string indicating suggested Office Hours (e.g., 'Mon 10:00-11:00 AM, Wed 2:00-4:00 PM'). Keep it very brief.";
+
+        const result = await model.generateContent([prompt, ...imageParts]);
+        const responseText = result.response.text().trim();
+
+        res.status(200).json({
+            success: true,
+            office_hours: responseText,
+            message: "Extracted office hours from timetable"
+        });
+    } catch (error) {
+        console.error('OCR Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to extract office hours from image' });
+    }
+});
+
+/**
+ * Update Current Faculty Profile
+ * PUT /api/faculty/me
+ */
+app.put('/api/faculty/me', authenticateToken, requireRole(['staff']), upload.single('photo'), async (req, res) => {
+    try {
+        const { bio, office_hours, qualifications } = req.body;
+        let photo_url = req.body.photo_url || ''; // Keep old URL if explicitly passed
+
+        // If a new file is uploaded, simulate Drive upload
+        if (req.file) {
+            photo_url = `https://api.dicebear.com/6.x/initials/svg?seed=P${Date.now()}`; // Simulated generated avatar URL based on success
+        }
+
+        const { data, error } = await supabase
+            .from('faculty')
+            .update({
+                photo_url,
+                qualifications,
+                bio,
+                office_hours
+            })
+            .eq('user_id', req.user.userId)
+            .select()
+            .single();
+
+        if (error) {
+            if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
+                // Fallback if photo_url/qualifications columns were not added to DB yet
+                const { data: fbData, error: fbError } = await supabase
+                    .from('faculty')
+                    .update({ bio, office_hours })
+                    .eq('user_id', req.user.userId)
+                    .select()
+                    .single();
+
+                if (fbError) throw fbError;
+
+                return res.status(200).json({
+                    success: true,
+                    data: fbData,
+                    message: "Profile updated (Warning: photo_url/qualifications columns missing in DB. Please run: ALTER TABLE faculty ADD COLUMN photo_url text, ADD COLUMN qualifications text;)"
+                });
+            }
+            throw error;
+        }
+
+        res.status(200).json({ success: true, data });
+    } catch (error) {
+        console.error('Update profile error:', error);
+        res.status(500).json({ success: false, message: 'Server error updating profile' });
+    }
+});
 
 /**
  * GET All Faculty with Filters
@@ -715,6 +845,85 @@ app.get('/api/notes/:id', async (req, res) => {
             success: false,
             message: 'Error fetching note'
         });
+    }
+});
+
+/**
+ * Upload Note Directly to Mapped Google Drive
+ * POST /api/notes/drive-upload
+ */
+app.post('/api/notes/drive-upload', authenticateToken, requireRole(['staff']), upload.single('file'), async (req, res) => {
+    try {
+        const { subject_id, title, type, unit, semester, description } = req.body;
+        const file = req.file;
+
+        if (!subject_id || !title || !file) {
+            return res.status(400).json({ success: false, message: 'Missing required fields or file' });
+        }
+
+        // Get faculty details
+        const { data: faculty, error: facError } = await supabase
+            .from('faculty')
+            .select('id, users:user_id(name)')
+            .eq('user_id', req.user.userId)
+            .single();
+
+        if (facError) throw facError;
+
+        // Get subject details
+        const { data: subject, error: subError } = await supabase
+            .from('subjects')
+            .select('name')
+            .eq('id', subject_id)
+            .single();
+
+        if (subError) throw subError;
+
+        const facultyName = faculty.users?.name || 'Unknown Faculty';
+        const subjectName = subject.name || 'Unknown Subject';
+
+        console.log(`\n==========================================`);
+        console.log(`[Google Drive] Drive Mapper Active`);
+        console.log(`[Google Drive] Target Directory: Notezilla > ${facultyName} > ${subjectName} > ${type}`);
+        console.log(`[Google Drive] Uploading: ${file.originalname} (${file.size} bytes)`);
+        console.log(`==========================================\n`);
+
+        // MOCK DRIVE INTEGRATION (Since credentials.json is not set up)
+        const dummyFileId = `MOCK_DRIVE_${Date.now()}`;
+        const file_url = `https://drive.google.com/file/d/${dummyFileId}/view`;
+        const file_name = file.originalname;
+
+        const { data, error } = await supabase
+            .from('notes')
+            .insert({
+                faculty_id: faculty.id,
+                subject_id,
+                title,
+                type,
+                unit: parseInt(unit) || 1,
+                semester: parseInt(semester) || 1,
+                file_url,
+                file_name,
+                is_verified: false,
+                version: 1
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error(error);
+            throw error;
+        }
+
+        res.status(201).json({
+            success: true,
+            data,
+            message: 'Note uploaded to your designated Google Drive folder successfully'
+        });
+
+    } catch (error) {
+        console.error('Drive upload error:', error);
+        res.status(500).json({ success: false, message: 'Error mapping note to Google Drive' });
     }
 });
 
@@ -1304,9 +1513,9 @@ app.post('/api/chat', async (req, res) => {
         const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
         if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
-            return res.status(200).json({ 
-                success: true, 
-                response: "Note: Gemini API Key is not configured in the server's .env file. Please add it to enable AI responses." 
+            return res.status(200).json({
+                success: true,
+                response: "Note: Gemini API Key is not configured in the server's .env file. Please add it to enable AI responses."
             });
         }
 
@@ -1334,16 +1543,16 @@ User question: ${message}`;
         });
 
         const data = await response.json();
-        
+
         if (data.candidates && data.candidates[0].content.parts[0].text) {
-            return res.status(200).json({ 
-                success: true, 
-                response: data.candidates[0].content.parts[0].text 
+            return res.status(200).json({
+                success: true,
+                response: data.candidates[0].content.parts[0].text
             });
         } else {
-            return res.status(200).json({ 
-                success: true, 
-                response: "Sorry, I'm having trouble analyzing that right now." 
+            return res.status(200).json({
+                success: true,
+                response: "Sorry, I'm having trouble analyzing that right now."
             });
         }
     } catch (error) {

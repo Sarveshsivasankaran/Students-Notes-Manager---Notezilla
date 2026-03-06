@@ -362,6 +362,7 @@
             <button class="tab active" onclick="switchTab('faculty')">Faculty Profiles</button>
             <button class="tab" onclick="switchTab('subjects')">Subjects</button>
             <button class="tab" onclick="switchTab('notes')">All Notes</button>
+            <button class="tab" onclick="switchTab('recommended')" style="color: #fbbf24;">⭐ Recommended</button>
         </div>
 
         <!-- Search & Filter -->
@@ -393,6 +394,16 @@
         <!-- Notes Section -->
         <div id="notesSection" style="display: none;">
             <div id="notesGrid" class="faculty-grid"></div>
+        </div>
+
+        <!-- Recommended Section -->
+        <div id="recommendedSection" style="display: none;">
+            <h2 style="margin-bottom: 20px; font-size: 20px; color: #fbbf24;">⭐ Top Starred Faculties</h2>
+            <div id="recFacultyGrid" class="faculty-grid"></div>
+
+            <h2 style="margin-top: 40px; margin-bottom: 20px; font-size: 20px; color: #fbbf24;">🔥 Most Downloaded Notes
+            </h2>
+            <div id="recNotesGrid" class="faculty-grid"></div>
         </div>
     </div>
 
@@ -539,6 +550,44 @@
             document.getElementById('facultySection').style.display = tab === 'faculty' ? 'block' : 'none';
             document.getElementById('subjectsSection').style.display = tab === 'subjects' ? 'block' : 'none';
             document.getElementById('notesSection').style.display = tab === 'notes' ? 'block' : 'none';
+            document.getElementById('recommendedSection').style.display = tab === 'recommended' ? 'block' : 'none';
+
+            if (tab === 'recommended') {
+                displayRecommendations();
+            }
+        }
+
+        function displayRecommendations() {
+            // Sort faculty by average rating descending
+            const topFaculty = [...allFaculty]
+                .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+                .slice(0, 3);
+
+            // Sort notes by downloads descending
+            const topNotes = [...allNotes]
+                .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+                .slice(0, 3);
+
+            const facGrid = document.getElementById('recFacultyGrid');
+            const notesGrid = document.getElementById('recNotesGrid');
+
+            facGrid.innerHTML = topFaculty.map(f => `
+                <div class="faculty-card" onclick="viewFacultyProfile('${f.id}')" style="border-color: #fbbf24; background: rgba(251, 191, 36, 0.05);">
+                    <div class="faculty-avatar">👨‍🏫</div>
+                    <div class="faculty-name">${f.name || 'Unknown'} <span>⭐</span></div>
+                    <div class="faculty-rating">Rating: ${f.averageRating ? f.averageRating.toFixed(1) : 'New'}</div>
+                    <button class="btn-view">View Profile</button>
+                </div>
+            `).join('');
+
+            notesGrid.innerHTML = topNotes.map(n => `
+                <div class="faculty-card" onclick="viewNote('${n.id}', '${n.fileUrl}')" style="border-color: #fbbf24; background: rgba(251, 191, 36, 0.05);">
+                    <div class="faculty-avatar">📄</div>
+                    <div class="faculty-name">${n.title} <span>🔥</span></div>
+                    <div class="faculty-rating">Downloads: ${n.downloads || 0}</div>
+                    <button class="btn-view">View Note</button>
+                </div>
+            `).join('');
         }
 
         function handleSearch() {
