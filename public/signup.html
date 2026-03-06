@@ -40,23 +40,8 @@
             border-radius: 20px;
             width: 100%;
             max-width: 400px;
-            padding: 24px;
+            padding: 20px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            max-height: 95vh;
-            overflow-y: auto;
-        }
-
-        .container::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .container::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .container::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
         }
 
         .header {
@@ -330,19 +315,20 @@
         }
 
         @media (max-width: 480px) {
-            .container {
-                padding: 30px 20px;
-                border: none;
-                border-radius: 0;
+            body {
+                padding: 12px;
+                display: flex;
+                align-items: flex-start;
             }
 
-            body {
-                padding: 0;
-                display: block;
+            .container {
+                padding: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 16px;
             }
 
             .header h1 {
-                font-size: 28px;
+                font-size: 24px;
             }
 
             .role-selector {
