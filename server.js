@@ -1431,6 +1431,33 @@ app.post('/api/admin/approve-staff/:userId', authenticateToken, requireRole(['ad
 });
 
 /**
+ * DELETE Reject/Remove Staff (Admin Only)
+ * DELETE /api/admin/reject-staff/:userId
+ */
+app.delete('/api/admin/reject-staff/:userId', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+        const { error } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', req.params.userId)
+            .eq('role', 'staff');
+
+        if (error) throw error;
+
+        res.status(200).json({
+            success: true,
+            message: 'Staff request removed successfully'
+        });
+    } catch (error) {
+        console.error('Staff rejection error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error removing staff request'
+        });
+    }
+});
+
+/**
  * GET Pending Notes Verification (Admin Only)
  * GET /api/admin/pending-notes
  */
@@ -1497,6 +1524,32 @@ app.post('/api/admin/verify-note/:id', authenticateToken, requireRole(['admin'])
         res.status(500).json({
             success: false,
             message: 'Error verifying note'
+        });
+    }
+});
+
+/**
+ * DELETE Reject/Remove Note (Admin Only)
+ * DELETE /api/admin/reject-note/:id
+ */
+app.delete('/api/admin/reject-note/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+        const { error } = await supabase
+            .from('notes')
+            .delete()
+            .eq('id', req.params.id);
+
+        if (error) throw error;
+
+        res.status(200).json({
+            success: true,
+            message: 'Note request removed successfully'
+        });
+    } catch (error) {
+        console.error('Note rejection error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error removing note request'
         });
     }
 });

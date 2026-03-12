@@ -220,7 +220,7 @@
         <nav class="navbar">
             <a href="index.html" class="logo">
                 <img src="images/notezilla-logo.PNG" alt="Notezilla"
-                    style="height:32px; vertical-align: middle; margin-right: 10px; filter: brightness(0) invert(1);">
+                    style="height:90px; vertical-align: middle; margin-right: 10px; filter: brightness(0) invert(1);">
                 Notezilla Admin
             </a>
             <button class="btn btn-reject" onclick="logout()">Logout</button>
@@ -281,6 +281,7 @@
                             </div>
                             <div class="actions">
                                 <button class="btn btn-approve" onclick="approveStaff('${s.id}')">Approve</button>
+                                <button class="btn btn-reject" onclick="rejectStaff('${s.id}')">Remove</button>
                             </div>
                         </div>
                     `).join('');
@@ -313,6 +314,7 @@
                             <div class="actions">
                                 <button class="btn btn-view" onclick="window.open('${n.fileUrl}', '_blank')">Preview</button>
                                 <button class="btn btn-approve" onclick="verifyNote('${n.id}')">Verify</button>
+                                <button class="btn btn-reject" onclick="rejectNote('${n.id}')">Remove</button>
                             </div>
                         </div>
                     `).join('');
@@ -344,6 +346,30 @@
                 });
                 if (res.ok) loadPendingNotes();
             } catch (err) { alert('Error'); }
+        }
+
+        async function rejectStaff(id) {
+            if (!confirm('Are you sure you want to remove this staff request? This will permanently delete the account.')) return;
+            try {
+                const res = await fetch(`${API_URL}/admin/reject-staff/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) loadPendingStaff();
+                else alert('Failed to remove request');
+            } catch (err) { alert('Error communicating with server'); }
+        }
+
+        async function rejectNote(id) {
+            if (!confirm('Are you sure you want to remove this note request?')) return;
+            try {
+                const res = await fetch(`${API_URL}/admin/reject-note/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) loadPendingNotes();
+                else alert('Failed to remove request');
+            } catch (err) { alert('Error communicating with server'); }
         }
 
         function logout() {
