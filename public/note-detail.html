@@ -367,7 +367,7 @@
     <div class="container">
         <!-- Navbar -->
         <nav class="navbar">
-            <a href="faculty-browse.html" class="logo">
+            <a href="student-dashboard.html" class="logo">
                 <img src="images/notezilla-logo.PNG" alt="Notezilla">
             </a>
             <div id="userDisplay" style="font-size: 14px; color: #64748b;"></div>
@@ -394,7 +394,7 @@
         const noteId = localStorage.getItem('selectedNoteId');
 
         if (!noteId) {
-            window.location.href = 'faculty-browse.html';
+            window.location.href = 'student-dashboard.html';
         }
 
         let noteData = null;

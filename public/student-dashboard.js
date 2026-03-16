@@ -595,8 +595,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 10. Browse Faculty
+    // 10. Browse Faculty & Modal
     const facultyResultsGrid = document.getElementById('facultyResultsGrid');
+    const facultyModal = document.getElementById('facultyModal');
+    const closeFacultyModal = document.getElementById('closeFacultyModal');
+    const modalSubjectsView = document.getElementById('modalSubjectsView');
+    const modalNotesView = document.getElementById('modalNotesView');
+    const backToSubjects = document.getElementById('backToSubjects');
+
     async function renderFaculty() {
         if (!facultyResultsGrid) return;
         facultyResultsGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center;"><i class="bx bx-loader-alt bx-spin" style="font-size:32px;"></i></div>';
@@ -610,12 +616,149 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.innerHTML = `
                     <div class="note-icon" style="background:${color}22; color:${color}; font-weight:bold;">${fac.name[0]}</div>
                     <div class="note-details"><h4>${fac.name}</h4><p>${fac.department || 'Faculty Member'}</p></div>
-                    <button class="icon-btn-outline" onclick="window.location.href='faculty-detail.html?id=${fac.id}'"><i class='bx bx-user'></i></button>
+                    <button class="icon-btn-outline view-faculty-btn"><i class='bx bx-user'></i></button>
                 `;
+                card.querySelector('.view-faculty-btn').onclick = () => openFacultyModal(fac);
+                card.onclick = (e) => {
+                    if (!e.target.closest('button')) openFacultyModal(fac);
+                };
                 facultyResultsGrid.appendChild(card);
             });
         }
     }
+
+    async function openFacultyModal(faculty) {
+        if (!facultyModal) return;
+
+        // Reset views
+        modalSubjectsView.style.display = 'block';
+        modalNotesView.style.display = 'none';
+
+        // Populate basic info
+        document.getElementById('modalFacultyName').textContent = faculty.name;
+        document.getElementById('modalFacultyDept').textContent = faculty.department || 'Rajalakshmi Engineering College';
+        document.getElementById('modalFacultyAvatar').textContent = faculty.name[0];
+
+        // Fetch notes to get subjects
+        const modalSubjectsList = document.getElementById('modalSubjectsList');
+        modalSubjectsList.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px;"><i class="bx bx-loader-alt bx-spin" style="font-size:24px;"></i></div>';
+        
+        facultyModal.classList.add('show');
+
+        try {
+            const res = await apiFetch(`/faculty/${faculty.id}/notes`);
+            if (res.success && res.data) {
+                const notes = res.data;
+                // Group by subject
+                const subjectMap = {};
+                notes.forEach(note => {
+                    const subId = note.subject_id;
+                    if (!subjectMap[subId]) {
+                        subjectMap[subId] = {
+                            id: subId,
+                            name: note.subjects?.name || 'Unknown Subject',
+                            code: note.subjects?.code || '',
+                            notes: []
+                        };
+                    }
+                    subjectMap[subId].notes.push(note);
+                });
+
+                const subjects = Object.values(subjectMap);
+                if (subjects.length === 0) {
+                    modalSubjectsList.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">No subjects found for this faculty.</div>';
+                } else {
+                    modalSubjectsList.innerHTML = '';
+                    subjects.forEach(sub => {
+                        const subCard = document.createElement('div');
+                        subCard.className = 'modal-subject-card';
+                        subCard.innerHTML = `
+                            <h4>${sub.name}</h4>
+                            <span>${sub.code} • ${sub.notes.length} Materials</span>
+                        `;
+                        subCard.onclick = () => showSubjectNotes(sub);
+                        modalSubjectsList.appendChild(subCard);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Modal fetch error", error);
+            modalSubjectsList.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#ef4444;">Failed to load subjects.</div>';
+        }
+    }
+
+    function showSubjectNotes(subject) {
+        modalSubjectsView.style.display = 'none';
+        modalNotesView.style.display = 'block';
+        document.getElementById('modalSelectedSubjectTitle').textContent = subject.name;
+
+        const container = document.getElementById('modalUnitsContainer');
+        container.innerHTML = '';
+
+        // Group by Unit
+        const unitMap = {};
+        subject.notes.forEach(note => {
+            const unit = note.unit || 1;
+            if (!unitMap[unit]) unitMap[unit] = [];
+            unitMap[unit].push(note);
+        });
+
+        const units = Object.keys(unitMap).sort();
+        units.forEach(unit => {
+            const section = document.createElement('div');
+            section.className = 'unit-section';
+            section.innerHTML = `
+                <div class="unit-header">UNIT ${unit}</div>
+                <div class="modal-notes-list">
+                    ${unitMap[unit].map(note => `
+                        <div class="modal-note-item">
+                            <div class="note-item-info">
+                                <i class='bx ${note.type === 'ppt' ? 'bxs-slideshow' : 'bxs-file-pdf'}'></i>
+                                <h5>${note.title}</h5>
+                            </div>
+                            <div class="modal-note-actions">
+                                <button class="icon-btn-outline download-note" data-url="${note.file_url}" data-id="${note.id}" data-title="${note.title}" data-subject="${subject.name}"><i class='bx bx-download'></i></button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            container.appendChild(section);
+        });
+
+        // Add download functionality to modal notes
+        container.querySelectorAll('.download-note').forEach(btn => {
+            btn.onclick = (e) => {
+                const url = btn.getAttribute('data-url');
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-title');
+                const sub = btn.getAttribute('data-subject');
+                
+                apiFetch(`/notes/${id}/download`, { method: 'POST' });
+                logProgress('note', name, `Subject: ${sub}`);
+                if (url) window.open(url, '_blank');
+                else alert('File URL not available');
+            };
+        });
+    }
+
+    if (closeFacultyModal) {
+        closeFacultyModal.onclick = () => facultyModal.classList.remove('show');
+    }
+
+    if (backToSubjects) {
+        backToSubjects.onclick = () => {
+            modalNotesView.style.display = 'none';
+            modalSubjectsView.style.display = 'block';
+        };
+    }
+
+    // Close modal on outside click
+    window.onclick = (event) => {
+        if (event.target === facultyModal) {
+            facultyModal.classList.remove('show');
+        }
+    };
 
     // 11. Top Rated Notes
     const topRatedGrid = document.getElementById('topRatedNotesGrid');
@@ -648,6 +791,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTopRatedNotes();
     renderAnnouncements();
     
-    // Default view
-    switchView('dashboard');
+    // Default view or hash-based view
+    const hash = window.location.hash.substring(1);
+    if (hash && navItems[hash]) {
+        switchView(hash);
+    } else {
+        switchView('dashboard');
+    }
 });

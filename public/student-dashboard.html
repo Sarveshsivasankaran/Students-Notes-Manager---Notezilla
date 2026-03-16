@@ -595,6 +595,43 @@
         </main>
     </div>
 
+    <!-- Faculty Detail Modal -->
+    <div class="modal-overlay" id="facultyModal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <div class="faculty-header-info">
+                    <div class="faculty-modal-avatar" id="modalFacultyAvatar">👨‍🏫</div>
+                    <div>
+                        <h2 id="modalFacultyName">Faculty Name</h2>
+                        <p id="modalFacultyDept">Department Name</p>
+                    </div>
+                </div>
+                <button class="close-modal" id="closeFacultyModal"><i class='bx bx-x'></i></button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Subjects View -->
+                <div id="modalSubjectsView">
+                    <h3 class="section-subtitle">Subjects Handled</h3>
+                    <div class="subjects-list-grid" id="modalSubjectsList">
+                        <!-- Subjects will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- Notes View (Grouped by Unit) -->
+                <div id="modalNotesView" style="display: none;">
+                    <div class="modal-navigation">
+                        <button class="back-to-subjects" id="backToSubjects"><i class='bx bx-left-arrow-alt'></i> Back to Subjects</button>
+                        <h3 id="modalSelectedSubjectTitle">Subject Name</h3>
+                    </div>
+                    <div class="units-container" id="modalUnitsContainer">
+                        <!-- Grouped notes will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- AI Chatbot Widget (Feature 16) -->
     <div class="chatbot-widget" id="chatbotWidget">
         <button class="chat-toggle-btn" id="chatToggleBtn">

@@ -24,19 +24,48 @@
 
         body {
             font-family: 'Outfit', sans-serif;
-            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            margin: 0;
+            padding: 0;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 16px;
+            overflow-x: hidden;
+            background-color: #0f172a; /* Fallback */
+        }
+
+        /* Background Slider Styles */
+        .bg-slider {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
             overflow: hidden;
         }
 
+        .bg-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out, transform 10s linear;
+            filter: brightness(0.35) contrast(1.1);
+            transform: scale(1.1);
+        }
+
+        .bg-slide.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
         .container {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: #1e1b4b;
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px;
             width: 100%;
@@ -336,12 +365,6 @@
             margin-bottom: 6px;
         }
 
-        @supports (-webkit-backdrop-filter: none) or (backdrop-filter: none) {
-            .container {
-                -webkit-backdrop-filter: blur(20px);
-                backdrop-filter: blur(20px);
-            }
-        }
 
         @media (max-width: 768px) {
             body {
@@ -382,6 +405,12 @@
 </head>
 
 <body>
+    <!-- Background Slider -->
+    <div class="bg-slider">
+        <div class="bg-slide" style="background-image: url('images/tran-1.jpg')"></div>
+        <div class="bg-slide" style="background-image: url('images/tran-2.jpg')"></div>
+        <div class="bg-slide" style="background-image: url('images/tran-3.jpg')"></div>
+    </div>
     <div class="container">
         <div class="left-panel">
             <a href="index.html">
@@ -594,7 +623,7 @@
 
                 setTimeout(function () {
                     if (data.user.role === 'student') {
-                        window.location.href = 'faculty-browse.html';
+                        window.location.href = 'student-dashboard.html';
                     } else if (data.user.role === 'staff') {
                         window.location.href = 'staff-upload.html';
                     } else {
@@ -627,6 +656,21 @@
             el.textContent = message;
             el.classList.add('show');
         }
+
+        // Background Slider Logic
+        document.addEventListener('DOMContentLoaded', function() {
+            var slides = document.querySelectorAll('.bg-slide');
+            var currentSlide = 0;
+
+            if (slides.length > 0) {
+                slides[0].classList.add('active');
+                setInterval(function() {
+                    slides[currentSlide].classList.remove('active');
+                    currentSlide = (currentSlide + 1) % slides.length;
+                    slides[currentSlide].classList.add('active');
+                }, 10000);
+            }
+        });
     </script>
 </body>
 
