@@ -105,28 +105,8 @@
                                 <h3>Notifications</h3>
                                 <span class="badge">3 New</span>
                             </div>
-                            <div class="dropdown-content">
-                                <div class="notif-item unread">
-                                    <div class="notif-icon"><i class='bx bx-file'></i></div>
-                                    <div class="notif-text">
-                                        <p>New notes uploaded for <strong>DBMS</strong></p>
-                                        <span>2 hours ago</span>
-                                    </div>
-                                </div>
-                                <div class="notif-item unread">
-                                    <div class="notif-icon"><i class='bx bx-calendar-event'></i></div>
-                                    <div class="notif-text">
-                                        <p>Assignment: <strong>OS Lab 4</strong> is due tomorrow</p>
-                                        <span>5 hours ago</span>
-                                    </div>
-                                </div>
-                                <div class="notif-item">
-                                    <div class="notif-icon"><i class='bx bx-badge-check'></i></div>
-                                    <div class="notif-text">
-                                        <p>Your review for <strong>DSA Notes</strong> was approved</p>
-                                        <span>Yesterday</span>
-                                    </div>
-                                </div>
+                            <div class="dropdown-content" id="notificationContent">
+                                <!-- Notifications will be rendered here dynamically -->
                             </div>
                             <div class="dropdown-footer">
                                 <a href="javascript:void(0)" id="show-all-notif">Show all notifications</a>
@@ -305,43 +285,8 @@
                             <h3><i class='bx bx-star'></i> Top Rated Study Materials</h3>
                             <a href="#" class="view-all">Browse All</a>
                         </div>
-                        <div class="notes-grid">
-                            <div class="note-card">
-                                <div class="note-icon type-pdf"><i class='bx bxs-file-pdf'></i></div>
-                                <div class="note-details">
-                                    <h4>Advanced Graph Algorithms</h4>
-                                    <p>Prof. Alan Turing • CS Dept</p>
-                                    <div class="note-meta">
-                                        <span class="rating"><i class='bx bxs-star'></i> 4.9</span>
-                                        <span class="reviews">(124 reviews)</span>
-                                    </div>
-                                </div>
-                                <button class="icon-btn-outline"><i class='bx bx-download'></i></button>
-                            </div>
-                            <div class="note-card">
-                                <div class="note-icon type-ppt"><i class='bx bxs-file-blank'></i></div>
-                                <div class="note-details">
-                                    <h4>Operating Systems Mem. Mgmt</h4>
-                                    <p>Prof. Grace Hopper • CS Dept</p>
-                                    <div class="note-meta">
-                                        <span class="rating"><i class='bx bxs-star'></i> 4.8</span>
-                                        <span class="reviews">(98 reviews)</span>
-                                    </div>
-                                </div>
-                                <button class="icon-btn-outline"><i class='bx bx-download'></i></button>
-                            </div>
-                            <div class="note-card">
-                                <div class="note-icon type-doc"><i class='bx bxs-file'></i></div>
-                                <div class="note-details">
-                                    <h4>Database Normalization Guide</h4>
-                                    <p>Prof. E.F. Codd • IT Dept</p>
-                                    <div class="note-meta">
-                                        <span class="rating"><i class='bx bxs-star'></i> 4.7</span>
-                                        <span class="reviews">(85 reviews)</span>
-                                    </div>
-                                </div>
-                                <button class="icon-btn-outline"><i class='bx bx-download'></i></button>
-                            </div>
+                        <div class="notes-grid" id="topRatedNotesGrid">
+                            <!-- Dynamic top rated notes will be rendered here -->
                         </div>
                     </div>
                 </div>
@@ -449,15 +394,15 @@
                         <div class="activity-stats">
                             <div class="stat-row">
                                 <span class="label">Notes Downloaded</span>
-                                <span class="value">45</span>
+                                <span class="value" id="download-count">0</span>
                             </div>
                             <div class="stat-row">
-                                <span class="label">Reviews Given</span>
-                                <span class="value">12</span>
+                                <span class="label">Total Activities</span>
+                                <span class="value" id="activity-count">0</span>
                             </div>
                             <div class="stat-row">
                                 <span class="label">Bookmarks</span>
-                                <span class="value" id="bookmark-count">8</span>
+                                <span class="value" id="bookmark-count-profile">0</span>
                             </div>
                         </div>
                     </div>
