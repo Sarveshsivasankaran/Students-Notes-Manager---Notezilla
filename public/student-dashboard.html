@@ -294,14 +294,30 @@
 
             <!-- Faculty View -->
             <div id="faculty-view" class="dashboard-grid view-section" style="display: none;">
-                <div class="welcome-banner glass-panel">
+                <div class="welcome-banner glass-panel" style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="welcome-text">
-                        <h2>Browse REC Faculty 👨‍🏫</h2>
-                        <p>Connect with expert professors across all major departments.</p>
+                        <h2>Browse REC Faculty & Drive Folders 👨‍🏫</h2>
+                        <p>Connect with expert professors and access their mapped Google Drive notes.</p>
+                    </div>
+                    <div>
+                        <a href="https://drive.google.com/drive/folders/1M6qdcTlfx_PofE0FkpZMTVibaXvuZEV_?usp=sharing" target="_blank" class="btn" style="background: var(--primary); padding: 12px 24px; border-radius: 8px; color: white; text-decoration: none; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                            <i class='bx bxl-google-drive'></i> Open Faculty Folders
+                        </a>
                     </div>
                 </div>
 
-                <div class="search-container glass-panel" style="padding: 24px; margin-bottom: 24px;">
+                <div class="bento-grid">
+                    <div class="bento-item glass-panel col-span-3">
+                        <div class="panel-header">
+                            <h3><i class='bx bxl-google-drive'></i> Live Google Drive Repository</h3>
+                        </div>
+                        <div style="width: 100%; height: 500px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border);">
+                            <iframe src="https://drive.google.com/embeddedfolderview?id=1M6qdcTlfx_PofE0FkpZMTVibaXvuZEV_#grid" width="100%" height="100%" frameborder="0"></iframe>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="search-container glass-panel" style="padding: 24px; margin-bottom: 24px; margin-top: 24px;">
                     <div class="search-bar" style="width: 100%; border-radius: 12px; height: 50px;">
                         <i class='bx bx-search'></i>
                         <input type="text" id="facultySearchInput" placeholder="Search by name, department, or handled subjects...">
@@ -438,27 +454,35 @@
                 </div>
             </div>
 
-            <!-- Explore Subjects View (Hidden by default) -->
+            <!-- Explore Subjects View -->
             <div id="subjects-view" class="dashboard-grid view-section" style="display: none;">
-                <div class="welcome-banner glass-panel">
+                <div class="welcome-banner glass-panel" style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="welcome-text">
-                        <h1>Explore <span class="highlight">Subjects</span></h1>
-                        <p>Browse through Rajalakshmi Engineering College subjects and find study materials.</p>
+                        <h1>Explore <span class="highlight">Subjects</span> & Google Drive Map</h1>
+                        <p>Access the central Google Drive repository for all subjects.</p>
+                    </div>
+                    <div>
+                        <a href="https://drive.google.com/drive/folders/1M6qdcTlfx_PofE0FkpZMTVibaXvuZEV_?usp=sharing" target="_blank" class="btn" style="background: var(--primary); padding: 12px 24px; border-radius: 8px; color: white; text-decoration: none; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                            <i class='bx bxl-google-drive'></i> Open Central Google Drive
+                        </a>
                     </div>
                 </div>
 
-                <div class="search-container glass-panel" style="padding: 24px; margin-bottom: 24px;">
+                <div class="bento-grid">
+                    <div class="bento-item glass-panel col-span-3">
+                        <div class="panel-header">
+                            <h3><i class='bx bxl-google-drive'></i> Live Google Drive Repository</h3>
+                        </div>
+                        <div style="width: 100%; height: 500px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border);">
+                            <iframe src="https://drive.google.com/embeddedfolderview?id=1M6qdcTlfx_PofE0FkpZMTVibaXvuZEV_#list" width="100%" height="100%" frameborder="0"></iframe>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="search-container glass-panel" style="padding: 24px; margin-bottom: 24px; margin-top: 24px;">
                     <div class="search-bar" style="width: 100%; border-radius: 12px; height: 50px;">
                         <i class='bx bx-search'></i>
-                        <input type="text" id="subjectSearchInput" placeholder="Search for subjects, codes, or keywords...">
-                    </div>
-                    <div style="display: flex; gap: 12px; margin-top: 16px;">
-                        <span style="font-size: 13px; color: var(--text-muted);">Popular:</span>
-                        <div class="tag-list" style="display: flex; gap: 8px;">
-                            <span class="subject-tag">Data Structures</span>
-                            <span class="subject-tag">Machine Learning</span>
-                            <span class="subject-tag">Operating Systems</span>
-                        </div>
+                        <input type="text" id="subjectSearchInput" placeholder="Search for subjects in database...">
                     </div>
                 </div>
 
@@ -487,28 +511,36 @@
                 </div>
             </div>
 
-            <!-- Access Notes View (Hidden by default) -->
+            <!-- Access Notes View -->
             <div id="notes-view" class="dashboard-grid view-section" style="display: none;">
-                <div class="welcome-banner glass-panel">
+                <div class="welcome-banner glass-panel" style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="welcome-text">
                         <h1>Access <span class="highlight">Study Material</span></h1>
-                        <p>Search and download verified notes by subject or faculty members.</p>
+                        <p>Search and download verified notes from the Google Drive Repository.</p>
+                    </div>
+                    <div>
+                        <a href="https://drive.google.com/drive/folders/1M6qdcTlfx_PofE0FkpZMTVibaXvuZEV_?usp=sharing" target="_blank" class="btn" style="background: var(--primary); padding: 12px 24px; border-radius: 8px; color: white; text-decoration: none; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                            <i class='bx bxl-google-drive'></i> Open Drive folder
+                        </a>
                     </div>
                 </div>
 
-                <div class="search-container glass-panel" style="padding: 24px; margin-bottom: 24px;">
+                <div class="bento-grid">
+                    <div class="bento-item glass-panel col-span-3">
+                        <div class="panel-header">
+                            <h3><i class='bx bxl-google-drive'></i> Live Google Drive Repository</h3>
+                        </div>
+                        <div style="width: 100%; height: 500px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border);">
+                            <iframe src="https://drive.google.com/embeddedfolderview?id=1M6qdcTlfx_PofE0FkpZMTVibaXvuZEV_#grid" width="100%" height="100%" frameborder="0"></iframe>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="search-container glass-panel" style="padding: 24px; margin-bottom: 24px; margin-top: 24px;">
                     <div style="display: flex; gap: 16px;">
                         <div class="search-bar" style="flex: 1; border-radius: 12px; height: 50px;">
                             <i class='bx bx-search'></i>
-                            <input type="text" id="notesSearchInput" placeholder="Search by subject name or faculty (e.g., Data Structures, Dr. Ramesh)...">
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 12px; margin-top: 16px; align-items: center;">
-                        <span style="font-size: 13px; color: var(--text-muted);">Quick Filters:</span>
-                        <div class="tag-list" style="display: flex; gap: 8px;">
-                            <span class="note-filter-tag active" data-type="all">All Materials</span>
-                            <span class="note-filter-tag" data-type="pdf">PDFs Only</span>
-                            <span class="note-filter-tag" data-type="ppt">Presentations</span>
+                            <input type="text" id="notesSearchInput" placeholder="Search saved notes in database...">
                         </div>
                     </div>
                 </div>
@@ -632,43 +664,41 @@
         </div>
     </div>
 
-    <!-- AI Chatbot Widget (Feature 16) -->
-    <div class="chatbot-widget" id="chatbotWidget">
-        <button class="chat-toggle-btn" id="chatToggleBtn">
-            <i class='bx bx-bot'></i>
-            <span class="pulse-ring"></span>
-        </button>
-        
-        <div class="chat-window" id="chatWindow">
+    <!-- AI Chatbot (Matches index.html UI) -->
+    <div class="chatbot-container" id="chatbotWidget">
+        <div class="chatbot-window" id="chatbotWindow">
             <div class="chat-header">
-                <div class="bot-info">
-                    <div class="bot-avatar"><i class='bx bx-bot'></i></div>
-                    <div>
-                        <h4>Notezilla AI Assistant</h4>
-                        <span>Online</span>
-                    </div>
+                <img src="images/logo.avif" alt="Aadhi">
+                <div class="chat-header-info">
+                    <h4>Aadhi</h4>
+                    <p>AI Support Assistant</p>
                 </div>
-                <button class="close-chat" id="closeChatBtn"><i class='bx bx-x'></i></button>
+                <button class="chat-close" id="chatClose">&times;</button>
             </div>
-            
-            <div class="chat-messages" id="chatMessages">
-                <div class="message bot">
-                    <div class="msg-content">
-                        Hello! I'm your Notezilla AI Assistant. How can I help you with your studies today? You can ask me to find notes, explain a concept, or check your schedule.
-                    </div>
-                    <div class="msg-time">Just now</div>
-                </div>
-                <div class="quick-prompts">
-                    <button>Show REC Departments</button>
-                    <button>Hostel facilities at REC</button>
-                    <button>Contact REC Admin</button>
+            <div class="chat-body" id="chatBody">
+                <div class="chat-msg bot">Hi there! 👋 I'm Aadhi, Notezilla's AI assistant. How can I help you today?</div>
+                <div class="quick-prompts" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">
+                    <button style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); color:var(--primary-light); border-radius:20px; padding:6px 12px; font-size:11px; cursor:pointer;">Show REC Departments</button>
+                    <button style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); color:var(--primary-light); border-radius:20px; padding:6px 12px; font-size:11px; cursor:pointer;">Hostel facilities at REC</button>
+                    <button style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); color:var(--primary-light); border-radius:20px; padding:6px 12px; font-size:11px; cursor:pointer;">Contact REC Admin</button>
                 </div>
             </div>
-            
             <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Ask anything about your courses...">
-                <button class="send-btn" id="sendChatBtn"><i class='bx bx-send'></i></button>
+                <input type="text" id="chatInput" placeholder="Type your message...">
+                <button id="chatSend">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
             </div>
+        </div>
+
+        <div class="chatbot-toggle" id="chatToggle">
+            <div class="chatbot-toggle-bg"></div>
+            <div class="chatbot-greeting">Hi, I'm Aadhi! 👋</div>
+            <img src="images/logo.avif" alt="Aadhi Chatbot">
         </div>
     </div>
 

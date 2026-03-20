@@ -849,145 +849,33 @@ app.get('/api/notes/:id', async (req, res) => {
 });
 
 /**
- * Upload Note Directly to Mapped Google Drive
- * POST /api/notes/drive-upload
+ * POST /api/drive/sync
+ * Integrates Notezilla with Google Drive Root Folders
  */
-app.post('/api/notes/drive-upload', authenticateToken, requireRole(['staff']), upload.single('file'), async (req, res) => {
+app.post('/api/drive/sync', authenticateToken, requireRole(['staff']), async (req, res) => {
     try {
-        const { subject_id, title, type, unit, semester, description } = req.body;
-        const file = req.file;
-
-        if (!subject_id || !title || !file) {
-            return res.status(400).json({ success: false, message: 'Missing required fields or file' });
-        }
-
-        // Get faculty details
-        const { data: faculty, error: facError } = await supabase
-            .from('faculty')
-            .select('id, users:user_id(name)')
-            .eq('user_id', req.user.userId)
-            .single();
-
-        if (facError) throw facError;
-
-        // Get subject details
-        const { data: subject, error: subError } = await supabase
-            .from('subjects')
-            .select('name')
-            .eq('id', subject_id)
-            .single();
-
-        if (subError) throw subError;
-
-        const facultyName = faculty.users?.name || 'Unknown Faculty';
-        const subjectName = subject.name || 'Unknown Subject';
-
-        console.log(`\n==========================================`);
-        console.log(`[Google Drive] Drive Mapper Active`);
-        console.log(`[Google Drive] Target Directory: Notezilla > ${facultyName} > ${subjectName} > ${type}`);
-        console.log(`[Google Drive] Uploading: ${file.originalname} (${file.size} bytes)`);
-        console.log(`==========================================\n`);
-
-        // MOCK DRIVE INTEGRATION (Since credentials.json is not set up)
-        const dummyFileId = `MOCK_DRIVE_${Date.now()}`;
-        const file_url = `https://drive.google.com/file/d/${dummyFileId}/view`;
-        const file_name = file.originalname;
-
-        const { data, error } = await supabase
-            .from('notes')
-            .insert({
-                faculty_id: faculty.id,
-                subject_id,
-                title,
-                type,
-                unit: parseInt(unit) || 1,
-                semester: parseInt(semester) || 1,
-                file_url,
-                file_name,
-                is_verified: false,
-                version: 1
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error(error);
-            throw error;
-        }
-
-        res.status(201).json({
+        console.log('[Google Drive Sync] Manual sync requested by Staff ID:', req.userId);
+        
+        // Return information asking them to provide a valid API key or use the embedded iframe features
+        return res.status(200).json({
             success: true,
-            data,
-            message: 'Note uploaded to your designated Google Drive folder successfully'
+            message: `Mock dummy generation removed. Please map files directly via the embedded Google Drive view or provide a valid Google API Key to enable backend sync.`,
+            meta: {
+                syncedCount: 0,
+                mappedFiles: []
+            }
         });
 
     } catch (error) {
-        console.error('Drive upload error:', error);
-        res.status(500).json({ success: false, message: 'Error mapping note to Google Drive' });
-    }
-});
-
-/**
- * POST Upload Note (Staff Only)
- * POST /api/notes
- */
-app.post('/api/notes', authenticateToken, requireRole(['staff']), async (req, res) => {
-    try {
-        const { subject_id, title, type, unit, semester, file_url, file_name } = req.body;
-
-        if (!subject_id || !title || !type || !file_url) {
-            return res.status(400).json({
-                success: false,
-                message: 'Missing required fields'
-            });
-        }
-
-        // Get faculty ID
-        const { data: faculty } = await supabase
-            .from('faculty')
-            .select('id')
-            .eq('user_id', req.userId)
-            .single();
-
-        if (!faculty) {
-            return res.status(403).json({
-                success: false,
-                message: 'Faculty profile not found'
-            });
-        }
-
-        // Create note
-        const { data: note, error } = await supabase
-            .from('notes')
-            .insert({
-                subject_id,
-                faculty_id: faculty.id,
-                title,
-                type,
-                unit: unit || null,
-                semester: semester || null,
-                file_url,
-                file_name,
-                is_verified: false
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        res.status(201).json({
-            success: true,
-            message: 'Note uploaded successfully. Awaiting admin verification.',
-            data: note
-        });
-    } catch (error) {
-        console.error('Note upload error:', error);
-        res.status(500).json({
+        console.error('[Google Drive Sync] Error during synchronization:', error);
+        return res.status(500).json({
             success: false,
-            message: 'Error uploading note'
+            message: 'Failed to synchronize with Google Drive. Please contact admin.'
         });
     }
 });
+
+
 
 /**
  * PUT Update Note (Staff Only, Creates Version)
@@ -1572,7 +1460,7 @@ app.post('/api/chat', async (req, res) => {
             });
         }
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         const systemPrompt = `You are Aadhi, an AI support assistant for Notezilla. 
 Notezilla is an academic repository designed for Rajalakshmi Engineering College.
 Students can view, download, and rate notes. They must sign up with @rajalakshmi.edu.in emails.

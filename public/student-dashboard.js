@@ -499,27 +499,87 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // 6. AI Chatbot
+    // 6. AI Chatbot (Matches index.html Logic & IDs)
+    const chatToggle = document.getElementById('chatToggle');
+    const chatbotWindow = document.getElementById('chatbotWindow');
+    const chatClose = document.getElementById('chatClose');
+    const chatBody = document.getElementById('chatBody');
     const chatInput = document.getElementById('chatInput');
-    const sendChatBtn = document.getElementById('sendChatBtn');
-    const chatMessages = document.getElementById('chatMessages');
+    const chatSend = document.getElementById('chatSend');
+
+    // Toggle Chat Window
+    if (chatToggle && chatbotWindow) {
+        chatToggle.onclick = () => {
+            chatbotWindow.classList.toggle('active');
+            if (chatbotWindow.classList.contains('active')) {
+                chatInput.focus();
+            }
+        };
+    }
+
+    if (chatClose && chatbotWindow) {
+        chatClose.onclick = () => chatbotWindow.classList.remove('active');
+    }
+
+    // Quick Prompts Logic (Event Delegation)
+    if (chatBody) {
+        chatBody.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (btn && btn.parentElement.classList.contains('quick-prompts')) {
+                chatInput.value = btn.textContent;
+                handleSendMessage();
+                // Hide quick prompts once clicked
+                btn.parentElement.style.display = 'none';
+            }
+        });
+    }
 
     async function handleSendMessage() {
         const msg = chatInput.value.trim();
         if (!msg) return;
-        chatMessages.insertAdjacentHTML('beforeend', `<div class="message user"><div class="msg-content">${msg}</div></div>`);
+
+        // Add user message
+        const userMsgEl = document.createElement('div');
+        userMsgEl.className = 'chat-msg user';
+        userMsgEl.textContent = msg;
+        chatBody.appendChild(userMsgEl);
+        
         chatInput.value = '';
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        chatBody.scrollTop = chatBody.scrollHeight;
+
+        // Show typing indicator
+        const typingEl = document.createElement('div');
+        typingEl.className = 'chat-msg bot typing';
+        typingEl.id = 'typing-indicator';
+        typingEl.innerHTML = '<div class="typing-indicator"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
+        chatBody.appendChild(typingEl);
+        chatBody.scrollTop = chatBody.scrollHeight;
 
         try {
-            const res = await apiFetch('/chat', { method: 'POST', body: JSON.stringify({ message: msg }) });
+            const res = await apiFetch('/chat', { 
+                method: 'POST', 
+                body: JSON.stringify({ message: msg }) 
+            });
+            
+            // Remove typing indicator
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) typingIndicator.remove();
+
             const botMsg = res.success ? res.response : "I'm sorry, I couldn't connect to my brain. Try asking about REC departments!";
-            chatMessages.insertAdjacentHTML('beforeend', `<div class="message bot"><div class="msg-content">${botMsg}</div></div>`);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        } catch(e) { console.error(e); }
+            const botMsgEl = document.createElement('div');
+            botMsgEl.className = 'chat-msg bot';
+            // Simple newline mapping to HTML breaks
+            botMsgEl.innerHTML = botMsg.replace(/\n/g, '<br>');
+            chatBody.appendChild(botMsgEl);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        } catch(e) { 
+            console.error(e);
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) typingIndicator.remove();
+        }
     }
 
-    if (sendChatBtn) sendChatBtn.onclick = handleSendMessage;
+    if (chatSend) chatSend.onclick = handleSendMessage;
     if (chatInput) chatInput.onkeypress = (e) => { if (e.key === 'Enter') handleSendMessage(); };
 
     // 7. Live Clock
