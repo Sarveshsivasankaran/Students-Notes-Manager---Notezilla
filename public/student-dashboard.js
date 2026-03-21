@@ -215,12 +215,42 @@ document.addEventListener('DOMContentLoaded', () => {
         res.data.forEach(sub => {
             const card = document.createElement('div');
             card.className = 'subject-card';
+            card.onclick = () => {
+                document.getElementById('nav-notes').click();
+                document.getElementById('notesSearchInput').value = sub.name;
+            };
             card.innerHTML = `
-                <span class="code">${sub.code || 'N/A'}</span>
-                <h3>${sub.name}</h3>
-                <div class="subject-card-footer">
-                    <div class="subject-info"><span>${sub.department}</span> • <span>Sem ${sub.semester}</span></div>
-                    <button class="subject-btn" onclick="document.getElementById('nav-notes').click(); document.getElementById('notesSearchInput').value='${sub.name}';">View Notes</button>
+                <div class="subject-card-top">
+                    <div class="subject-tag-new">${sub.department || 'Programming'}</div>
+                    <div class="subject-graphic">
+                        <svg viewBox="0 0 200 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Monitor Outline -->
+                            <rect x="30" y="20" width="140" height="90" rx="8" fill="#F0F7FF" stroke="#1E3A8A" stroke-width="6"/>
+                            <!-- Monitor Base -->
+                            <path d="M90 110 H110 L115 130 H85 L90 110Z" fill="#1E3A8A"/>
+                            <rect x="75" y="130" width="50" height="6" rx="3" fill="#1E3A8A"/>
+                            <!-- Screen Bottom Bezel -->
+                            <rect x="27" y="90" width="146" height="20" fill="#1E3A8A"/>
+                            <!-- Code lines -->
+                            <rect x="45" y="35" width="30" height="6" rx="3" fill="#F97316"/>
+                            <rect x="80" y="35" width="20" height="6" rx="3" fill="#0EA5E9"/>
+                            <rect x="105" y="35" width="40" height="6" rx="3" fill="#1E3A8A"/>
+                            
+                            <rect x="45" y="50" width="20" height="6" rx="3" fill="#1E3A8A"/>
+                            <rect x="70" y="50" width="45" height="6" rx="3" fill="#0EA5E9"/>
+                            
+                            <rect x="45" y="65" width="45" height="6" rx="3" fill="#F97316"/>
+                            <rect x="95" y="65" width="25" height="6" rx="3" fill="#1E3A8A"/>
+                            <rect x="125" y="65" width="20" height="6" rx="3" fill="#0EA5E9"/>
+                            
+                            <rect x="45" y="80" width="35" height="6" rx="3" fill="#0EA5E9"/>
+                            <rect x="85" y="80" width="40" height="6" rx="3" fill="#1E3A8A"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="subject-card-bottom">
+                    <h2 class="subject-code-new">${sub.code || 'N/A'}</h2>
+                    <p class="subject-name-new">${sub.name}</p>
                 </div>
             `;
             subjectsResultsGrid.appendChild(card);
