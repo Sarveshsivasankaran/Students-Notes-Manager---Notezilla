@@ -435,23 +435,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         savedPlannerItems.forEach((item, index) => {
+            const isCompleted = item.completed === true;
             const div = document.createElement('div');
-            div.className = 'timeline-item';
+            div.className = `timeline-item ${isCompleted ? 'completed' : ''}`;
+            div.style.opacity = isCompleted ? '0.6' : '1';
+            div.style.pointerEvents = isCompleted ? 'none' : 'auto';
+            
             div.innerHTML = `
                 <div class="time"><i class='bx bx-time-five'></i> ${item.time}</div>
                 <div class="content" style="display:flex; justify-content:space-between; align-items:center;">
-                    <div><h4>${item.title}</h4><span>${item.desc}</span></div>
+                    <div style="${isCompleted ? 'text-decoration: line-through;' : ''}">
+                        <h4>${item.title}</h4>
+                        <span>${item.desc}</span>
+                    </div>
                     <div style="display:flex; gap:8px;">
-                        <button class="fin-btn" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i class='bx bx-check-circle'></i></button>
-                        <button class="del-btn" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i class='bx bx-trash'></i></button>
+                        <button class="fin-btn" style="background:none; border:none; color:${isCompleted ? 'var(--accent-1)' : 'var(--text-muted)'}; cursor:pointer;" ${isCompleted ? 'disabled' : ''}>
+                            <i class='bx ${isCompleted ? 'bxs-check-circle' : 'bx-check-circle'}'></i>
+                        </button>
+                        <button class="del-btn" style="background:none; border:none; color:var(--text-muted); cursor:pointer;">
+                            <i class='bx bx-trash'></i>
+                        </button>
                     </div>
                 </div>
             `;
-            div.querySelector('.fin-btn').onclick = () => {
-                logProgress('planner', item.title, item.desc);
-                savedPlannerItems.splice(index, 1);
-                savePlanner();
-            };
+            
+            if (!isCompleted) {
+                div.querySelector('.fin-btn').onclick = () => {
+                    logProgress('planner', item.title, item.desc);
+                    savedPlannerItems[index].completed = true;
+                    savePlanner();
+                };
+            }
+            
             div.querySelector('.del-btn').onclick = () => {
                 savedPlannerItems.splice(index, 1);
                 savePlanner();
@@ -594,11 +609,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalTasks = savedTasks.length;
         const compTasks = savedTasks.filter(t => t.completed).length;
         
-        // Include completed planner sessions in the calculation
-        const completedPlannerCount = completedWork.filter(item => item.type === 'planner').length;
+        // Count from planner list (both upcoming and completed)
+        const plannerTotal = savedPlannerItems.length;
+        const plannerCompleted = savedPlannerItems.filter(item => item.completed).length;
         
-        const totalItems = totalTasks + savedPlannerItems.length + completedPlannerCount;
-        const totalCompleted = compTasks + completedPlannerCount;
+        const totalItems = totalTasks + plannerTotal;
+        const totalCompleted = compTasks + plannerCompleted;
         
         const percentage = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
 
@@ -607,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
         circle.style.strokeDashoffset = 251 - (251 * percentage) / 100;
 
         if (completedVal) completedVal.textContent = totalCompleted;
-        if (inProgressVal) inProgressVal.textContent = savedPlannerItems.length;
+        if (inProgressVal) inProgressVal.textContent = plannerTotal - plannerCompleted;
         if (todoVal) todoVal.textContent = totalTasks - compTasks;
 
         // Milestones

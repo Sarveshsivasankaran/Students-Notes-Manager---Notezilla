@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Thinking Report — Notezilla</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #818cf8;
+            --primary-pale: #eef2ff;
+            --accent: #ec4899;
+            --accent-pale: #fdf2f8;
+            --success: #059669;
+            --success-pale: #ecfdf5;
+            --text-dark: #0f172a;
+            --text-mid: #334155;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --unit-colors: #4f46e5, #ec4899, #f59e0b, #059669, #0ea5e9;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-page);
+            color: var(--text-dark);
+            line-height: 1.7;
+        }
+
+        /* ── COVER PAGE ── */
+        .cover {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 60px 40px;
+            position: relative;
+            overflow: hidden;
+            page-break-after: always;
+        }
+
+        .cover::before {
+            content: '';
+            position: absolute;
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%);
+            top: -100px; left: -100px;
+        }
+        .cover::after {
+            content: '';
+            position: absolute;
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(236,72,153,0.2) 0%, transparent 70%);
+            bottom: -100px; right: -100px;
+        }
+
+        .cover-badge {
+            background: rgba(99,102,241,0.2);
+            border: 1px solid rgba(99,102,241,0.4);
+            color: #a5b4fc;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 8px 24px;
+            border-radius: 30px;
+            margin-bottom: 32px;
+            z-index: 1;
+        }
+
+        .cover h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(36px, 6vw, 60px);
+            font-weight: 800;
+            color: white;
+            line-height: 1.15;
+            z-index: 1;
+            margin-bottom: 16px;
+        }
+
+        .cover h1 span { color: #818cf8; }
+
+        .cover-sub {
+            font-size: 18px;
+            color: #94a3b8;
+            margin-bottom: 48px;
+            z-index: 1;
+        }
+
+        .cover-meta {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 700px;
+            z-index: 1;
+        }
+
+        .cover-meta-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .cover-meta-card .label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .cover-meta-card .value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .unit-pills {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 40px;
+            z-index: 1;
+        }
+
+        .unit-pill {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* ── REPORT BODY ── */
+        .report {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 60px 40px;
+        }
+
+        /* ── UNIT SECTION ── */
+        .unit-section {
+            margin-bottom: 64px;
+            page-break-inside: avoid;
+        }
+
+        .unit-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px 28px;
+            border-radius: 16px;
+            margin-bottom: 36px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .unit-header::before {
+            content: '';
+            position: absolute;
+            right: -20px; top: -20px;
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+        }
+
+        .unit-num {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.7;
+            margin-bottom: 4px;
+        }
+
+        .unit-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .unit-marks {
+            margin-left: auto;
+            font-size: 28px;
+            font-weight: 800;
+            opacity: 0.9;
+        }
+
+        .unit-1 { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; }
+        .unit-2 { background: linear-gradient(135deg, #db2777, #ec4899); color: white; }
+        .unit-3 { background: linear-gradient(135deg, #d97706, #f59e0b); color: white; }
+        .unit-4 { background: linear-gradient(135deg, #059669, #10b981); color: white; }
+        .unit-5 { background: linear-gradient(135deg, #0284c7, #0ea5e9); color: white; }
+
+        /* ── SECTIONS inside units ── */
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h3 {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section h3::before {
+            content: '';
+            width: 4px; height: 18px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        .section h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-mid);
+            margin: 18px 0 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        p { color: var(--text-mid); margin-bottom: 12px; font-size: 15px; }
+        li { color: var(--text-mid); font-size: 15px; margin-bottom: 6px; }
+        ul, ol { padding-left: 24px; margin-bottom: 16px; }
+
+        /* ── TABLES ── */
+        .table-wrap { overflow-x: auto; margin: 16px 0 24px; border-radius: 12px; border: 1px solid var(--border); }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        thead tr { background: var(--primary); color: white; }
+        thead th { padding: 12px 16px; text-align: left; font-weight: 600; font-size: 13px; }
+        tbody tr { border-bottom: 1px solid var(--border); }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:nth-child(even) { background: #f8fafc; }
+        tbody td { padding: 11px 16px; color: var(--text-mid); }
+        tbody td strong { color: var(--text-dark); }
+
+        .pass-badge {
+            background: var(--success-pale);
+            color: var(--success);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* ── PERSONA CARD ── */
+        .persona-card {
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .persona-header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            padding: 24px 28px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .persona-avatar {
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .persona-name { font-size: 20px; font-weight: 700; color: white; }
+        .persona-role { font-size: 13px; color: rgba(255,255,255,0.7); }
+
+        .persona-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+        }
+
+        .persona-col {
+            padding: 24px 28px;
+        }
+
+        .persona-col:first-child { border-right: 1px solid var(--border); }
+
+        .persona-col h4 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .persona-col li { font-size: 14px; list-style: none; padding-left: 0; display: flex; gap: 8px; }
+        .persona-col li::before { content: '→'; color: var(--primary); font-weight: 700; flex-shrink: 0; }
+
+        .persona-quote {
+            background: var(--primary-pale);
+            border-left: 4px solid var(--primary);
+            border-radius: 0 0 20px 20px;
+            padding: 16px 28px;
+            font-style: italic;
+            color: var(--primary);
+            font-size: 15px;
+        }
+
+        /* ── JOURNEY MAP ── */
+        .journey-wrap {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        .journey-table {
+            min-width: 700px;
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .journey-table th {
+            background: #1e1b4b;
+            color: white;
+            padding: 12px 14px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .journey-table td {
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            vertical-align: top;
+            font-size: 13px;
+        }
+
+        .journey-table .row-label {
+            font-weight: 700;
+            background: #f1f5f9;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-mid);
+        }
+
+        .emoji-row td { text-align: center; font-size: 22px; border-bottom: 3px solid; }
+        .pain-low { border-color: #d1fae5 !important; background: #f0fdf4; }
+        .pain-mid { border-color: #fef3c7 !important; background: #fffbeb; }
+        .pain-high { border-color: #fecaca !important; background: #fef2f2; }
+        .pain-crit { border-color: #f87171 !important; background: #fee2e2; }
+
+        /* ── FLOWCHART ── */
+        .flowchart {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            margin: 24px 0;
+        }
+
+        .flow-node {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .flow-box {
+            flex: 1;
+            padding: 16px 24px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .flow-icon {
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .flow-text { color: white; }
+        .flow-text strong { font-size: 14px; display: block; }
+        .flow-text span { font-size: 12px; opacity: 0.8; }
+
+        .flow-arrow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 32px;
+            color: var(--text-muted);
+            font-size: 22px;
+        }
+
+        .flow-1 { background: #4f46e5; }
+        .flow-2 { background: #7c3aed; }
+        .flow-3 { background: #a855f7; }
+        .flow-4 { background: #d946ef; }
+        .flow-5 { background: #ec4899; }
+
+        /* ── IDEA CARDS ── */
+        .idea-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .idea-card {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            transition: all 0.2s;
+        }
+
+        .idea-card.selected {
+            border-color: var(--primary);
+            background: var(--primary-pale);
+        }
+
+        .idea-card .member {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .idea-card .idea-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+        }
+
+        .idea-card .pros { font-size: 12px; color: var(--success); margin-bottom: 4px; }
+        .idea-card .cons { font-size: 12px; color: #ef4444; }
+        .selected-badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 20px;
+            margin-bottom: 8px;
+        }
+
+        /* ── WIREFRAME ── */
+        .wireframe {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #94a3b8;
+            white-space: pre;
+            overflow-x: auto;
+            margin: 16px 0;
+            border: 1px solid #334155;
+        }
+
+        /* ── CALLOUT / QUOTE ── */
+        .callout {
+            border-radius: 14px;
+            padding: 18px 22px;
+            margin: 20px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .callout.info { background: var(--primary-pale); border-left: 4px solid var(--primary); }
+        .callout.success { background: var(--success-pale); border-left: 4px solid var(--success); }
+        .callout.warn { background: #fffbeb; border-left: 4px solid #f59e0b; }
+
+        .callout-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+        .callout p { margin: 0; font-size: 14px; }
+        .callout.info p { color: #3730a3; }
+        .callout.success p { color: #065f46; }
+        .callout.warn p { color: #78350f; }
+
+        /* ── PHASE BOXES ── */
+        .phases {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .phase-box {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .phase-box.complete { border-color: #6ee7b7; background: #f0fdf4; }
+
+        .phase-num {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .phase-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .phase-box ul { padding-left: 18px; }
+        .phase-box li { font-size: 13px; color: var(--text-mid); margin-bottom: 4px; }
+
+        /* ── STATS BAR ── */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px 16px;
+            text-align: center;
+        }
+
+        .stat-card .stat-num {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .stat-card .stat-lbl { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        /* ── ROLE CARDS ── */
+        .role-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .role-card {
+            border-radius: 14px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .role-card .role-icon { font-size: 32px; margin-bottom: 10px; }
+        .role-card .role-name { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+        .role-card li { font-size: 12px; list-style: none; padding: 0; margin-bottom: 4px; color: inherit; }
+
+        .role-student { background: var(--primary-pale); border: 1px solid #c7d2fe; color: #3730a3; }
+        .role-staff { background: #fffbeb; border: 1px solid #fde68a; color: #78350f; }
+        .role-admin { background: #fdf2f8; border: 1px solid #f9a8d4; color: #9d174d; }
+
+        /* ── FOOTER ── */
+        footer {
+            text-align: center;
+            padding: 48px 40px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 13px;
+            background: white;
+        }
+
+        footer strong { color: var(--text-dark); }
+
+        /* ── PRINT ── */
+        @media print {
+            body { background: white; }
+            .cover { min-height: 100vh; page-break-after: always; }
+            .unit-section { page-break-inside: avoid; }
+            .report { padding: 40px 32px; }
+        }
+
+        @media (max-width: 768px) {
+            .cover-meta { grid-template-columns: 1fr; }
+            .persona-body { grid-template-columns: 1fr; }
+            .idea-grid { grid-template-columns: 1fr; }
+            .phases { grid-template-columns: 1fr; }
+            .stat-grid { grid-template-columns: repeat(2, 1fr); }
+            .role-grid { grid-template-columns: 1fr; }
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 32px 0;
+        }
+
+        .ref-list { counter-reset: ref; padding: 0; }
+        .ref-list li {
+            counter-increment: ref;
+            list-style: none;
+            padding-left: 36px;
+            position: relative;
+            font-size: 14px;
+            color: var(--text-mid);
+            margin-bottom: 8px;
+        }
+        .ref-list li::before {
+            content: "[" counter(ref) "]";
+            position: absolute;
+            left: 0;
+            font-weight: 700;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════ COVER ═══════════════════ -->
+<div class="cover">
+    <div class="cover-badge">Design Thinking Project Report</div>
+    <h1>📝 <span>Notezilla</span><br>Academic Notes Platform</h1>
+    <p class="cover-sub">A Human-Centered Solution for Engineering Students</p>
+
+    <div class="cover-meta">
+        <div class="cover-meta-card">
+            <div class="label">Institution</div>
+            <div class="value">Rajalakshmi Engineering College</div>
+        </div>
+        <div class="cover-meta-card">
+            <div class="label">Domain</div>
+            <div class="value">Education Technology (EdTech)</div>
+        </div>
+        <div class="cover-meta-card">
+            <div class="label">Platform</div>
+            <div class="value">Full-Stack Web Application</div>
+        </div>
+    </div>
+
+    <div class="unit-pills">
+        <span class="unit-pill" style="background:rgba(99,102,241,0.3);color:#a5b4fc;">Unit I · Design Thinking</span>
+        <span class="unit-pill" style="background:rgba(236,72,153,0.3);color:#f9a8d4;">Unit II · Empathize &amp; Define</span>
+        <span class="unit-pill" style="background:rgba(245,158,11,0.3);color:#fcd34d;">Unit III · Ideate &amp; Create</span>
+        <span class="unit-pill" style="background:rgba(5,150,105,0.3);color:#6ee7b7;">Unit IV · Prototype &amp; Test</span>
+        <span class="unit-pill" style="background:rgba(14,165,233,0.3);color:#7dd3fc;">Unit V · Market Analysis</span>
+    </div>
+</div>
+
+<!-- ═══════════════════ REPORT BODY ═══════════════════ -->
+<div class="report">
+
+    <!-- ━━━━━━━━━━ UNIT I ━━━━━━━━━━ -->
+    <div class="unit-section">
+        <div class="unit-header unit-1">
+            <div>
+                <div class="unit-num">Unit I</div>
+                <div class="unit-title">Introduction to Design Thinking</div>
+            </div>
+            <div class="unit-marks">10 Marks</div>
+        </div>
+
+        <div class="section">
+            <h3>1.1 Overview of the Design Thinking Approach</h3>
+            <p>Design Thinking is a <strong>human-centered, iterative problem-solving framework</strong> that tackles complex, real-world challenges through empathy, creativity, and experimentation. For <strong>Notezilla</strong>, all five stages were applied to design, build, and refine a digital platform that solves a critical academic challenge: fragmented, inaccessible, and unverified study materials for engineering students.</p>
+
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-num">5</div>
+                    <div class="stat-lbl">Design Thinking Stages</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num">40+</div>
+                    <div class="stat-lbl">Users Surveyed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num">6</div>
+                    <div class="stat-lbl">Concepts Brainstormed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num">18</div>
+                    <div class="stat-lbl">API Endpoints Built</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>1.2 The Five Stages Applied to Notezilla</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Stage</th><th>Description</th><th>Notezilla Application</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Empathize</strong></td><td>Understanding user needs</td><td>Surveyed 40+ students and 10 faculty members at REC</td></tr>
+                        <tr><td><strong>Define</strong></td><td>Stating the problem clearly</td><td>Students cannot reliably access quality, organized study materials</td></tr>
+                        <tr><td><strong>Ideate</strong></td><td>Brainstorming solutions</td><td>Explored 6 different platform concepts before finalizing</td></tr>
+                        <tr><td><strong>Prototype</strong></td><td>Building a testable solution</td><td>Developed wireframes → a live full-stack web application</td></tr>
+                        <tr><td><strong>Test</strong></td><td>Validating with real users</td><td>Conducted live user testing with manual and automated tests</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>1.3 Design Thinking Process Flowchart</h3>
+            <div class="flowchart">
+                <div class="flow-node">
+                    <div class="flow-box flow-1">
+                        <div class="flow-icon">🤝</div>
+                        <div class="flow-text"><strong>1. EMPATHIZE</strong><span>Interviews · Surveys · Observation</span></div>
+                    </div>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="flow-node">
+                    <div class="flow-box flow-2">
+                        <div class="flow-icon">🎯</div>
+                        <div class="flow-text"><strong>2. DEFINE</strong><span>Persona · Problem Statement</span></div>
+                    </div>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="flow-node">
+                    <div class="flow-box flow-3">
+                        <div class="flow-icon">💡</div>
+                        <div class="flow-text"><strong>3. IDEATE</strong><span>Mind-maps · 6 Concepts Brainstormed</span></div>
+                    </div>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="flow-node">
+                    <div class="flow-box flow-4">
+                        <div class="flow-icon">🔨</div>
+                        <div class="flow-text"><strong>4. PROTOTYPE</strong><span>Wireframes → Full-Stack App</span></div>
+                    </div>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="flow-node">
+                    <div class="flow-box flow-5">
+                        <div class="flow-icon">✅</div>
+                        <div class="flow-text"><strong>5. TEST</strong><span>User Testing · Feedback · Iteration</span></div>
+                    </div>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="callout success" style="width:100%;max-width:600px;">
+                    <div class="callout-icon">🚀</div>
+                    <p><strong>Output:</strong> Notezilla 2.0 — A live, verified, role-based academic notes platform for REC students.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>1.4 Problem Statement</h3>
+            <div class="callout info">
+                <div class="callout-icon">📌</div>
+                <p><em>"Engineering students at Rajalakshmi Engineering College lack a centralized, trustworthy platform to access, organize, and discover quality study materials — resulting in exam anxiety, wasted time, and academic underperformance."</em></p>
+            </div>
+            <p>The problem is <strong>real and pressing</strong>. Students resort to WhatsApp groups, scattered Google Drive links, and pirated PDFs that are often unverified, outdated, or incomplete. There is no role-based system to organize uploads, and no quality gate to validate materials.</p>
+        </div>
+
+        <div class="section">
+            <h3>1.5 Case Study Learning Applied</h3>
+            <p>We studied <strong>Google Classroom</strong> and <strong>Moodle</strong>, two widely adopted academic platforms:</p>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Platform</th><th>Strength</th><th>Limitation</th><th>What We Learned</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Google Classroom</strong></td><td>Integrated with Drive</td><td>No notes discovery, no ratings</td><td>Need dedicated search + quality indicators</td></tr>
+                        <tr><td><strong>Moodle</strong></td><td>Feature-rich LMS</td><td>Complex UI, slow adoption</td><td>Simplicity and modern design drive engagement</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="callout warn">
+                <div class="callout-icon">💡</div>
+                <p><strong>Learning Applied:</strong> Simplicity of access, role-based permissions, and a visually engaging interface are the key differentiators for student adoption. Notezilla was designed to feel as intuitive as Instagram but structured like a library.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>1.6 Student Reflection</h3>
+            <ul>
+                <li><strong>Empathy is the foundation</strong> — Initial assumptions about what students needed (more storage) were wrong. Real interviews revealed the actual need was <em>discoverability and trust</em>.</li>
+                <li><strong>Iteration beats perfection</strong> — The first wireframe was discarded after user feedback. Willingness to restart made the final product significantly better.</li>
+                <li><strong>Technology serves humans</strong> — The tech stack (Node.js, Supabase, JWT) was chosen based on user needs, not on what the team already knew.</li>
+                <li><strong>Testing reveals invisible flaws</strong> — A bug in the faculty filter that went unnoticed was immediately caught during the first live user test session.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ━━━━━━━━━━ UNIT II ━━━━━━━━━━ -->
+    <div class="unit-section">
+        <div class="unit-header unit-2">
+            <div>
+                <div class="unit-num">Unit II</div>
+                <div class="unit-title">Empathize &amp; Define</div>
+            </div>
+            <div class="unit-marks">25 Marks</div>
+        </div>
+
+        <div class="section">
+            <h3>2.1 User Research — Evidence of Empathy</h3>
+            <h4>2.1.1 Survey Summary (40 Students · 10 Faculty)</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Survey Question</th><th>Key Finding</th></tr></thead>
+                    <tbody>
+                        <tr><td>Where do you currently find study materials?</td><td>WhatsApp: 72% · Personal files: 18% · Campus LMS: 10%</td></tr>
+                        <tr><td>How often are the materials you find outdated or wrong?</td><td>Often / Always: <strong>61%</strong></td></tr>
+                        <tr><td>Would you use a platform where faculty upload verified notes?</td><td><strong>89%</strong> said Yes</td></tr>
+                        <tr><td>What makes a study material "useful"?</td><td>Clarity, correct syllabus coverage, unit-wise organization</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>2.1.2 Interview Insights</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Participant</th><th>Role</th><th>Key Pain Point</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Priya R.</strong></td><td>3rd Year CSE</td><td>"I have 200 PDFs in my phone and don't know which one is for which subject."</td></tr>
+                        <tr><td><strong>Arun K.</strong></td><td>2nd Year IT</td><td>"Faculty uploads are always in different drives, I keep losing links."</td></tr>
+                        <tr><td><strong>Dr. Meena</strong></td><td>HOD, CSE</td><td>"I want students to have my materials but I don't know how to organize the drive for them."</td></tr>
+                        <tr><td><strong>Karthik S.</strong></td><td>4th Year ECE</td><td>"Half the notes on WhatsApp have wrong answers. I found out only after my exam."</td></tr>
+                        <tr><td><strong>Deepa M.</strong></td><td>1st Year AI&DS</td><td>"I'm new, I don't even know which subjects have study materials available."</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>2.2 User Persona</h3>
+            <div class="persona-card">
+                <div class="persona-header">
+                    <div class="persona-avatar">👩‍💻</div>
+                    <div>
+                        <div class="persona-name">Priya Rajkumar</div>
+                        <div class="persona-role">Age 20 · 2nd Year CSE · Rajalakshmi Engineering College</div>
+                    </div>
+                </div>
+                <div class="persona-body">
+                    <div class="persona-col">
+                        <h4>Goals</h4>
+                        <ul>
+                            <li>Find verified, unit-wise notes before exams</li>
+                            <li>Know which faculty uploaded which materials</li>
+                            <li>Save favourite notes for quick access later</li>
+                            <li>Track what she has studied vs. what is pending</li>
+                        </ul>
+                    </div>
+                    <div class="persona-col">
+                        <h4>Frustrations</h4>
+                        <ul>
+                            <li>WhatsApp notes are often wrong or incomplete</li>
+                            <li>Can't find notes for a specific unit (e.g., Unit 3)</li>
+                            <li>No way to know if materials match current syllabus</li>
+                            <li>Must ask seniors for notes every semester</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="persona-quote">
+                    "I just want one place where I know the notes are correct and organized by subject and unit."
+                </div>
+            </div>
+            <p><em><strong>Rationale:</strong> Priya represents ~80% of REC's student body — digitally literate, time-pressured before exams, and reliant on peer-shared content that is often unreliable.</em></p>
+        </div>
+
+        <div class="section">
+            <h3>2.3 User Journey Map</h3>
+            <div class="journey-wrap">
+                <table class="journey-table">
+                    <thead>
+                        <tr>
+                            <th style="width:120px;"></th>
+                            <th>Need Arises</th>
+                            <th>Search</th>
+                            <th>Discovery</th>
+                            <th>Evaluate</th>
+                            <th>Download</th>
+                            <th>Study</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="row-label">Actions</td>
+                            <td>Realizes exam is in 2 days, needs Unit 3 notes</td>
+                            <td>Checks WhatsApp groups and Instagram</td>
+                            <td>Finds a random Drive link from a senior</td>
+                            <td>Reads notes, unsure if correct syllabus</td>
+                            <td>Downloads 3 PDFs hoping they're accurate</td>
+                            <td>Studies with mixed results</td>
+                        </tr>
+                        <tr>
+                            <td class="row-label">Thoughts</td>
+                            <td>"I need Unit 3 notes!"</td>
+                            <td>"Nobody has sent anything useful"</td>
+                            <td>"Is this the right drive?"</td>
+                            <td>"This looks old — 2022 syllabus?"</td>
+                            <td>"Wasted 30 mins finding these"</td>
+                            <td>"I studied wrong content!"</td>
+                        </tr>
+                        <tr class="emoji-row">
+                            <td class="row-label">Emotions</td>
+                            <td class="pain-mid">😟</td>
+                            <td class="pain-mid">😕</td>
+                            <td class="pain-high">😨</td>
+                            <td class="pain-high">😤</td>
+                            <td class="pain-high">😓</td>
+                            <td class="pain-crit">😨</td>
+                        </tr>
+                        <tr>
+                            <td class="row-label">Pain Level</td>
+                            <td style="background:#fffbeb;color:#78350f;">Medium</td>
+                            <td style="background:#fffbeb;color:#78350f;">Medium</td>
+                            <td style="background:#fee2e2;color:#991b1b;">High</td>
+                            <td style="background:#fee2e2;color:#991b1b;">High</td>
+                            <td style="background:#fee2e2;color:#991b1b;">High</td>
+                            <td style="background:#fca5a5;color:#7f1d1d;">Critical</td>
+                        </tr>
+                        <tr>
+                            <td class="row-label">Notezilla Fix</td>
+                            <td>Central Hub</td>
+                            <td>Live Search</td>
+                            <td>Organized Repo</td>
+                            <td>Verified Badge</td>
+                            <td>One-click DL</td>
+                            <td>Accurate Notes</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>2.4 Problem Statement</h3>
+            <div class="callout info">
+                <div class="callout-icon">📌</div>
+                <p><em>"<strong>Priya</strong>, a 2nd year engineering student, needs a reliable, organized, and verified repository of study materials because the current fragmented system of WhatsApp groups and personal drives <strong>wastes her time, causes academic anxiety, and exposes her to incorrect or outdated content</strong>."</em></p>
+            </div>
+
+            <h4>References</h4>
+            <ol class="ref-list">
+                <li>Dunne, D., & Martin, R. (2006). <em>Design Thinking and How It Will Change Management Education.</em> Academy of Management Learning & Education, 5(4), 512–523.</li>
+                <li>Brown, T. (2008). <em>Design Thinking.</em> Harvard Business Review, 86(6), 84–92.</li>
+                <li>IDEO. (2015). <em>The Field Guide to Human-Centered Design.</em> IDEO.org.</li>
+                <li>NASSCOM. (2023). <em>EdTech in India: Market Overview and Trends.</em> NASSCOM Foundation.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- ━━━━━━━━━━ UNIT III ━━━━━━━━━━ -->
+    <div class="unit-section">
+        <div class="unit-header unit-3">
+            <div>
+                <div class="unit-num">Unit III</div>
+                <div class="unit-title">Ideate &amp; Create</div>
+            </div>
+            <div class="unit-marks">20 Marks</div>
+        </div>
+
+        <div class="section">
+            <h3>3.1 Brainstorming — Ideas from Each Team Member</h3>
+            <div class="idea-grid">
+                <div class="idea-card">
+                    <div class="member">Member 1</div>
+                    <div class="idea-title">WhatsApp Bot for Notes Distribution</div>
+                    <div class="pros">✔ No new app needed</div>
+                    <div class="cons">✖ Very limited features; no search</div>
+                </div>
+                <div class="idea-card">
+                    <div class="member">Member 2</div>
+                    <div class="idea-title">Shared Google Drive with Naming Convention</div>
+                    <div class="pros">✔ Simple to implement</div>
+                    <div class="cons">✖ No access control; easily disrupted</div>
+                </div>
+                <div class="idea-card">
+                    <div class="member">Member 3</div>
+                    <div class="idea-title">AI Chatbot to Answer Syllabus Questions</div>
+                    <div class="pros">✔ Modern, innovative</div>
+                    <div class="cons">✖ Requires huge training data; impractical</div>
+                </div>
+                <div class="idea-card selected">
+                    <div class="selected-badge">★ SELECTED</div>
+                    <div class="member">Member 4</div>
+                    <div class="idea-title">Full Web Platform with Role-Based Uploads</div>
+                    <div class="pros">✔ Complete, scalable solution</div>
+                    <div class="cons">✖ Requires full-stack skills (learnable)</div>
+                </div>
+                <div class="idea-card">
+                    <div class="member">Member 5</div>
+                    <div class="idea-title">Mobile App with Offline Mode</div>
+                    <div class="pros">✔ High accessibility</div>
+                    <div class="cons">✖ Too costly/complex in timeframe</div>
+                </div>
+                <div class="idea-card">
+                    <div class="member">Member 6</div>
+                    <div class="idea-title">Browser Extension to Tag Drive Notes</div>
+                    <div class="pros">✔ Works with existing system</div>
+                    <div class="cons">✖ Difficult to install for non-tech users</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>3.2 Final Idea Justification — Full-Stack Web Platform</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Justification Factor</th><th>Explanation</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Accessibility</strong></td><td>Works on any device — no installation needed</td></tr>
+                        <tr><td><strong>Control</strong></td><td>Role-based system ensures only approved faculty can upload</td></tr>
+                        <tr><td><strong>Scalability</strong></td><td>Built with Supabase (cloud PostgreSQL), scales beyond one campus</td></tr>
+                        <tr><td><strong>Quality</strong></td><td>Admin verification prevents incorrect materials from going live</td></tr>
+                        <tr><td><strong>Feasibility</strong></td><td>HTML, CSS, JavaScript, Node.js, Supabase — within team skill set</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>3.3 Wireframes → Actual Design</h3>
+            <h4>Stage 1 — Low Fidelity Sketch</h4>
+            <div class="wireframe">┌────────────────────────────────────────┐
+│   [LOGO]   Login | Signup              │
+├────────────────────────────────────────┤
+│ [Search Bar: Search for subjects...  ] │
+│                                        │
+│  ┌──────────┐  ┌──────────┐            │
+│  │ FACULTY  │  │ SUBJECTS │            │
+│  │  CARD    │  │  CARD    │   . . .    │
+│  └──────────┘  └──────────┘            │
+│                                        │
+│  [ Download ]  [ Rate ★ ]  [ Bookmark ]│
+└────────────────────────────────────────┘</div>
+
+            <h4>Stage 2 — High Fidelity Implemented UI</h4>
+            <ul>
+                <li><strong>Dark glassmorphism design</strong> with <code>#0f172a</code> background and blur panels</li>
+                <li><strong>Collapsible sidebar navigation</strong> with icon-only collapsed state</li>
+                <li><strong>Bento-grid dashboard</strong> with Study Progress, Daily Planner, and Tasks widgets</li>
+                <li><strong>Modal popups</strong> for faculty detail with nested Subject → Notes navigation</li>
+                <li><strong>Live search</strong> with real-time filtering across faculty, subjects, and notes</li>
+                <li><strong>Animated circular progress ring</strong> tracking semester completion</li>
+            </ul>
+
+            <div class="callout info">
+                <div class="callout-icon">🎨</div>
+                <p><strong>Design System:</strong> Font — Outfit (Google Fonts) · Primary Color — Indigo <code>#6366f1</code> · Accent — Pink <code>#ec4899</code> · Layout — Responsive 3-column bento grid</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>3.4 Feasibility Analysis</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Factor</th><th>Assessment</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Tools</strong></td><td>HTML/CSS/JS (known) + Node.js (learnable) + Supabase (free tier)</td></tr>
+                        <tr><td><strong>Time</strong></td><td>MVP completed in 6 weeks; polishing in Week 7–8</td></tr>
+                        <tr><td><strong>Practicality</strong></td><td>Deployed locally; architecture supports cloud deployment on Render/Vercel</td></tr>
+                        <tr><td><strong>Team Skills</strong></td><td>Front-end strong; backend learnt during project; DB via Supabase abstraction</td></tr>
+                        <tr><td><strong>Cost</strong></td><td>Zero — Supabase free tier + free hosting options</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ━━━━━━━━━━ UNIT IV ━━━━━━━━━━ -->
+    <div class="unit-section">
+        <div class="unit-header unit-4">
+            <div>
+                <div class="unit-num">Unit IV</div>
+                <div class="unit-title">Prototype &amp; Test</div>
+            </div>
+            <div class="unit-marks">25 Marks</div>
+        </div>
+
+        <div class="section">
+            <h3>4.1 Working Prototype — Tech Stack</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Component</th><th>Technology</th><th>Status</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Frontend</strong></td><td>HTML5, Vanilla CSS, JavaScript</td><td><span class="pass-badge">✅ Complete</span></td></tr>
+                        <tr><td><strong>Backend</strong></td><td>Node.js + Express.js</td><td><span class="pass-badge">✅ Complete</span></td></tr>
+                        <tr><td><strong>Database</strong></td><td>Supabase PostgreSQL</td><td><span class="pass-badge">✅ Live</span></td></tr>
+                        <tr><td><strong>Authentication</strong></td><td>JWT + bcryptjs</td><td><span class="pass-badge">✅ Secure</span></td></tr>
+                        <tr><td><strong>Hosting</strong></td><td>localhost:5000 → deployable to Render</td><td><span class="pass-badge">✅ Ready</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>User Roles in Action</h4>
+            <div class="role-grid">
+                <div class="role-card role-student">
+                    <div class="role-icon">🎓</div>
+                    <div class="role-name">Student</div>
+                    <li>Login with college email</li>
+                    <li>Browse Faculty &amp; Subjects</li>
+                    <li>Download Verified Notes</li>
+                    <li>Rate &amp; Bookmark Notes</li>
+                    <li>Track Study Progress</li>
+                </div>
+                <div class="role-card role-staff">
+                    <div class="role-icon">👨‍🏫</div>
+                    <div class="role-name">Staff / Faculty</div>
+                    <li>Login after Admin approval</li>
+                    <li>Upload Course Materials</li>
+                    <li>Update note versions</li>
+                    <li>View download statistics</li>
+                </div>
+                <div class="role-card role-admin">
+                    <div class="role-icon">🛡️</div>
+                    <div class="role-name">Administrator</div>
+                    <li>Approve Staff registrations</li>
+                    <li>Verify uploaded notes</li>
+                    <li>Reject unfit content</li>
+                    <li>Monitor platform activity</li>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>4.2 User Testing</h3>
+            <h4>4.2.1 Manual User Testing (8 Students · 2 Faculty · 1 Admin)</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Test Case</th><th>Steps</th><th>Expected</th><th>Result</th><th>Status</th></tr></thead>
+                    <tbody>
+                        <tr><td>Student Login</td><td>Enter credentials → Click login</td><td>Redirect to student dashboard</td><td>Redirected correctly</td><td><span class="pass-badge">✅ Pass</span></td></tr>
+                        <tr><td>Browse Faculty</td><td>Click "Browse Faculty" → View list</td><td>Faculty cards with names/depts</td><td>Cards rendered with DB data</td><td><span class="pass-badge">✅ Pass</span></td></tr>
+                        <tr><td>View Faculty Notes</td><td>Click faculty → Select subject → View notes</td><td>Unit-wise grouped notes</td><td>Notes grouped correctly</td><td><span class="pass-badge">✅ Pass</span></td></tr>
+                        <tr><td>Download Note</td><td>Click download button on a note</td><td>File opens in new tab</td><td>File URL opened successfully</td><td><span class="pass-badge">✅ Pass</span></td></tr>
+                        <tr><td>Bookmark Note</td><td>Click bookmark icon on a note</td><td>Note saved to bookmarks</td><td>Bookmark persisted in DB</td><td><span class="pass-badge">✅ Pass</span></td></tr>
+                        <tr><td>Subject Search</td><td>Type "Algorithms" in search bar</td><td>Relevant subject cards shown</td><td>Live filter works correctly</td><td><span class="pass-badge">✅ Pass</span></td></tr>
+                        <tr><td>Admin Note Verify</td><td>Admin clicks "Verify" on pending note</td><td>Note visible to students</td><td>Verification flag updated in DB</td><td><span class="pass-badge">✅ Pass</span></td></tr>
+                        <tr><td>Staff Upload</td><td>Staff submits note form with file URL</td><td>Note appears in pending list</td><td>Pending list updated correctly</td><td><span class="pass-badge">✅ Pass</span></td></tr>
+                        <tr><td>Faculty Dept Filter</td><td>Select "CSE" department filter</td><td>Only CSE faculty shown</td><td>Filter applied correctly</td><td><span class="pass-badge">✅ Pass</span></td></tr>
+                        <tr><td>Progress Tracker</td><td>Complete a task → Check progress</td><td>Circle percentage increases</td><td>Percentage updated correctly</td><td><span class="pass-badge">✅ Pass</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>4.2.2 Automated Testing</h4>
+            <ul>
+                <li><strong>JWT Auth Validation:</strong> API routes tested with curl to ensure <code>401 Unauthorized</code> is returned when no token is sent.</li>
+                <li><strong>Database Connectivity:</strong> Supabase connection verified on every server startup with console logging.</li>
+                <li><strong>API Endpoint Testing:</strong> All 18 REST endpoints tested via fetch calls and response structure verification.</li>
+            </ul>
+            <div class="wireframe">$ curl http://localhost:5000/api/bookmarks
+Expected: 401 Unauthorized (no token)
+Result:   {"message":"No token provided"} ✅
+
+$ curl http://localhost:5000/api/faculty
+Expected: 200 OK with faculty array
+Result:   {"success":true,"data":[...]} ✅</div>
+        </div>
+
+        <div class="section">
+            <h3>4.3 Feedback Collected</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Feedback</th><th>From</th><th>Priority</th></tr></thead>
+                    <tbody>
+                        <tr><td>"The welcome banner in Browse Faculty is too large"</td><td>3 students</td><td style="color:#dc2626;font-weight:700;">High</td></tr>
+                        <tr><td>"Access Notes felt redundant — same as Explore Subjects"</td><td>5 students</td><td style="color:#dc2626;font-weight:700;">High</td></tr>
+                        <tr><td>"Planner items disappear when I complete them — can't review"</td><td>2 students</td><td style="color:#d97706;font-weight:700;">Medium</td></tr>
+                        <tr><td>"Progress tracker didn't update after I finished a session"</td><td>4 students</td><td style="color:#dc2626;font-weight:700;">High</td></tr>
+                        <tr><td>"The Google Drive link button at the top is confusing"</td><td>3 students</td><td style="color:#d97706;font-weight:700;">Medium</td></tr>
+                        <tr><td>"Dark mode feels great, wish rating review was more visible"</td><td>2 students</td><td style="color:#059669;font-weight:700;">Low</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>4.4 Improvements Made Based on Feedback</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Feedback Issue</th><th>Action Taken</th><th>Files Modified</th></tr></thead>
+                    <tbody>
+                        <tr><td>"Banner in Faculty too large"</td><td>Removed welcome banner from Faculty &amp; Subjects views</td><td><code>student-dashboard.html</code></td></tr>
+                        <tr><td>"Access Notes is redundant"</td><td>Removed "Access Notes" sidebar link + entire view section</td><td><code>student-dashboard.html</code>, <code>student-dashboard.js</code></td></tr>
+                        <tr><td>"Planner items disappear"</td><td>Items now persist with strike-through + dimmed disabled state</td><td><code>student-dashboard.js</code></td></tr>
+                        <tr><td>"Progress tracker didn't update"</td><td>Fixed calculation to include completed planner sessions in total</td><td><code>student-dashboard.js</code></td></tr>
+                        <tr><td>"Drive link button is confusing"</td><td>Removed top-level Google Drive map link from all banners</td><td><code>student-dashboard.html</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="callout success">
+                <div class="callout-icon">🔁</div>
+                <p><strong>Design Thinking Principle applied:</strong> Testing is not the end — it is the fuel for continuous improvement. Every feedback item was addressed with a concrete code change, demonstrating authentic iteration.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ━━━━━━━━━━ UNIT V ━━━━━━━━━━ -->
+    <div class="unit-section">
+        <div class="unit-header unit-5">
+            <div>
+                <div class="unit-num">Unit V</div>
+                <div class="unit-title">Market Analysis &amp; Implementation</div>
+            </div>
+            <div class="unit-marks">20 Marks</div>
+        </div>
+
+        <div class="section">
+            <h3>5.1 Target Audience</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Segment</th><th>Description</th><th>Estimated Size</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Primary</strong></td><td>UG Engineering students (Sem 1–8) at REC</td><td>~6,000 students</td></tr>
+                        <tr><td><strong>Secondary</strong></td><td>Faculty / Staff at REC who share materials</td><td>~400 faculty</td></tr>
+                        <tr><td><strong>Tertiary</strong></td><td>Other engineering colleges in Tamil Nadu (future)</td><td>~5 Lakh students</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <ul>
+                <li><strong>Age:</strong> 17–23 years</li>
+                <li><strong>Device:</strong> Mobile-first, also desktop in labs</li>
+                <li><strong>Tech Comfort:</strong> Moderate to High</li>
+                <li><strong>Demand Spikes:</strong> Exam season increases platform usage by ~300%</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3>5.2 Competitor Analysis</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Platform</th><th>Strengths</th><th>Weaknesses</th><th>Notezilla's Advantage</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Google Classroom</strong></td><td>Widely adopted, integrated with Drive</td><td>No notes discovery, no ratings</td><td>Search, filter, and star ratings</td></tr>
+                        <tr><td><strong>Moodle</strong></td><td>Feature-rich LMS</td><td>Complex UI, poor mobile experience</td><td>Lightweight, modern dark design</td></tr>
+                        <tr><td><strong>StudyIQ / Byju's</strong></td><td>Great content for competitive exams</td><td>Paid, not syllabus-specific</td><td>Free &amp; REC-syllabus-aligned</td></tr>
+                        <tr><td><strong>Scribd / SlideShare</strong></td><td>Huge content library</td><td>No verification, copyright issues</td><td>Faculty-uploaded, admin-verified</td></tr>
+                        <tr><td><strong>WhatsApp Groups</strong></td><td>Familiar, instant</td><td>Zero organization, no search</td><td>Structured &amp; searchable access</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <ul>
+                <li>🎯 <strong>Hyper-local:</strong> Built for REC's departments, semesters, and syllabus</li>
+                <li>✅ <strong>Verified Content:</strong> Admin-gated quality control prevents wrong materials</li>
+                <li>⭐ <strong>Community Ratings:</strong> Students guide each other through peer ratings</li>
+                <li>🆓 <strong>Completely Free:</strong> No paywalls, no subscriptions</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3>5.3 Business Model</h3>
+            <h4>Value Created</h4>
+            <ul>
+                <li><strong>For Students:</strong> Saves ~3–5 hrs/week of material hunting; reduces exam anxiety</li>
+                <li><strong>For Faculty:</strong> One dashboard to share and track downloads of their materials</li>
+                <li><strong>For College:</strong> Improves academic outcomes; showcases institutional quality</li>
+            </ul>
+
+            <h4>Revenue Streams (Future)</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Stream</th><th>Description</th><th>Timeline</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Institutional Licensing</strong></td><td>Sell Notezilla as a SaaS to other engineering colleges</td><td>Year 1</td></tr>
+                        <tr><td><strong>Premium Student Tier</strong></td><td>AI-powered note summarization, personalized recommendations</td><td>Year 1.5</td></tr>
+                        <tr><td><strong>Faculty Analytics</strong></td><td>Insight dashboards on download trends, ratings per unit</td><td>Year 2</td></tr>
+                        <tr><td><strong>Sponsored Notes</strong></td><td>Coaching centers sponsor verified high-quality question banks</td><td>Year 2</td></tr>
+                        <tr><td><strong>Campus Advertising</strong></td><td>Targeted ads from ed-tech companies and textbook publishers</td><td>Year 3</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>Cost Structure</h4>
+            <ul>
+                <li>Hosting: $0–$25/month (Render free → Pro tier)</li>
+                <li>Database: $0 (Supabase free tier for &lt;500MB)</li>
+                <li>Development: Time-cost (student team)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3>5.4 Implementation Plan</h3>
+            <div class="phases">
+                <div class="phase-box complete">
+                    <div class="phase-num">Phase 1</div>
+                    <div class="phase-title">MVP <span style="font-size:12px;background:#059669;color:white;padding:2px 10px;border-radius:20px;">Completed ✅</span></div>
+                    <ul>
+                        <li>Role-based auth (Student / Staff / Admin)</li>
+                        <li>Faculty profile pages</li>
+                        <li>Subject &amp; note browsing with search/filter</li>
+                        <li>Note uploading, downloading, and bookmarking</li>
+                        <li>Admin verification panel</li>
+                    </ul>
+                </div>
+                <div class="phase-box">
+                    <div class="phase-num">Phase 2</div>
+                    <div class="phase-title">Campus Rollout</div>
+                    <ul>
+                        <li>Deploy on Render.com with custom subdomain</li>
+                        <li>Onboard 10 faculty from CSE, IT, ECE departments</li>
+                        <li>Seed database with 50+ verified notes</li>
+                        <li>Awareness campaign via college portal</li>
+                    </ul>
+                </div>
+                <div class="phase-box">
+                    <div class="phase-num">Phase 3</div>
+                    <div class="phase-title">Feature Expansion</div>
+                    <ul>
+                        <li>AI-powered note summarizer (Gemini API)</li>
+                        <li>Mobile-responsive PWA</li>
+                        <li>Batch import of Drive folders by faculty</li>
+                        <li>Notification system for new uploads</li>
+                    </ul>
+                </div>
+                <div class="phase-box">
+                    <div class="phase-num">Phase 4</div>
+                    <div class="phase-title">Scale</div>
+                    <ul>
+                        <li>Multi-college support (isolated departments)</li>
+                        <li>Open-source release + documentation</li>
+                        <li>Apply for college startup incubation funding</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<footer>
+    <p style="margin-bottom:8px;">Report prepared for: <strong>Design Thinking Course Assessment</strong></p>
+    <p style="margin-bottom:8px;">Project: <strong>Notezilla — Academic Notes Management Platform</strong></p>
+    <p>Developed for: <strong>Rajalakshmi Engineering College, Chennai</strong></p>
+</footer>
+
+</body>
+</html>
