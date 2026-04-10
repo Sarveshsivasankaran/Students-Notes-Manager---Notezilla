@@ -330,7 +330,7 @@ app.get('/api/faculty/me', authenticateToken, requireRole(['staff']), async (req
                 *,
                 users:user_id(name, email)
             `)
-            .eq('user_id', req.user.userId)
+            .eq('user_id', req.userId)
             .single();
 
         if (error) throw error;
@@ -412,7 +412,7 @@ app.put('/api/faculty/me', authenticateToken, requireRole(['staff']), upload.sin
                 bio,
                 office_hours
             })
-            .eq('user_id', req.user.userId)
+            .eq('user_id', req.userId)
             .select()
             .single();
 

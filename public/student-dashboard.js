@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'profile': { view: document.getElementById('profile-view'), nav: document.getElementById('nav-profile') },
         'subjects': { view: document.getElementById('subjects-view'), nav: document.getElementById('nav-subjects') },
         'announcements': { view: document.getElementById('announcements-view'), nav: document.getElementById('nav-announcements') },
-        'notes': { view: document.getElementById('notes-view'), nav: document.getElementById('nav-notes') },
+
         'progress': { view: document.getElementById('progress-view'), nav: document.getElementById('nav-progress') },
         'bookmarks': { view: document.getElementById('bookmarks-view'), nav: document.getElementById('nav-bookmarks') },
         'faculty': { view: document.getElementById('faculty-view'), nav: document.getElementById('nav-faculty') }
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const target = navItems[viewKey];
         if (target) {
-            if (target.view) target.view.style.display = (viewKey === 'dashboard' || viewKey === 'profile' || viewKey === 'subjects' || viewKey === 'notes' || viewKey === 'progress' || viewKey === 'bookmarks' || viewKey === 'faculty') ? 'flex' : 'block';
+            if (target.view) target.view.style.display = (viewKey === 'dashboard' || viewKey === 'profile' || viewKey === 'subjects' || viewKey === 'progress' || viewKey === 'bookmarks' || viewKey === 'faculty') ? 'flex' : 'block';
             // Announcements and Profile sometimes use different layouts, but let's stick to flex mostly
             if (viewKey === 'announcements') target.view.style.display = 'block';
             if (target.nav) target.nav.classList.add('active');
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Trigger specific renders
             if (viewKey === 'subjects') renderSubjects();
             if (viewKey === 'announcements') renderAnnouncements();
-            if (viewKey === 'notes') renderNotes();
+
             if (viewKey === 'progress') renderProgress();
             if (viewKey === 'bookmarks') renderBookmarks();
             if (viewKey === 'faculty') renderFaculty();
@@ -289,51 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 4.3 Access Notes Logic & Bookmarks
-    const notesResultsGrid = document.getElementById('notesResultsGrid');
-    const notesSearchInput = document.getElementById('notesSearchInput');
-    let bookmarkedNoteIds = [];
 
-    async function renderNotes(filterText = '') {
-        if (!notesResultsGrid) return;
-        notesResultsGrid.innerHTML = '<div class="col-span-3" style="text-align:center; padding: 40px;"><i class="bx bx-loader-alt bx-spin" style="font-size: 32px; color: var(--primary);"></i></div>';
-        
-        const params = new URLSearchParams();
-        if (filterText) params.append('search', filterText);
-        if (!filterText && user.semester) params.append('semester', user.semester);
-        
-        const res = await apiFetch(`/notes?${params.toString()}`);
-        if (!res.success || !res.data || res.data.length === 0) {
-            notesResultsGrid.innerHTML = '<div class="col-span-3" style="text-align:center; padding: 40px; color: var(--text-muted);"><p>No study materials found.</p></div>';
-            return;
-        }
-
-        notesResultsGrid.innerHTML = '';
-        res.data.forEach(note => {
-            const isBookmarked = bookmarkedNoteIds.includes(note.id);
-            const card = document.createElement('div');
-            card.className = 'note-card';
-            card.innerHTML = `
-                <div class="note-icon type-${note.type || 'pdf'}"><i class='bx ${note.type === 'ppt' ? 'bxs-slideshow' : 'bxs-file-pdf'}'></i></div>
-                <div class="note-details">
-                    <h4>${note.title}</h4>
-                    <p>👨‍🏫 ${note.faculty || 'Professor'}</p>
-                    <div class="note-meta"><span class="rating"><i class='bx bxs-star'></i> 4.5</span><span class="reviews">${(note.type || 'pdf').toUpperCase()}</span></div>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button class="icon-btn-outline bookmark-btn" title="Bookmark"><i class='bx ${isBookmarked ? 'bxs-bookmark-heart' : 'bx-bookmark-heart'}' style="color: ${isBookmarked ? '#ef4444' : ''}"></i></button>
-                    <button class="icon-btn-outline download-btn" title="Download"><i class='bx bx-download'></i></button>
-                </div>
-            `;
-            card.querySelector('.download-btn').onclick = () => {
-                apiFetch(`/notes/${note.id}/download`, { method: 'POST' });
-                logProgress('note', note.title, `Subject: ${note.subject || 'Material'}`);
-                window.open(note.fileUrl, '_blank');
-            };
-            card.querySelector('.bookmark-btn').onclick = () => toggleBookmark(note.id);
-            notesResultsGrid.appendChild(card);
-        });
-    }
 
     async function syncBookmarks() {
         const res = await apiFetch('/bookmarks');
@@ -356,7 +312,6 @@ document.addEventListener('DOMContentLoaded', () => {
             else bookmarkedNoteIds.push(noteId);
             localStorage.setItem('bookmarkedNotes', JSON.stringify(bookmarkedNoteIds));
             syncBookmarks();
-            if (notesView && notesView.style.display !== 'none') renderNotes(notesSearchInput.value);
             if (bookmarksView && bookmarksView.style.display !== 'none') renderBookmarks();
         }
     }
@@ -384,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (notesSearchInput) notesSearchInput.addEventListener('input', (e) => renderNotes(e.target.value));
+
 
     // 4.4 Progress Tracker History & Tasks
     let completedWork = JSON.parse(localStorage.getItem('completedWork') || '[]');
@@ -638,14 +593,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const totalTasks = savedTasks.length;
         const compTasks = savedTasks.filter(t => t.completed).length;
-        const totalItems = totalTasks + savedPlannerItems.length;
-        const percentage = totalItems > 0 ? Math.round((compTasks / totalItems) * 100) : 0;
+        
+        // Include completed planner sessions in the calculation
+        const completedPlannerCount = completedWork.filter(item => item.type === 'planner').length;
+        
+        const totalItems = totalTasks + savedPlannerItems.length + completedPlannerCount;
+        const totalCompleted = compTasks + completedPlannerCount;
+        
+        const percentage = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
 
         valueText.textContent = `${percentage}%`;
         circle.style.setProperty('--percent', percentage);
         circle.style.strokeDashoffset = 251 - (251 * percentage) / 100;
 
-        if (completedVal) completedVal.textContent = compTasks;
+        if (completedVal) completedVal.textContent = totalCompleted;
         if (inProgressVal) inProgressVal.textContent = savedPlannerItems.length;
         if (todoVal) todoVal.textContent = totalTasks - compTasks;
 
