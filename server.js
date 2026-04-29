@@ -1444,63 +1444,110 @@ app.delete('/api/admin/reject-note/:id', authenticateToken, requireRole(['admin'
 
 // ==================== CHATBOT ROUTE ====================
 
+const NOTEZILLA_ASSISTANT_CONTEXT = `
+You are Aadhi, the AI support assistant for Notezilla.
+
+Product analysis:
+Notezilla is a faculty-structured academic repository for Rajalakshmi Engineering College. It helps students find verified study material by department, semester, subject, faculty, unit, and content type. It helps staff publish and maintain academic material. It helps admins keep uploaded content and staff access trustworthy.
+
+Primary user types and needs:
+Students:
+- Sign up with an @rajalakshmi.edu.in email, log in, browse subjects, open notes, download files, bookmark useful materials, rate clarity/completeness/helpfulness, and ask how to find content for their department or semester.
+- Common queries include account signup problems, where to find notes, why a note is missing, how to bookmark, how ratings work, and how to contact or identify faculty content.
+
+Staff:
+- Register as staff, wait for admin approval, complete their profile, map or find subjects, upload notes/question papers/assignments/e-books, sync Google Drive files, update materials, and understand why uploaded content is not visible until verified.
+- Common queries include approval status, upload steps, subject mapping, office-hour extraction from timetable images, profile updates, and note verification.
+
+Admins:
+- Approve or reject staff accounts, verify or reject pending notes, monitor repository quality, and troubleshoot missing or unverified content.
+- Common queries include staff approval flow, pending notes, verification rules, and moderation responsibilities.
+
+Public visitors:
+- Need to understand what Notezilla is, who can use it, how to create an account, and why institutional email validation is required.
+
+Known product rules:
+- Student accounts must use @rajalakshmi.edu.in email addresses.
+- Staff accounts require admin approval before full access.
+- Staff uploads require admin verification before students can rely on them as published material.
+- Supported departments include CSE, ECE, EEE, MECH, CIVIL, and BioMed.
+- Notes can be organized by department, semester, subject, faculty, unit, and material type.
+- Ratings focus on clarity, completeness, and helpfulness.
+
+Answer style:
+- Give concise, practical help in simple text.
+- Prefer exact next steps inside Notezilla over generic advice.
+- If a query needs account-specific data you cannot see, say what the user should check in the app.
+- Do not invent live database values, pending counts, file names, or approval status.
+- Do not use markdown tables. Short bullets are okay when they make steps clearer.
+`;
+
+function buildChatUserProfile(userContext = {}) {
+    const safe = value => typeof value === 'string' && value.trim() ? value.trim().slice(0, 120) : 'not provided';
+
+    return [
+        `Role: ${safe(userContext.role)}`,
+        `Name: ${safe(userContext.name)}`,
+        `Department: ${safe(userContext.department)}`,
+        `Semester: ${safe(userContext.semester)}`
+    ].join('\n');
+}
+
 /**
- * POST Gemini Chatbot Helper
+ * POST Ollama/LangChain Chatbot Helper
  * POST /api/chat
  */
 app.post('/api/chat', async (req, res) => {
     try {
-        const { message } = req.body;
-        const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+        const { message, userContext } = req.body;
+        const cleanMessage = typeof message === 'string' ? message.trim().slice(0, 1500) : '';
 
-        if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
+        if (!cleanMessage) {
             return res.status(200).json({
                 success: true,
-                response: "Note: Gemini API Key is not configured in the server's .env file. Please add it to enable AI responses."
+                response: "Please type a question about Notezilla, your account, notes, uploads, or approvals."
             });
         }
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const systemPrompt = `You are Aadhi, an AI support assistant for Notezilla. 
-Notezilla is an academic repository designed for Rajalakshmi Engineering College.
-Students can view, download, and rate notes. They must sign up with @rajalakshmi.edu.in emails.
-Staff can upload notes but require admin verification first.
-Admins review and approve staff accounts.
-Departments supported: CSE, ECE, EEE, MECH, CIVIL, BioMed.
-Keep your answers concise, friendly, and helpful. Format your responses with simple text (no markdown formatting if possible as it will be rendered as raw text, but line breaks are okay).
+        const [{ ChatOllama }, { ChatPromptTemplate }, { StringOutputParser }] = await Promise.all([
+            import('@langchain/ollama'),
+            import('@langchain/core/prompts'),
+            import('@langchain/core/output_parsers')
+        ]);
 
-User question: ${message}`;
+        const ollamaHeaders = process.env.OLLAMA_API_KEY
+            ? { Authorization: `Bearer ${process.env.OLLAMA_API_KEY}` }
+            : undefined;
 
-        // dynamic import for fetch since Node.js 16/18+ supports fetch but standard express doesn't always have it auto-imported unless Node 18+
-        // However node 18+ fetch is global. Let's assume global fetch is available.
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: systemPrompt }]
-                }]
-            })
+        const model = new ChatOllama({
+            baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+            model: process.env.OLLAMA_MODEL || 'gemini-3-flash-preview:latest',
+            temperature: 0.25,
+            headers: ollamaHeaders
         });
 
-        const data = await response.json();
+        const prompt = ChatPromptTemplate.fromMessages([
+            ['system', NOTEZILLA_ASSISTANT_CONTEXT],
+            ['human', 'Current user profile:\n{userProfile}\n\nUser question:\n{message}']
+        ]);
 
-        if (data.candidates && data.candidates[0].content.parts[0].text) {
-            return res.status(200).json({
-                success: true,
-                response: data.candidates[0].content.parts[0].text
-            });
-        } else {
-            return res.status(200).json({
-                success: true,
-                response: "Sorry, I'm having trouble analyzing that right now."
-            });
-        }
+        const chain = prompt.pipe(model).pipe(new StringOutputParser());
+        const responseText = await chain.invoke({
+            userProfile: buildChatUserProfile(userContext),
+            message: cleanMessage
+        });
+
+        return res.status(200).json({
+            success: true,
+            provider: 'ollama',
+            model: process.env.OLLAMA_MODEL || 'gemini-3-flash-preview:latest',
+            response: responseText.trim() || "Sorry, I'm having trouble analyzing that right now."
+        });
     } catch (error) {
-        console.error('Gemini Chat error:', error);
+        console.error('Ollama/LangChain Chat error:', error);
         res.status(500).json({
             success: false,
-            message: 'Error interacting with Gemini API'
+            message: 'Error interacting with local Ollama model. Make sure Ollama is running and gemma4:31b is pulled.'
         });
     }
 });

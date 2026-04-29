@@ -717,6 +717,131 @@
                 width: 300px;
             }
         }
+
+        /* ── Stats Section ── */
+        .stats-section {
+            padding: 0 80px 80px;
+        }
+
+        .stats-glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 28px;
+            padding: 48px 60px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 4px 60px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-glass-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 30% 50%, rgba(99, 102, 241, 0.09) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 50%, rgba(139, 92, 246, 0.07) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .stats-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 40px;
+            justify-content: center;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: livePulse 2s ease-in-out infinite;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+        }
+
+        @keyframes livePulse {
+            0%   { box-shadow: 0 0 0 0   rgba(16, 185, 129, 0.6); }
+            70%  { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0   rgba(16, 185, 129, 0); }
+        }
+
+        .live-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .stats-counters {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+        }
+
+        .stat-counter-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+        }
+
+        .stat-counter-number {
+            font-size: 58px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #c7d2fe 0%, #a5b4fc 40%, #818cf8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -2px;
+        }
+
+        .stat-counter-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .active-dot {
+            width: 7px;
+            height: 7px;
+            background: #10b981;
+            border-radius: 50%;
+            flex-shrink: 0;
+            animation: livePulse 2s ease-in-out infinite 0.5s;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+        }
+
+        .stat-counter-divider {
+            width: 1px;
+            height: 64px;
+            background: rgba(255, 255, 255, 0.07);
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 900px) {
+            .stats-section { padding: 0 40px 60px; }
+            .stats-glass-card { padding: 36px 32px; }
+            .stat-counter-number { font-size: 40px; }
+        }
+
+        @media (max-width: 600px) {
+            .stats-section { padding: 0 20px 48px; }
+            .stats-glass-card { padding: 28px 20px; }
+            .stats-counters { flex-wrap: wrap; gap: 28px; }
+            .stat-counter-divider { display: none; }
+            .stat-counter-item { flex: 0 0 40%; }
+            .stat-counter-number { font-size: 36px; }
+        }
     </style>
 </head>
 
@@ -771,6 +896,40 @@
             <div class="feature-icon">🔒</div>
             <h3>Secure Verification</h3>
             <p>All materials are reviewed by admins before publishing to ensure academic integrity.</p>
+        </div>
+    </section>
+
+    <!-- ✅ FEATURE #9: Live Stats Counter Section -->
+    <section class="stats-section" id="stats-section">
+        <div class="stats-glass-card">
+            <div class="stats-header">
+                <span class="live-dot"></span>
+                <span class="live-label">Live Activity</span>
+            </div>
+            <div class="stats-counters">
+                <div class="stat-counter-item" data-target="1200" data-suffix="+">
+                    <div class="stat-counter-number" id="counter-students">0</div>
+                    <div class="stat-counter-label">
+                        <span class="active-dot"></span>
+                        Students Active
+                    </div>
+                </div>
+                <div class="stat-counter-divider"></div>
+                <div class="stat-counter-item" data-target="850" data-suffix="+">
+                    <div class="stat-counter-number" id="counter-notes">0</div>
+                    <div class="stat-counter-label">Notes Uploaded</div>
+                </div>
+                <div class="stat-counter-divider"></div>
+                <div class="stat-counter-item" data-target="40" data-suffix="+">
+                    <div class="stat-counter-number" id="counter-faculty">0</div>
+                    <div class="stat-counter-label">Faculty Members</div>
+                </div>
+                <div class="stat-counter-divider"></div>
+                <div class="stat-counter-item" data-target="8" data-suffix="">
+                    <div class="stat-counter-number" id="counter-depts">0</div>
+                    <div class="stat-counter-label">Departments</div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -881,6 +1040,58 @@
         </div>
     </div>
 
+    <script>
+        // FEATURE #9: Animated Counters with IntersectionObserver
+        (function() {
+            const statsSection = document.getElementById('stats-section');
+            if (!statsSection) return;
+
+            function animateCounter(el, target, suffix, duration) {
+                const start = performance.now();
+                function update(now) {
+                    const elapsed = now - start;
+                    const progress = Math.min(elapsed / duration, 1);
+                    // ease out cubic
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    const current = Math.round(eased * target);
+                    el.textContent = current.toLocaleString() + suffix;
+                    if (progress < 1) requestAnimationFrame(update);
+                }
+                requestAnimationFrame(update);
+            }
+
+            let countersStarted = false;
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !countersStarted) {
+                        countersStarted = true;
+                        const items = statsSection.querySelectorAll('.stat-counter-item');
+                        items.forEach((item, i) => {
+                            const target = parseInt(item.dataset.target);
+                            const suffix = item.dataset.suffix || '';
+                            const numEl = item.querySelector('.stat-counter-number');
+                            setTimeout(() => animateCounter(numEl, target, suffix, 2000), i * 150);
+                        });
+
+                        // Live "Students Active" slow increment
+                        const studentsEl = document.getElementById('counter-students');
+                        if (studentsEl) {
+                            function liveIncrement() {
+                                const current = parseInt(studentsEl.textContent.replace(/[^0-9]/g, '')) || 1200;
+                                studentsEl.textContent = (current + 1).toLocaleString() + '+';
+                                const nextDelay = 8000 + Math.random() * 4000;
+                                setTimeout(liveIncrement, nextDelay);
+                            }
+                            setTimeout(liveIncrement, 2500);
+                        }
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            observer.observe(statsSection);
+        })();
+    </script>
+
     <audio id="hoverSound-1" src="bg_sound/One_Republic.mp3"></audio>
     <audio id="hoverSound-2" src="bg_sound/End of begining.mp3"></audio>
     <audio id="hoverSound-3" src="bg_sound/Funk Criminal-Downringtone.mp3"></audio>
@@ -911,12 +1122,29 @@
         chatToggle.addEventListener('click', toggleChat);
         chatClose.addEventListener('click', toggleChat);
 
-        async function getGeminiResponse(input) {
+        function getChatUserContext() {
+            try {
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                return {
+                    role: user.role || 'public',
+                    name: user.name || '',
+                    department: user.department || '',
+                    semester: user.semester ? String(user.semester) : ''
+                };
+            } catch (error) {
+                return { role: 'public' };
+            }
+        }
+
+        async function getAadhiResponse(input) {
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: input })
+                    body: JSON.stringify({
+                        message: input,
+                        userContext: getChatUserContext()
+                    })
                 });
 
                 const data = await response.json();
@@ -952,8 +1180,8 @@
             chatBody.appendChild(typingEl);
             chatBody.scrollTop = chatBody.scrollHeight;
 
-            // Call Gemini API
-            const responseText = await getGeminiResponse(message);
+            // Call local Ollama assistant API
+            const responseText = await getAadhiResponse(message);
 
             // Remove typing indicator and show actual response
             if (chatBody.contains(typingEl)) {
