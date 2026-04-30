@@ -595,6 +595,8 @@ app.get('/api/faculty/:id/notes', async (req, res) => {
             id: note.id,
             title: note.title,
             type: note.type,
+            subject_id: note.subject_id,
+            subjects: note.subjects,
             unit: note.unit,
             semester: note.semester,
             fileUrl: note.file_url,

@@ -292,12 +292,25 @@
 
 
                 <div class="bento-grid">
-                    <div class="bento-item glass-panel col-span-3">
+                    <div class="bento-item glass-panel col-span-3 faculty-repository-panel">
                         <div class="panel-header">
-                            <h3><i class='bx bxl-google-drive'></i> Live Google Drive Repository</h3>
+                            <h3><i class='bx bxl-google-drive'></i> Faculty Folder Repository</h3>
                         </div>
-                        <div style="width: 100%; height: 500px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border);">
-                            <iframe src="https://drive.google.com/embeddedfolderview?id=1M6qdcTlfx_PofE0FkpZMTVibaXvuZEV_#grid" width="100%" height="100%" frameborder="0"></iframe>
+                        <div class="repository-browser">
+                            <div class="repo-breadcrumbs" id="facultyRepoBreadcrumbs"></div>
+                            <div class="repo-grid subject-card-grid" id="facultyRepoGrid">
+                                <!-- Faculty mapped folders will be rendered here -->
+                            </div>
+                            <div class="file-preview-panel" id="facultyFilePreviewPanel" style="display: none;">
+                                <div class="file-preview-header">
+                                    <div>
+                                        <span class="section-subtitle">File Preview</span>
+                                        <h3 id="facultyPreviewTitle">Selected File</h3>
+                                    </div>
+                                    <button class="close-preview-panel" id="closeFacultyPreview"><i class='bx bx-x'></i></button>
+                                </div>
+                                <iframe id="facultyFilePreviewFrame" title="Faculty file preview"></iframe>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -588,6 +601,16 @@
                     </div>
                     <div class="units-container" id="modalUnitsContainer">
                         <!-- Grouped notes will be rendered here -->
+                    </div>
+                    <div class="file-preview-panel modal-file-preview" id="modalFilePreviewPanel" style="display: none;">
+                        <div class="file-preview-header">
+                            <div>
+                                <span class="section-subtitle">File Preview</span>
+                                <h3 id="modalPreviewTitle">Selected File</h3>
+                            </div>
+                            <button class="close-preview-panel" id="closeModalPreview"><i class='bx bx-x'></i></button>
+                        </div>
+                        <iframe id="modalFilePreviewFrame" title="Faculty material preview"></iframe>
                     </div>
                 </div>
             </div>

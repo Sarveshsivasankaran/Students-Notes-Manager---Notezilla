@@ -669,6 +669,224 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalSubjectsView = document.getElementById('modalSubjectsView');
     const modalNotesView = document.getElementById('modalNotesView');
     const backToSubjects = document.getElementById('backToSubjects');
+    const facultyRepoGrid = document.getElementById('facultyRepoGrid');
+    const facultyRepoBreadcrumbs = document.getElementById('facultyRepoBreadcrumbs');
+    const facultyFilePreviewPanel = document.getElementById('facultyFilePreviewPanel');
+    const facultyFilePreviewFrame = document.getElementById('facultyFilePreviewFrame');
+    const facultyPreviewTitle = document.getElementById('facultyPreviewTitle');
+    const closeFacultyPreview = document.getElementById('closeFacultyPreview');
+    const modalFilePreviewPanel = document.getElementById('modalFilePreviewPanel');
+    const modalFilePreviewFrame = document.getElementById('modalFilePreviewFrame');
+    const modalPreviewTitle = document.getElementById('modalPreviewTitle');
+    const closeModalPreview = document.getElementById('closeModalPreview');
+
+    const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[char]));
+
+    const getNoteFileUrl = (note) => note.file_url || note.fileUrl || '';
+    const getNoteFileName = (note) => note.file_name || note.fileName || note.title || 'Untitled material';
+
+    function getDrivePreviewUrl(url) {
+        if (!url) return '';
+        const fileMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+        if (fileMatch) return `https://drive.google.com/file/d/${fileMatch[1]}/preview`;
+
+        const idMatch = url.match(/[?&]id=([^&]+)/);
+        if (url.includes('drive.google.com') && idMatch) {
+            return `https://drive.google.com/file/d/${idMatch[1]}/preview`;
+        }
+
+        return url;
+    }
+
+    function openFilePreview(note, context = 'faculty') {
+        const url = getNoteFileUrl(note);
+        if (!url) {
+            alert('File URL not available');
+            return;
+        }
+
+        const frame = context === 'modal' ? modalFilePreviewFrame : facultyFilePreviewFrame;
+        const panel = context === 'modal' ? modalFilePreviewPanel : facultyFilePreviewPanel;
+        const title = context === 'modal' ? modalPreviewTitle : facultyPreviewTitle;
+
+        if (!frame || !panel || !title) return;
+        title.textContent = getNoteFileName(note);
+        frame.src = getDrivePreviewUrl(url);
+        panel.style.display = 'block';
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function renderRepoBreadcrumbs(items) {
+        if (!facultyRepoBreadcrumbs) return;
+        facultyRepoBreadcrumbs.innerHTML = items.map((item, index) => `
+            <button class="repo-crumb ${index === items.length - 1 ? 'active' : ''}" data-index="${index}">
+                ${escapeHtml(item.label)}
+            </button>
+        `).join('');
+        facultyRepoBreadcrumbs.querySelectorAll('.repo-crumb').forEach((button, index) => {
+            button.onclick = items[index].onClick;
+        });
+    }
+
+    function renderFolderCard({ tag, icon, code, name, meta, onClick }) {
+        const card = document.createElement('div');
+        card.className = 'subject-card';
+        card.innerHTML = `
+            <div class="subject-card-top">
+                <div class="subject-tag-new">${escapeHtml(tag)}</div>
+                <div class="subject-graphic">
+                    <i class='bx ${icon}' style="font-size: 64px; color: var(--primary-light);"></i>
+                </div>
+            </div>
+            <div class="subject-card-bottom">
+                <h2 class="subject-code-new">${escapeHtml(code)}</h2>
+                <p class="subject-name-new">${escapeHtml(name)}</p>
+                <span class="repo-folder-meta"><i class='bx bx-folder'></i>${escapeHtml(meta)}</span>
+            </div>
+        `;
+        card.onclick = onClick;
+        return card;
+    }
+
+    async function loadFacultyNotes(facultyId) {
+        const res = await apiFetch(`/faculty/${facultyId}/notes`);
+        return res.success && Array.isArray(res.data) ? res.data : [];
+    }
+
+    function closeFacultyPreviewPanel() {
+        if (facultyFilePreviewPanel) facultyFilePreviewPanel.style.display = 'none';
+        if (facultyFilePreviewFrame) facultyFilePreviewFrame.src = '';
+    }
+
+    async function renderFacultyRepository(facultyList = []) {
+        if (!facultyRepoGrid) return;
+        closeFacultyPreviewPanel();
+        renderRepoBreadcrumbs([{ label: 'Faculty Folders', onClick: () => renderFacultyRepository(facultyList) }]);
+        facultyRepoGrid.innerHTML = '';
+
+        if (facultyList.length === 0) {
+            facultyRepoGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">No faculty folders found.</div>';
+            return;
+        }
+
+        facultyList.forEach(fac => {
+            facultyRepoGrid.appendChild(renderFolderCard({
+                tag: fac.department || 'Faculty',
+                icon: 'bx-folder',
+                code: fac.name ? fac.name.charAt(0).toUpperCase() : 'F',
+                name: fac.name || 'Faculty Folder',
+                meta: 'Open mapped subjects',
+                onClick: () => renderFacultySubjectsFolder(fac, facultyList)
+            }));
+        });
+    }
+
+    async function renderFacultySubjectsFolder(faculty, facultyList) {
+        if (!facultyRepoGrid) return;
+        closeFacultyPreviewPanel();
+        renderRepoBreadcrumbs([
+            { label: 'Faculty Folders', onClick: () => renderFacultyRepository(facultyList) },
+            { label: faculty.name || 'Faculty', onClick: () => renderFacultySubjectsFolder(faculty, facultyList) }
+        ]);
+        facultyRepoGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:24px;"><i class="bx bx-loader-alt bx-spin" style="font-size:28px;"></i></div>';
+
+        const notes = await loadFacultyNotes(faculty.id);
+        const subjectMap = {};
+        notes.forEach(note => {
+            const subId = note.subject_id || note.subjectId || note.subject || 'unknown-subject';
+            if (!subjectMap[subId]) {
+                subjectMap[subId] = {
+                    id: subId,
+                    name: note.subjects?.name || note.subject || 'Unknown Subject',
+                    code: note.subjects?.code || note.subjectCode || '',
+                    notes: []
+                };
+            }
+            subjectMap[subId].notes.push(note);
+        });
+
+        const subjects = Object.values(subjectMap);
+        facultyRepoGrid.innerHTML = '';
+        if (subjects.length === 0) {
+            facultyRepoGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">No mapped subject folders found.</div>';
+            return;
+        }
+
+        subjects.forEach(subject => {
+            facultyRepoGrid.appendChild(renderFolderCard({
+                tag: faculty.name || 'Faculty',
+                icon: 'bx-book-open',
+                code: subject.code || 'SUB',
+                name: subject.name,
+                meta: `${subject.notes.length} material${subject.notes.length === 1 ? '' : 's'}`,
+                onClick: () => renderSubjectUnitFolders(faculty, facultyList, subject, subjects)
+            }));
+        });
+    }
+
+    function renderSubjectUnitFolders(faculty, facultyList, subject, subjects) {
+        if (!facultyRepoGrid) return;
+        closeFacultyPreviewPanel();
+        renderRepoBreadcrumbs([
+            { label: 'Faculty Folders', onClick: () => renderFacultyRepository(facultyList) },
+            { label: faculty.name || 'Faculty', onClick: () => renderFacultySubjectsFolder(faculty, facultyList) },
+            { label: subject.name, onClick: () => renderSubjectUnitFolders(faculty, facultyList, subject, subjects) }
+        ]);
+
+        const unitMap = {};
+        subject.notes.forEach(note => {
+            const unit = note.unit || 'General';
+            if (!unitMap[unit]) unitMap[unit] = [];
+            unitMap[unit].push(note);
+        });
+
+        facultyRepoGrid.innerHTML = '';
+        Object.keys(unitMap).sort().forEach(unit => {
+            facultyRepoGrid.appendChild(renderFolderCard({
+                tag: subject.code || 'Subject',
+                icon: 'bx-folder-open',
+                code: unit === 'General' ? 'GEN' : `U${unit}`,
+                name: unit === 'General' ? 'General Materials' : `Unit ${unit}`,
+                meta: `${unitMap[unit].length} file${unitMap[unit].length === 1 ? '' : 's'}`,
+                onClick: () => renderUnitFiles(faculty, facultyList, subject, subjects, unit, unitMap[unit])
+            }));
+        });
+    }
+
+    function renderUnitFiles(faculty, facultyList, subject, subjects, unit, notes) {
+        if (!facultyRepoGrid) return;
+        renderRepoBreadcrumbs([
+            { label: 'Faculty Folders', onClick: () => renderFacultyRepository(facultyList) },
+            { label: faculty.name || 'Faculty', onClick: () => renderFacultySubjectsFolder(faculty, facultyList) },
+            { label: subject.name, onClick: () => renderSubjectUnitFolders(faculty, facultyList, subject, subjects) },
+            { label: unit === 'General' ? 'General' : `Unit ${unit}`, onClick: () => renderUnitFiles(faculty, facultyList, subject, subjects, unit, notes) }
+        ]);
+
+        facultyRepoGrid.innerHTML = '';
+        notes.forEach(note => {
+            const file = document.createElement('div');
+            file.className = 'repo-file-card';
+            file.innerHTML = `
+                <div class="repo-file-icon"><i class='bx ${note.type === 'ppt' ? 'bxs-slideshow' : 'bxs-file'}'></i></div>
+                <div class="repo-file-info">
+                    <h4>${escapeHtml(note.title || getNoteFileName(note))}</h4>
+                    <p>${escapeHtml(getNoteFileName(note))}</p>
+                </div>
+            `;
+            file.onclick = () => {
+                apiFetch(`/notes/${note.id}/download`, { method: 'POST' });
+                logProgress('note', note.title || getNoteFileName(note), `Subject: ${subject.name}`);
+                openFilePreview(note, 'faculty');
+            };
+            facultyRepoGrid.appendChild(file);
+        });
+    }
 
     async function renderFaculty() {
         if (!facultyResultsGrid) return;
@@ -676,6 +894,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiFetch('/faculty');
         if (res.success && res.data) {
             facultyResultsGrid.innerHTML = '';
+            renderFacultyRepository(res.data);
             res.data.forEach(fac => {
                 const color = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b"][Math.floor(Math.random() * 4)];
                 const card = document.createElement('div');
@@ -719,12 +938,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Group by subject
                 const subjectMap = {};
                 notes.forEach(note => {
-                    const subId = note.subject_id;
+                    const subId = note.subject_id || note.subjectId || note.subject || 'unknown-subject';
                     if (!subjectMap[subId]) {
                         subjectMap[subId] = {
                             id: subId,
-                            name: note.subjects?.name || 'Unknown Subject',
-                            code: note.subjects?.code || '',
+                            name: note.subjects?.name || note.subject || 'Unknown Subject',
+                            code: note.subjects?.code || note.subjectCode || '',
                             notes: []
                         };
                     }
@@ -778,13 +997,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="unit-header">UNIT ${unit}</div>
                 <div class="modal-notes-list">
                     ${unitMap[unit].map(note => `
-                        <div class="modal-note-item">
+                        <div class="modal-note-item" data-id="${note.id}">
                             <div class="note-item-info">
                                 <i class='bx ${note.type === 'ppt' ? 'bxs-slideshow' : 'bxs-file-pdf'}'></i>
                                 <h5>${note.title}</h5>
                             </div>
                             <div class="modal-note-actions">
-                                <button class="icon-btn-outline download-note" data-url="${note.file_url}" data-id="${note.id}" data-title="${note.title}" data-subject="${subject.name}"><i class='bx bx-download'></i></button>
+                                <button class="icon-btn-outline preview-note" data-id="${note.id}"><i class='bx bx-show'></i></button>
+                                <button class="icon-btn-outline download-note" data-url="${getNoteFileUrl(note)}" data-id="${note.id}" data-title="${escapeHtml(note.title)}" data-subject="${escapeHtml(subject.name)}"><i class='bx bx-download'></i></button>
                             </div>
                         </div>
                     `).join('')}
@@ -793,9 +1013,34 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(section);
         });
 
-        // Add download functionality to modal notes
+        // Add preview and download functionality to modal notes
+        container.querySelectorAll('.modal-note-item').forEach(item => {
+            item.onclick = (e) => {
+                if (e.target.closest('button')) return;
+                const noteId = item.getAttribute('data-id');
+                const note = subject.notes.find(entry => String(entry.id) === String(noteId));
+                if (!note) return;
+                apiFetch(`/notes/${note.id}/download`, { method: 'POST' });
+                logProgress('note', note.title || getNoteFileName(note), `Subject: ${subject.name}`);
+                openFilePreview(note, 'modal');
+            };
+        });
+
+        container.querySelectorAll('.preview-note').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const noteId = btn.getAttribute('data-id');
+                const note = subject.notes.find(item => String(item.id) === String(noteId));
+                if (!note) return;
+                apiFetch(`/notes/${note.id}/download`, { method: 'POST' });
+                logProgress('note', note.title || getNoteFileName(note), `Subject: ${subject.name}`);
+                openFilePreview(note, 'modal');
+            };
+        });
+
         container.querySelectorAll('.download-note').forEach(btn => {
             btn.onclick = (e) => {
+                e.stopPropagation();
                 const url = btn.getAttribute('data-url');
                 const id = btn.getAttribute('data-id');
                 const name = btn.getAttribute('data-title');
@@ -810,13 +1055,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (closeFacultyModal) {
-        closeFacultyModal.onclick = () => facultyModal.classList.remove('show');
+        closeFacultyModal.onclick = () => {
+            facultyModal.classList.remove('show');
+            if (modalFilePreviewPanel) modalFilePreviewPanel.style.display = 'none';
+            if (modalFilePreviewFrame) modalFilePreviewFrame.src = '';
+        };
+    }
+
+    if (closeFacultyPreview) {
+        closeFacultyPreview.onclick = closeFacultyPreviewPanel;
+    }
+
+    if (closeModalPreview) {
+        closeModalPreview.onclick = () => {
+            modalFilePreviewPanel.style.display = 'none';
+            modalFilePreviewFrame.src = '';
+        };
     }
 
     if (backToSubjects) {
         backToSubjects.onclick = () => {
             modalNotesView.style.display = 'none';
             modalSubjectsView.style.display = 'block';
+            if (modalFilePreviewPanel) modalFilePreviewPanel.style.display = 'none';
+            if (modalFilePreviewFrame) modalFilePreviewFrame.src = '';
         };
     }
 
@@ -824,6 +1086,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.onclick = (event) => {
         if (event.target === facultyModal) {
             facultyModal.classList.remove('show');
+            if (modalFilePreviewPanel) modalFilePreviewPanel.style.display = 'none';
+            if (modalFilePreviewFrame) modalFilePreviewFrame.src = '';
         }
     };
 
