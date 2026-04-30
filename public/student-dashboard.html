@@ -318,20 +318,14 @@
                 <div class="search-container glass-panel" style="padding: 24px; margin-bottom: 24px; margin-top: 24px;">
                     <div class="search-bar" style="width: 100%; border-radius: 12px; height: 50px;">
                         <i class='bx bx-search'></i>
-                        <input type="text" id="facultySearchInput" placeholder="Search by name, department, or handled subjects...">
+                        <input type="text" id="facultySearchInput" placeholder="Search faculty names or nested Drive folders...">
                     </div>
                     <div style="display: flex; gap: 12px; margin-top: 16px; align-items: center;">
-                        <span style="font-size: 13px; color: var(--text-muted); white-space: nowrap;">Departments:</span>
+                        <span style="font-size: 13px; color: var(--text-muted); white-space: nowrap;">Drive Filters:</span>
                         <div class="tag-list" id="facultyDeptFilters" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <span class="subject-tag active" data-dept="all">All</span>
-                            <span class="subject-tag" data-dept="CSE">CSE</span>
-                            <span class="subject-tag" data-dept="IT">IT</span>
-                            <span class="subject-tag" data-dept="ECE">ECE</span>
-                            <span class="subject-tag" data-dept="EEE">EEE</span>
-                            <span class="subject-tag" data-dept="MECH">MECH</span>
-                            <span class="subject-tag" data-dept="CIVIL">CIVIL</span>
-                            <span class="subject-tag" data-dept="AI&DS">AI&DS</span>
-                            <span class="subject-tag" data-dept="BIOTECH">BIOTECH</span>
+                            <span class="subject-tag active" data-drive-filter="all">All</span>
+                            <span class="subject-tag" data-drive-filter="with-folders">Has Subfolders</span>
+                            <span class="subject-tag" data-drive-filter="with-files">Has Files</span>
                         </div>
                     </div>
                 </div>

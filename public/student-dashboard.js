@@ -679,6 +679,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalFilePreviewFrame = document.getElementById('modalFilePreviewFrame');
     const modalPreviewTitle = document.getElementById('modalPreviewTitle');
     const closeModalPreview = document.getElementById('closeModalPreview');
+    const facultySearchInput = document.getElementById('facultySearchInput');
+    const facultyDeptFilters = document.getElementById('facultyDeptFilters');
+
+    let driveFacultyRoot = null;
+    let driveFacultyFolders = [];
+    let activeFacultyDriveFilter = 'all';
+    let activeFacultyModalStack = [];
 
     const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({
         '&': '&amp;',
@@ -688,8 +695,8 @@ document.addEventListener('DOMContentLoaded', () => {
         "'": '&#39;'
     }[char]));
 
-    const getNoteFileUrl = (note) => note.file_url || note.fileUrl || '';
-    const getNoteFileName = (note) => note.file_name || note.fileName || note.title || 'Untitled material';
+    const getNoteFileUrl = (note) => note.file_url || note.fileUrl || note.url || '';
+    const getNoteFileName = (note) => note.file_name || note.fileName || note.title || note.name || 'Untitled material';
 
     function getDrivePreviewUrl(url) {
         if (!url) return '';
@@ -1054,9 +1061,375 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function pluralize(count, singular, plural = `${singular}s`) {
+        return `${count} ${count === 1 ? singular : plural}`;
+    }
+
+    function getFolderCode(name = 'Folder') {
+        const parts = String(name)
+            .replace(/[^A-Za-z0-9]+/g, ' ')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+
+        if (parts.length === 0) return 'DIR';
+        if (parts.length === 1) return parts[0].slice(0, 3).toUpperCase();
+        return parts.slice(0, 3).map((part) => part[0].toUpperCase()).join('');
+    }
+
+    function sortByName(items = []) {
+        return [...items].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, {
+            numeric: true,
+            sensitivity: 'base'
+        }));
+    }
+
+    function getFolderMeta(folder) {
+        if (folder.error) return folder.error;
+
+        const parts = [];
+        if (folder.directFolderCount) parts.push(pluralize(folder.directFolderCount, 'subfolder'));
+        if (folder.directFileCount) parts.push(pluralize(folder.directFileCount, 'file'));
+        if (parts.length > 0) return parts.join(' | ');
+        if (folder.fileCount) return pluralize(folder.fileCount, 'file');
+        return 'Empty folder';
+    }
+
+    function getFacultyCardSubtitle(folder) {
+        const parts = [];
+        if (folder.directFolderCount) parts.push(pluralize(folder.directFolderCount, 'subject folder'));
+        if (folder.fileCount) parts.push(pluralize(folder.fileCount, 'file'));
+        return parts.join(' | ') || 'Shared Google Drive folder';
+    }
+
+    function getFileIcon(item) {
+        const fileName = getNoteFileName(item).toLowerCase();
+        if (fileName.endsWith('.ppt') || fileName.endsWith('.pptx')) return 'bxs-slideshow';
+        if (fileName.endsWith('.pdf')) return 'bxs-file-pdf';
+        return 'bxs-file';
+    }
+
+    function renderDriveFileCard(item, context = 'faculty', folderName = '') {
+        const file = document.createElement('div');
+        file.className = 'repo-file-card';
+        file.innerHTML = `
+            <div class="repo-file-icon"><i class='bx ${getFileIcon(item)}'></i></div>
+            <div class="repo-file-info">
+                <h4>${escapeHtml(getNoteFileName(item))}</h4>
+                <p>${escapeHtml(folderName || 'Google Drive file')}</p>
+            </div>
+        `;
+        file.onclick = () => {
+            logProgress('note', getNoteFileName(item), folderName ? `Folder: ${folderName}` : 'Google Drive');
+            openFilePreview(item, context);
+        };
+        return file;
+    }
+
+    function collectFacultySearchText(folder, values = []) {
+        values.push(folder.name || '');
+        (folder.children || []).forEach((child) => {
+            values.push(child.name || '');
+            if (child.type === 'folder') collectFacultySearchText(child, values);
+        });
+        return values.join(' ').toLowerCase();
+    }
+
+    function matchesFacultyFilters(folder, query = '', filter = 'all') {
+        const normalizedQuery = query.trim().toLowerCase();
+        if (normalizedQuery && !collectFacultySearchText(folder).includes(normalizedQuery)) {
+            return false;
+        }
+
+        if (filter === 'with-folders' && !folder.folderCount) return false;
+        if (filter === 'with-files' && !folder.fileCount) return false;
+        return true;
+    }
+
+    function closeFacultyPreviewPanel() {
+        if (facultyFilePreviewPanel) facultyFilePreviewPanel.style.display = 'none';
+        if (facultyFilePreviewFrame) facultyFilePreviewFrame.src = '';
+    }
+
+    function setupFacultyFilters() {
+        if (!facultyDeptFilters) return;
+
+        facultyDeptFilters.innerHTML = `
+            <span class="subject-tag ${activeFacultyDriveFilter === 'all' ? 'active' : ''}" data-drive-filter="all">All</span>
+            <span class="subject-tag ${activeFacultyDriveFilter === 'with-folders' ? 'active' : ''}" data-drive-filter="with-folders">Has Subfolders</span>
+            <span class="subject-tag ${activeFacultyDriveFilter === 'with-files' ? 'active' : ''}" data-drive-filter="with-files">Has Files</span>
+        `;
+
+        facultyDeptFilters.querySelectorAll('[data-drive-filter]').forEach((tag) => {
+            tag.onclick = () => {
+                activeFacultyDriveFilter = tag.getAttribute('data-drive-filter') || 'all';
+                setupFacultyFilters();
+                renderFacultyCards();
+            };
+        });
+    }
+
+    async function loadDriveFacultyRepository(forceRefresh = false) {
+        const endpoint = forceRefresh ? '/drive/faculty-repository?refresh=1' : '/drive/faculty-repository';
+        const res = await apiFetch(endpoint);
+
+        if (!res.success || !res.data || !res.data.root) {
+            driveFacultyRoot = null;
+            driveFacultyFolders = [];
+            return false;
+        }
+
+        driveFacultyRoot = res.data.root;
+        driveFacultyFolders = Array.isArray(res.data.faculties)
+            ? res.data.faculties
+            : (driveFacultyRoot.children || []).filter((child) => child.type === 'folder');
+        return true;
+    }
+
+    function renderDriveFolderContents(folder, path = [driveFacultyRoot]) {
+        if (!facultyRepoGrid || !folder) return;
+
+        closeFacultyPreviewPanel();
+        renderRepoBreadcrumbs(path.map((node, index) => ({
+            label: index === 0 ? 'Faculty Folders' : (node.name || 'Folder'),
+            onClick: () => renderDriveFolderContents(node, path.slice(0, index + 1))
+        })));
+
+        facultyRepoGrid.innerHTML = '';
+        const children = Array.isArray(folder.children) ? folder.children : [];
+        const folders = sortByName(children.filter((child) => child.type === 'folder'));
+        const files = sortByName(children.filter((child) => child.type === 'file'));
+
+        if (folders.length === 0 && files.length === 0) {
+            facultyRepoGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">No items found in this Drive folder.</div>';
+            return;
+        }
+
+        folders.forEach((child) => {
+            facultyRepoGrid.appendChild(renderFolderCard({
+                tag: path.length === 1 ? 'Faculty' : (folder.name || 'Folder'),
+                icon: path.length === 1 ? 'bx-folder' : 'bx-folder-open',
+                code: getFolderCode(child.name),
+                name: child.name || 'Folder',
+                meta: getFolderMeta(child),
+                onClick: () => renderDriveFolderContents(child, [...path, child])
+            }));
+        });
+
+        files.forEach((child) => {
+            facultyRepoGrid.appendChild(renderDriveFileCard(child, 'faculty', folder.name || 'Google Drive'));
+        });
+    }
+
+    function renderFacultyCards() {
+        if (!facultyResultsGrid) return;
+
+        const query = facultySearchInput ? facultySearchInput.value : '';
+        const filteredFaculty = driveFacultyFolders.filter((folder) => matchesFacultyFilters(folder, query, activeFacultyDriveFilter));
+        facultyResultsGrid.innerHTML = '';
+
+        if (filteredFaculty.length === 0) {
+            facultyResultsGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">No faculty folders matched the current filters.</div>';
+            return;
+        }
+
+        filteredFaculty.forEach((fac) => {
+            const color = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b'][Math.floor(Math.random() * 4)];
+            const card = document.createElement('div');
+            card.className = 'note-card';
+            card.innerHTML = `
+                <div class="note-icon" style="background:${color}22; color:${color}; font-weight:bold;">${escapeHtml((fac.name || 'F').charAt(0).toUpperCase())}</div>
+                <div class="note-details">
+                    <h4>${escapeHtml(fac.name || 'Faculty Folder')}</h4>
+                    <p>${escapeHtml(getFacultyCardSubtitle(fac))}</p>
+                </div>
+                <button class="icon-btn-outline view-faculty-btn"><i class='bx bx-user'></i></button>
+            `;
+            card.querySelector('.view-faculty-btn').onclick = () => openFacultyModal(fac);
+            card.onclick = (event) => {
+                if (!event.target.closest('button')) openFacultyModal(fac);
+            };
+            facultyResultsGrid.appendChild(card);
+        });
+    }
+
+    async function renderFaculty() {
+        if (!facultyResultsGrid || !facultyRepoGrid) return;
+
+        facultyResultsGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center;"><i class="bx bx-loader-alt bx-spin" style="font-size:32px;"></i></div>';
+        facultyRepoGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:24px;"><i class="bx bx-loader-alt bx-spin" style="font-size:28px;"></i></div>';
+
+        const loaded = await loadDriveFacultyRepository();
+        if (!loaded || !driveFacultyRoot) {
+            facultyResultsGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#ef4444;">Failed to load the shared faculty Drive repository.</div>';
+            facultyRepoGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#ef4444;">Unable to load Google Drive folders right now.</div>';
+            return;
+        }
+
+        setupFacultyFilters();
+        renderDriveFolderContents(driveFacultyRoot, [driveFacultyRoot]);
+        renderFacultyCards();
+    }
+
+    function renderFacultyModalRoot(faculty) {
+        const modalSubjectsList = document.getElementById('modalSubjectsList');
+        if (!modalSubjectsList) return;
+
+        if (modalFilePreviewPanel) modalFilePreviewPanel.style.display = 'none';
+        if (modalFilePreviewFrame) modalFilePreviewFrame.src = '';
+
+        modalSubjectsView.style.display = 'block';
+        modalNotesView.style.display = 'none';
+        modalSubjectsList.innerHTML = '';
+
+        const children = Array.isArray(faculty.children) ? faculty.children : [];
+        const folders = sortByName(children.filter((child) => child.type === 'folder'));
+        const files = sortByName(children.filter((child) => child.type === 'file'));
+
+        if (folders.length === 0 && files.length === 0) {
+            modalSubjectsList.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">No subject folders or files found for this faculty.</div>';
+            return;
+        }
+
+        folders.forEach((folder) => {
+            const card = document.createElement('div');
+            card.className = 'modal-subject-card';
+            card.innerHTML = `
+                <h4>${escapeHtml(folder.name || 'Folder')}</h4>
+                <span>${escapeHtml(getFolderMeta(folder))}</span>
+            `;
+            card.onclick = () => {
+                activeFacultyModalStack = [faculty, folder];
+                renderFacultyModalFolder(folder);
+            };
+            modalSubjectsList.appendChild(card);
+        });
+
+        files.forEach((file) => {
+            const card = document.createElement('div');
+            card.className = 'modal-subject-card';
+            card.innerHTML = `
+                <h4>${escapeHtml(getNoteFileName(file))}</h4>
+                <span>Direct file</span>
+            `;
+            card.onclick = () => openFilePreview(file, 'modal');
+            modalSubjectsList.appendChild(card);
+        });
+    }
+
+    function renderFacultyModalFolder(folder) {
+        const container = document.getElementById('modalUnitsContainer');
+        if (!container) return;
+
+        if (modalFilePreviewPanel) modalFilePreviewPanel.style.display = 'none';
+        if (modalFilePreviewFrame) modalFilePreviewFrame.src = '';
+
+        modalSubjectsView.style.display = 'none';
+        modalNotesView.style.display = 'block';
+        document.getElementById('modalSelectedSubjectTitle').textContent = folder.name || 'Folder';
+
+        container.innerHTML = '';
+        const children = Array.isArray(folder.children) ? folder.children : [];
+        const folders = sortByName(children.filter((child) => child.type === 'folder'));
+        const files = sortByName(children.filter((child) => child.type === 'file'));
+
+        if (folders.length === 0 && files.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">This folder is empty.</div>';
+            return;
+        }
+
+        if (folders.length > 0) {
+            const folderSection = document.createElement('div');
+            folderSection.className = 'unit-section';
+            folderSection.innerHTML = '<div class="unit-header">SUBFOLDERS</div><div class="modal-notes-list"></div>';
+            const folderList = folderSection.querySelector('.modal-notes-list');
+
+            folders.forEach((childFolder) => {
+                const item = document.createElement('div');
+                item.className = 'modal-note-item';
+                item.innerHTML = `
+                    <div class="note-item-info">
+                        <i class='bx bx-folder-open'></i>
+                        <h5>${escapeHtml(childFolder.name || 'Folder')}</h5>
+                    </div>
+                    <div class="modal-note-actions">
+                        <button class="icon-btn-outline open-folder-btn"><i class='bx bx-right-arrow-alt'></i></button>
+                    </div>
+                `;
+
+                const openChildFolder = () => {
+                    activeFacultyModalStack.push(childFolder);
+                    renderFacultyModalFolder(childFolder);
+                };
+
+                item.onclick = (event) => {
+                    if (event.target.closest('button')) return;
+                    openChildFolder();
+                };
+                item.querySelector('.open-folder-btn').onclick = (event) => {
+                    event.stopPropagation();
+                    openChildFolder();
+                };
+                folderList.appendChild(item);
+            });
+
+            container.appendChild(folderSection);
+        }
+
+        if (files.length > 0) {
+            const fileSection = document.createElement('div');
+            fileSection.className = 'unit-section';
+            fileSection.innerHTML = '<div class="unit-header">FILES</div><div class="modal-notes-list"></div>';
+            const fileList = fileSection.querySelector('.modal-notes-list');
+
+            files.forEach((file) => {
+                const item = document.createElement('div');
+                item.className = 'modal-note-item';
+                item.innerHTML = `
+                    <div class="note-item-info">
+                        <i class='bx ${getFileIcon(file)}'></i>
+                        <h5>${escapeHtml(getNoteFileName(file))}</h5>
+                    </div>
+                    <div class="modal-note-actions">
+                        <button class="icon-btn-outline preview-note"><i class='bx bx-show'></i></button>
+                        <button class="icon-btn-outline download-note"><i class='bx bx-link-external'></i></button>
+                    </div>
+                `;
+                item.onclick = (event) => {
+                    if (event.target.closest('button')) return;
+                    openFilePreview(file, 'modal');
+                };
+                item.querySelector('.preview-note').onclick = (event) => {
+                    event.stopPropagation();
+                    openFilePreview(file, 'modal');
+                };
+                item.querySelector('.download-note').onclick = (event) => {
+                    event.stopPropagation();
+                    const fileUrl = getNoteFileUrl(file);
+                    if (fileUrl) window.open(fileUrl, '_blank');
+                };
+                fileList.appendChild(item);
+            });
+
+            container.appendChild(fileSection);
+        }
+    }
+
+    function openFacultyModal(faculty) {
+        if (!facultyModal) return;
+
+        activeFacultyModalStack = [faculty];
+        document.getElementById('modalFacultyName').textContent = faculty.name || 'Faculty Folder';
+        document.getElementById('modalFacultyDept').textContent = getFacultyCardSubtitle(faculty);
+        document.getElementById('modalFacultyAvatar').textContent = (faculty.name || 'F').charAt(0).toUpperCase();
+        facultyModal.classList.add('show');
+        renderFacultyModalRoot(faculty);
+    }
+
     if (closeFacultyModal) {
         closeFacultyModal.onclick = () => {
             facultyModal.classList.remove('show');
+            activeFacultyModalStack = [];
             if (modalFilePreviewPanel) modalFilePreviewPanel.style.display = 'none';
             if (modalFilePreviewFrame) modalFilePreviewFrame.src = '';
         };
@@ -1075,17 +1448,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (backToSubjects) {
         backToSubjects.onclick = () => {
-            modalNotesView.style.display = 'none';
-            modalSubjectsView.style.display = 'block';
+            if (activeFacultyModalStack.length <= 1) {
+                modalNotesView.style.display = 'none';
+                modalSubjectsView.style.display = 'block';
+            } else if (activeFacultyModalStack.length === 2) {
+                const facultyRoot = activeFacultyModalStack[0];
+                activeFacultyModalStack = [facultyRoot];
+                renderFacultyModalRoot(facultyRoot);
+            } else {
+                activeFacultyModalStack.pop();
+                renderFacultyModalFolder(activeFacultyModalStack[activeFacultyModalStack.length - 1]);
+            }
+
             if (modalFilePreviewPanel) modalFilePreviewPanel.style.display = 'none';
             if (modalFilePreviewFrame) modalFilePreviewFrame.src = '';
         };
+    }
+
+    if (facultySearchInput) {
+        facultySearchInput.addEventListener('input', () => {
+            renderFacultyCards();
+        });
     }
 
     // Close modal on outside click
     window.onclick = (event) => {
         if (event.target === facultyModal) {
             facultyModal.classList.remove('show');
+            activeFacultyModalStack = [];
             if (modalFilePreviewPanel) modalFilePreviewPanel.style.display = 'none';
             if (modalFilePreviewFrame) modalFilePreviewFrame.src = '';
         }

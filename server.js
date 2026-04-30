@@ -33,6 +33,14 @@ initializeDatabase().catch(err => console.error('DB init error:', err));
 
 // JWT Secret
 const jwtSecret = process.env.JWT_SECRET || 'notezilla_secret_key_2024';
+const GOOGLE_DRIVE_ROOT_FOLDER_ID = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || '1M6qdcTlfx_PofE0FkpZMTVibaXvuZEV_';
+const GOOGLE_DRIVE_CACHE_TTL_MS = 5 * 60 * 1000;
+const GOOGLE_DRIVE_BASE_URL = 'https://drive.google.com';
+const driveRepositoryCache = {
+    data: null,
+    expiresAt: 0,
+    promise: null
+};
 
 // ==================== HELPER FUNCTIONS ====================
 
@@ -71,6 +79,183 @@ const requireRole = (roles) => {
         next();
     };
 };
+
+function decodeHtmlEntities(value = '') {
+    return String(value)
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&#x27;/g, "'");
+}
+
+function stripHtmlTags(value = '') {
+    return String(value).replace(/<[^>]+>/g, '');
+}
+
+function getDrivePreviewUrl(url = '') {
+    const fileMatch = url.match(/\/file\/d\/([^/]+)/);
+    if (fileMatch) {
+        return `${GOOGLE_DRIVE_BASE_URL}/file/d/${fileMatch[1]}/preview`;
+    }
+
+    try {
+        const parsed = new URL(url);
+        const fileId = parsed.searchParams.get('id');
+        if (fileId) {
+            return `${GOOGLE_DRIVE_BASE_URL}/file/d/${fileId}/preview`;
+        }
+    } catch (error) {
+        return url;
+    }
+
+    return url;
+}
+
+async function fetchPublicDriveFolderHtml(folderId) {
+    const response = await fetch(`${GOOGLE_DRIVE_BASE_URL}/embeddedfolderview?id=${encodeURIComponent(folderId)}`, {
+        headers: {
+            'User-Agent': 'Notezilla/2.0'
+        },
+        redirect: 'follow'
+    });
+
+    if (!response.ok) {
+        throw new Error(`Google Drive request failed with status ${response.status}`);
+    }
+
+    return response.text();
+}
+
+function parsePublicDriveFolderHtml(html = '') {
+    const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/i);
+    const entryRegex = /<div class="flip-entry" id="entry-([^"]+)"[\s\S]*?<a href="([^"]+)"[^>]*>[\s\S]*?<div class="flip-entry-title">([\s\S]*?)<\/div><\/a>/gim;
+    const entries = [];
+    let match;
+
+    while ((match = entryRegex.exec(html)) !== null) {
+        const entryId = match[1];
+        const entryUrl = match[2];
+        const entryName = decodeHtmlEntities(stripHtmlTags(match[3])).trim();
+        const entryType = entryUrl.includes('/drive/folders/') ? 'folder' : 'file';
+
+        entries.push({
+            id: entryId,
+            name: entryName || (entryType === 'folder' ? 'Untitled Folder' : 'Untitled File'),
+            type: entryType,
+            url: entryUrl,
+            previewUrl: entryType === 'file' ? getDrivePreviewUrl(entryUrl) : null
+        });
+    }
+
+    return {
+        title: decodeHtmlEntities(stripHtmlTags(titleMatch ? titleMatch[1] : '')).trim(),
+        entries
+    };
+}
+
+async function buildPublicDriveTree(folderId, visited = new Set()) {
+    if (visited.has(folderId)) {
+        return null;
+    }
+
+    visited.add(folderId);
+
+    const html = await fetchPublicDriveFolderHtml(folderId);
+    const parsed = parsePublicDriveFolderHtml(html);
+
+    const children = (await Promise.all(parsed.entries.map(async (entry) => {
+        if (entry.type === 'folder') {
+            try {
+                const childTree = await buildPublicDriveTree(entry.id, visited);
+                if (!childTree) {
+                    return null;
+                }
+
+                return {
+                    ...childTree,
+                    name: childTree.name || entry.name,
+                    url: childTree.url || entry.url
+                };
+            } catch (error) {
+                console.error(`[Google Drive Repository] Failed to expand folder ${entry.id}:`, error.message || error);
+                return {
+                    ...entry,
+                    source: 'drive',
+                    children: [],
+                    directFolderCount: 0,
+                    directFileCount: 0,
+                    folderCount: 0,
+                    fileCount: 0,
+                    error: 'Unable to load this folder right now.'
+                };
+            }
+        }
+
+        return {
+            ...entry,
+            source: 'drive',
+            extension: path.extname(entry.name || '').toLowerCase()
+        };
+    }))).filter(Boolean);
+
+    const directFolderCount = children.filter((child) => child.type === 'folder').length;
+    const directFileCount = children.filter((child) => child.type === 'file').length;
+    const folderCount = children.reduce((sum, child) => (
+        child.type === 'folder' ? sum + 1 + (child.folderCount || 0) : sum
+    ), 0);
+    const fileCount = children.reduce((sum, child) => (
+        child.type === 'file' ? sum + 1 : sum + (child.fileCount || 0)
+    ), 0);
+
+    return {
+        id: folderId,
+        type: 'folder',
+        source: 'drive',
+        name: parsed.title || 'Untitled Folder',
+        url: `${GOOGLE_DRIVE_BASE_URL}/drive/folders/${folderId}`,
+        children,
+        directFolderCount,
+        directFileCount,
+        folderCount,
+        fileCount
+    };
+}
+
+async function getDriveFacultyRepository(forceRefresh = false) {
+    const cacheStillValid = driveRepositoryCache.data && driveRepositoryCache.expiresAt > Date.now();
+    if (!forceRefresh && cacheStillValid) {
+        return driveRepositoryCache.data;
+    }
+
+    if (driveRepositoryCache.promise) {
+        return driveRepositoryCache.promise;
+    }
+
+    driveRepositoryCache.promise = (async () => {
+        try {
+            const root = await buildPublicDriveTree(GOOGLE_DRIVE_ROOT_FOLDER_ID, new Set());
+            const payload = {
+                rootFolderId: GOOGLE_DRIVE_ROOT_FOLDER_ID,
+                rootUrl: `${GOOGLE_DRIVE_BASE_URL}/drive/folders/${GOOGLE_DRIVE_ROOT_FOLDER_ID}`,
+                fetchedAt: new Date().toISOString(),
+                root,
+                faculties: (root.children || []).filter((child) => child.type === 'folder')
+            };
+
+            driveRepositoryCache.data = payload;
+            driveRepositoryCache.expiresAt = Date.now() + GOOGLE_DRIVE_CACHE_TTL_MS;
+
+            return payload;
+        } finally {
+            driveRepositoryCache.promise = null;
+        }
+    })();
+
+    return driveRepositoryCache.promise;
+}
 
 // ==================== AUTH ROUTES ====================
 
@@ -851,20 +1036,46 @@ app.get('/api/notes/:id', async (req, res) => {
 });
 
 /**
+ * GET /api/drive/faculty-repository
+ * Returns the shared Google Drive faculty folder tree.
+ */
+app.get('/api/drive/faculty-repository', async (req, res) => {
+    try {
+        const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+        const repository = await getDriveFacultyRepository(forceRefresh);
+
+        return res.status(200).json({
+            success: true,
+            data: repository
+        });
+    } catch (error) {
+        console.error('[Google Drive Repository] Error fetching shared folder tree:', error);
+        return res.status(502).json({
+            success: false,
+            message: 'Failed to fetch the shared Google Drive faculty repository.'
+        });
+    }
+});
+
+/**
  * POST /api/drive/sync
  * Integrates Notezilla with Google Drive Root Folders
  */
 app.post('/api/drive/sync', authenticateToken, requireRole(['staff']), async (req, res) => {
     try {
         console.log('[Google Drive Sync] Manual sync requested by Staff ID:', req.userId);
-        
-        // Return information asking them to provide a valid API key or use the embedded iframe features
+
+        const repository = await getDriveFacultyRepository(true);
+
         return res.status(200).json({
             success: true,
-            message: `Mock dummy generation removed. Please map files directly via the embedded Google Drive view or provide a valid Google API Key to enable backend sync.`,
+            message: 'Shared Google Drive faculty folders refreshed successfully.',
             meta: {
-                syncedCount: 0,
-                mappedFiles: []
+                syncedCount: repository.faculties.length,
+                mappedFiles: repository.root.fileCount || 0,
+                totalFolders: repository.root.folderCount || 0,
+                rootFolderId: repository.rootFolderId,
+                fetchedAt: repository.fetchedAt
             }
         });
 

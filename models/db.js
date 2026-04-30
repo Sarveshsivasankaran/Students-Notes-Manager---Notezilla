@@ -11,8 +11,8 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ Missing Supabase credentials in .env file');
-    console.error('Required: SUPABASE_URL and SUPABASE_ANON_KEY');
+    console.error('Missing Supabase credentials in .env file.');
+    console.error('Copy .env.example to .env and set SUPABASE_URL and SUPABASE_ANON_KEY.');
     process.exit(1);
 }
 
@@ -31,13 +31,13 @@ const initializeDatabase = async () => {
             // If tables are not created, Postgres/Supabase will return an error mentioning the relation
             const message = error.message || JSON.stringify(error);
             if (message && (message.includes('relation') || message.includes('does not exist') || message.includes('PGRST116'))) {
-                console.log('⚠️  Tables not found. Please run the SQL schema in Supabase SQL Editor.');
-                console.log('See SETUP.md for table creation scripts.');
+                console.log('Tables not found. Please run the SQL schema in Supabase SQL Editor.');
+                console.log('See SUPABASE_SETUP.md for table creation steps.');
             } else {
                 console.error('Database initialization error:', message);
             }
         } else {
-            console.log('✅ Supabase Connected Successfully');
+            console.log('Supabase connected successfully.');
         }
     } catch (err) {
         // Ensure we always print a useful message (some errors may not have a .message)
