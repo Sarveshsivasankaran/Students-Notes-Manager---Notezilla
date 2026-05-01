@@ -726,17 +726,26 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     padding: 12px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
 }
 
 .task-item:last-child {
     border-bottom: none;
 }
 
+.task-item:hover,
+.task-item:focus-within {
+    background: rgba(255, 255, 255, 0.025);
+}
+
 .checkbox-container {
     display: flex;
     align-items: center;
+    flex: 1;
+    min-width: 0;
     cursor: pointer;
     position: relative;
     padding-left: 28px;
@@ -797,6 +806,41 @@ body {
 .task-text {
     color: var(--text-dark);
     transition: var(--transition);
+    overflow-wrap: anywhere;
+}
+
+.delete-task-btn {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: var(--transition);
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
+}
+
+.delete-task-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171 !important;
+    border-color: rgba(239, 68, 68, 0.2);
+    transform: scale(1.1);
+}
+
+.delete-task-btn i {
+    font-size: 18px;
+}
+
+.delete-task-btn:disabled {
+    cursor: wait !important;
+    opacity: 0.5;
 }
 
 .task-text.completed {
@@ -844,9 +888,17 @@ body {
     color: white;
     border: none;
     width: 36px;
+    min-width: 36px;
+    height: 36px;
     border-radius: 8px;
     cursor: pointer;
     transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
 }
 
 .add-task button:hover {
@@ -926,6 +978,37 @@ body {
 
 .timeline-item.active .time i {
     color: white;
+}
+
+.timeline-item:hover .time,
+.timeline-item:focus-within .time {
+    color: white;
+    background: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.timeline-item:hover .time i,
+.timeline-item:focus-within .time i {
+    color: white;
+}
+
+.timeline-item .planner-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+}
+
+.timeline-item .planner-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 3;
 }
 
 .timeline-item .content h4 {
@@ -2108,9 +2191,11 @@ input:checked + .slider:before {
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.05);
     transition: var(--transition);
+    position: relative;
 }
 
-.modal-note-item:hover {
+.modal-note-item:hover,
+.modal-note-item:focus-within {
     background: rgba(255, 255, 255, 0.04);
 }
 
@@ -2133,6 +2218,9 @@ input:checked + .slider:before {
 .modal-note-actions {
     display: flex;
     gap: 8px;
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
 }
 /* ════════════════════════════════════════════════════
    ✅ NEW & FIXED STYLES — Notezilla Enhancement Pack
@@ -2424,6 +2512,40 @@ input:checked + .slider:before {
 /* ════════════════════════════════════════════════════
    Responsive additions
    ════════════════════════════════════════════════════ */
+
+.fin-btn, .del-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
+}
+
+.fin-btn:hover:not(:disabled) {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--accent-1) !important;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.del-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171 !important;
+    border-color: rgba(239, 68, 68, 0.2);
+    transform: scale(1.1);
+}
+
+.fin-btn:disabled {
+    cursor: default;
+    opacity: 0.8;
+}
 
 @media (max-width: 900px) {
     .faculty-cards-grid {

@@ -1046,12 +1046,27 @@
             const statsSection = document.getElementById('stats-section');
             if (!statsSection) return;
 
+            async function updateStatTargets() {
+                try {
+                    const response = await fetch('/api/public/stats');
+                    const result = await response.json();
+                    if (result.success) {
+                        const data = result.data;
+                        document.querySelector('[id="counter-students"]').parentElement.dataset.target = data.students;
+                        document.querySelector('[id="counter-notes"]').parentElement.dataset.target = data.notes;
+                        document.querySelector('[id="counter-faculty"]').parentElement.dataset.target = data.faculty;
+                        document.querySelector('[id="counter-depts"]').parentElement.dataset.target = data.departments;
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch stats:', err);
+                }
+            }
+
             function animateCounter(el, target, suffix, duration) {
                 const start = performance.now();
                 function update(now) {
                     const elapsed = now - start;
                     const progress = Math.min(elapsed / duration, 1);
-                    // ease out cubic
                     const eased = 1 - Math.pow(1 - progress, 3);
                     const current = Math.round(eased * target);
                     el.textContent = current.toLocaleString() + suffix;
@@ -1061,10 +1076,14 @@
             }
 
             let countersStarted = false;
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
+            const observer = new IntersectionObserver(async (entries) => {
+                for (const entry of entries) {
                     if (entry.isIntersecting && !countersStarted) {
                         countersStarted = true;
+                        
+                        // Fetch real data before animating
+                        await updateStatTargets();
+
                         const items = statsSection.querySelectorAll('.stat-counter-item');
                         items.forEach((item, i) => {
                             const target = parseInt(item.dataset.target);
@@ -1077,7 +1096,8 @@
                         const studentsEl = document.getElementById('counter-students');
                         if (studentsEl) {
                             function liveIncrement() {
-                                const current = parseInt(studentsEl.textContent.replace(/[^0-9]/g, '')) || 1200;
+                                const currentText = studentsEl.textContent.replace(/[^0-9]/g, '');
+                                const current = parseInt(currentText) || 0;
                                 studentsEl.textContent = (current + 1).toLocaleString() + '+';
                                 const nextDelay = 8000 + Math.random() * 4000;
                                 setTimeout(liveIncrement, nextDelay);
@@ -1085,7 +1105,7 @@
                             setTimeout(liveIncrement, 2500);
                         }
                     }
-                });
+                }
             }, { threshold: 0.3 });
 
             observer.observe(statsSection);

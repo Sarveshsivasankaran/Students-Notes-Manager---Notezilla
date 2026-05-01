@@ -18,6 +18,11 @@ require('dotenv').config();
 const { supabase, initializeDatabase } = require('./models/db');
 
 const app = express();
+const http = require('http');
+const server = http.createServer(app);
+const { initializeSocket } = require('./socket-handler');
+const io = initializeSocket(server);
+const aiService = require('./ai-service');
 
 // Middleware
 app.use(cors());
@@ -94,6 +99,36 @@ function decodeHtmlEntities(value = '') {
 function stripHtmlTags(value = '') {
     return String(value).replace(/<[^>]+>/g, '');
 }
+
+// ==================== PUBLIC ENDPOINTS ====================
+
+/**
+ * Get Public Stats for landing page
+ */
+app.get('/api/public/stats', async (req, res) => {
+    try {
+        const { count: notesCount } = await supabase.from('notes').select('*', { count: 'exact', head: true });
+        const { count: facultyCount } = await supabase.from('faculty').select('*', { count: 'exact', head: true });
+        const { count: studentsCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student');
+        const { count: deptsCount } = await supabase.from('subjects').select('department', { count: 'exact', head: true }); // Approximated by distinct departments if possible, or just count subjects/unique depts
+
+        // For departments, let's just get the unique count if we want to be precise, or hardcode if the list is static
+        const { data: depts } = await supabase.from('subjects').select('department');
+        const uniqueDepts = depts ? [...new Set(depts.map(d => d.department))].length : 0;
+
+        res.json({
+            success: true,
+            data: {
+                notes: notesCount || 0,
+                faculty: facultyCount || 0,
+                students: studentsCount || 0,
+                departments: uniqueDepts || 8 // Fallback to 8 if none found
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error fetching stats' });
+    }
+});
 
 function getDrivePreviewUrl(url = '') {
     const fileMatch = url.match(/\/file\/d\/([^/]+)/);
@@ -498,6 +533,302 @@ app.get('/api/auth/verify', authenticateToken, async (req, res) => {
             success: false,
             message: 'Server error verifying token'
         });
+    }
+});
+
+// ==================== USER PRODUCTIVITY & SYNC ROUTES ====================
+
+/**
+ * GET User Planner Tasks
+ */
+app.get('/api/user/planner', authenticateToken, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('planner_tasks')
+            .select('*')
+            .eq('user_id', req.userId)
+            .order('task_time', { ascending: true });
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * ADD Planner Task
+ */
+app.post('/api/user/planner', authenticateToken, async (req, res) => {
+    try {
+        const { title, description, task_time } = req.body;
+        const { data, error } = await supabase
+            .from('planner_tasks')
+            .insert({ user_id: req.userId, title, description, task_time })
+            .select().single();
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * UPDATE Planner Task (Mark complete)
+ */
+app.put('/api/user/planner/:id', authenticateToken, async (req, res) => {
+    try {
+        const { is_completed } = req.body;
+        const { data, error } = await supabase
+            .from('planner_tasks')
+            .update({ is_completed })
+            .eq('id', req.params.id)
+            .eq('user_id', req.userId)
+            .select().single();
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * DELETE Planner Task
+ */
+app.delete('/api/user/planner/:id', authenticateToken, async (req, res) => {
+    try {
+        const { error } = await supabase
+            .from('planner_tasks')
+            .delete()
+            .eq('id', req.params.id)
+            .eq('user_id', req.userId);
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * GET Todo Tasks
+ */
+app.get('/api/user/tasks', authenticateToken, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('todo_tasks')
+            .select('*')
+            .eq('user_id', req.userId)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * ADD Todo Task
+ */
+app.post('/api/user/tasks', authenticateToken, async (req, res) => {
+    try {
+        const { text } = req.body;
+        const { data, error } = await supabase
+            .from('todo_tasks')
+            .insert({ user_id: req.userId, text })
+            .select().single();
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * TOGGLE Todo Task
+ */
+app.put('/api/user/tasks/:id', authenticateToken, async (req, res) => {
+    try {
+        const { is_completed } = req.body;
+        const { data, error } = await supabase
+            .from('todo_tasks')
+            .update({ is_completed })
+            .eq('id', req.params.id)
+            .eq('user_id', req.userId)
+            .select().single();
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * DELETE Todo Task
+ */
+app.delete('/api/user/tasks/:id', authenticateToken, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('todo_tasks')
+            .delete()
+            .eq('id', req.params.id)
+            .eq('user_id', req.userId)
+            .select('id')
+            .maybeSingle();
+        if (error) throw error;
+        if (!data) {
+            return res.status(404).json({ success: false, message: 'Task not found' });
+        }
+        res.json({ success: true, deletedId: data.id });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * GET Progress Stats
+ */
+app.get('/api/user/progress', authenticateToken, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('progress_stats')
+            .select('*')
+            .eq('user_id', req.userId)
+            .maybeSingle();
+        if (error) throw error;
+        res.json({ success: true, data: data || { total_tasks_done: 0, planner_sessions: 0, productivity_score: 0 } });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * UPDATE Progress Stats (Sync)
+ */
+app.post('/api/user/progress/sync', authenticateToken, async (req, res) => {
+    try {
+        const { total_tasks_done, planner_sessions } = req.body;
+        
+        // Productivity Score = weighted metric based on completion rate
+        // Assuming weight: Tasks 40%, Planner 60%
+        const score = (total_tasks_done * 5) + (planner_sessions * 10); // Simplified formula
+        
+        const { data, error } = await supabase
+            .from('progress_stats')
+            .upsert({ 
+                user_id: req.userId, 
+                total_tasks_done, 
+                planner_sessions, 
+                productivity_score: Math.min(100, score),
+                updated_at: new Date()
+            })
+            .select().single();
+        
+        if (error) throw error;
+        
+        // Real-time notification via Socket.io
+        io.to(`user_${req.userId}`).emit('progress_synced', data);
+        
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * GET Activity Logs
+ */
+app.get('/api/user/activity', authenticateToken, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('activity_logs')
+            .select('*')
+            .eq('user_id', req.userId)
+            .order('created_at', { ascending: false })
+            .limit(20);
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * ADD Activity Log
+ */
+app.post('/api/user/activity', authenticateToken, async (req, res) => {
+    try {
+        const { action_type, title, description } = req.body;
+        const { data, error } = await supabase
+            .from('activity_logs')
+            .insert({ user_id: req.userId, action_type, title, description })
+            .select().single();
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ==================== STAR SYSTEM ROUTES ====================
+
+/**
+ * STAR an Entity
+ */
+app.post('/api/stars', authenticateToken, async (req, res) => {
+    try {
+        const { entity_type, entity_id } = req.body;
+        const { data, error } = await supabase
+            .from('stars')
+            .insert({ user_id: req.userId, entity_type, entity_id })
+            .select().single();
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        if (error.code === '23505') { // Unique constraint violation
+            return res.json({ success: true, message: 'Already starred' });
+        }
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * UNSTAR an Entity
+ */
+app.delete('/api/stars', authenticateToken, async (req, res) => {
+    try {
+        const { entity_type, entity_id } = req.body;
+        const { error } = await supabase
+            .from('stars')
+            .delete()
+            .eq('user_id', req.userId)
+            .eq('entity_type', entity_type)
+            .eq('entity_id', entity_id);
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * GET Top Rated Materials (Most Starred)
+ */
+app.get('/api/stars/top', async (req, res) => {
+    try {
+        const { type } = req.query; // 'subject', 'faculty', 'note'
+        const { data, error } = await supabase
+            .from('stars')
+            .select('entity_id, count(*)')
+            .eq('entity_type', type)
+            // .group('entity_id') // Supabase/PostgREST doesn't support group by easily like this
+            // We'll use a RPC (Stored Procedure) or just fetch and process
+        
+        // For simplicity in this demo, let's assume we have a view or RPC
+        const { data: topData, error: topError } = await supabase.rpc('get_top_starred', { p_entity_type: type });
+        
+        if (topError) throw topError;
+        res.json({ success: true, data: topData });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
@@ -1775,10 +2106,162 @@ app.use((err, req, res, next) => {
     });
 });
 
+// ==================== AI ANALYSIS & CHAT ROUTES ====================
+
+/**
+ * ANALYZE a Note (OCR + LangChain)
+ */
+app.post('/api/notes/:id/analyze', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Fetch note metadata
+        const { data: note, error } = await supabase
+            .from('notes')
+            .select('*')
+            .eq('id', id)
+            .single();
+        
+        if (error || !note) return res.status(404).json({ success: false, message: 'Note not found' });
+        
+        // If already analyzed, return cache
+        if (note.ai_summary) {
+            return res.json({ 
+                success: true, 
+                data: { 
+                    summary: note.ai_summary, 
+                    keyConcepts: note.key_concepts, 
+                    contextExplanation: note.context_explanation 
+                } 
+            });
+        }
+
+        // Fetch file content from Google Drive (or URL)
+        // For this demo, we'll use a fetch to get the buffer
+        const response = await fetch(note.file_url);
+        const buffer = await response.arrayBuffer();
+        const fileBuffer = Buffer.from(buffer);
+        
+        // 1. Extract Text
+        const text = await aiService.extractText(fileBuffer, 'application/pdf'); // Defaulting to PDF for demo
+        
+        // 2. Analyze with LangChain
+        const analysis = await aiService.analyzeNote(text);
+        
+        // 3. Cache results
+        await supabase
+            .from('notes')
+            .update({
+                ai_summary: analysis.summary,
+                key_concepts: analysis.keyConcepts,
+                context_explanation: analysis.contextExplanation
+            })
+            .eq('id', id);
+        
+        res.json({ success: true, data: analysis });
+    } catch (error) {
+        console.error('AI Analysis Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * CHAT with Note
+ */
+app.post('/api/notes/:id/chat', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { message } = req.body;
+        
+        const { data: note, error } = await supabase
+            .from('notes')
+            .select('*')
+            .eq('id', id)
+            .single();
+        
+        if (error || !note) return res.status(404).json({ success: false, message: 'Note not found' });
+        
+        // In a real app, you'd use a vector DB or RAG. 
+        // For now, we'll extract text and send to Ollama with context.
+        const response = await fetch(note.file_url);
+        const buffer = await response.arrayBuffer();
+        const text = await aiService.extractText(Buffer.from(buffer), 'application/pdf');
+        
+        const botResponse = await aiService.chatWithNote(text, message);
+        
+        res.json({ success: true, response: botResponse });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ==================== DSA MODULE ROUTES ====================
+
+/**
+ * GET Daily DSA Content
+ */
+app.get('/api/dsa/daily', authenticateToken, async (req, res) => {
+    try {
+        // Get user preferred language
+        const { data: user } = await supabase
+            .from('users')
+            .select('preferred_dsa_language')
+            .eq('id', req.userId)
+            .single();
+        
+        if (!user.preferred_dsa_language) {
+            return res.json({ success: false, needsLanguage: true });
+        }
+
+        // Get current day (simplified for demo: day since registration or global day)
+        const day = 1; // Demo: Day 1
+        
+        const { data, error } = await supabase
+            .from('dsa_content')
+            .select('*')
+            .eq('day', day)
+            .eq('programming_language', user.preferred_dsa_language)
+            .maybeSingle();
+        
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * SET User DSA Language Preference
+ */
+app.post('/api/dsa/preference', authenticateToken, async (req, res) => {
+    try {
+        const { language } = req.body;
+        await supabase
+            .from('users')
+            .update({ preferred_dsa_language: language })
+            .eq('id', req.userId);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+
+
+// Get top rated study materials
+app.get('/api/top-materials', async (req, res) => {
+    try {
+        const { data, error } = await supabase.rpc('get_top_starred');
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 // ==================== SERVER STARTUP ====================
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`
     ╔════════════════════════════════════════╗
     ║  📝 Notezilla Server                   ║

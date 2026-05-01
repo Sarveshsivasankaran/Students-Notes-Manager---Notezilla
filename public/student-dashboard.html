@@ -62,6 +62,13 @@
                         <span class="badge">3</span>
                     </a>
                 </li>
+                <li id="nav-dsa">
+                    <a href="javascript:void(0)">
+                        <i class='bx bx-code-alt'></i>
+                        <span class="link-name">Daily DSA</span>
+                        <span class="badge" style="background: var(--accent);">New</span>
+                    </a>
+                </li>
                 <li id="nav-profile">
                     <a href="javascript:void(0)">
                         <i class='bx bx-user-circle'></i>
@@ -270,7 +277,7 @@
                         </ul>
                         <div class="add-task">
                             <input type="text" placeholder="Add a new task...">
-                            <button><i class='bx bx-right-arrow-alt'></i></button>
+                            <button id="addTaskBtn" class="add-task-btn" type="button" title="Add task"><i class='bx bx-right-arrow-alt'></i></button>
                         </div>
                     </div>
 
@@ -561,6 +568,91 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Daily DSA View -->
+            <div id="dsa-view" class="dashboard-grid view-section" style="display: none;">
+                <div class="welcome-banner glass-panel">
+                    <div class="welcome-text">
+                        <h1>Daily <span class="highlight">DSA</span> Module</h1>
+                        <p>Master Data Structures and Algorithms with one focused concept every day.</p>
+                    </div>
+                    <div class="dsa-lang-selector">
+                        <select id="dsaLanguageSelect" class="glass-input" style="padding: 10px 20px; border-radius: 12px; background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--glass-border);">
+                            <option value="">Select Language</option>
+                            <option value="python">Python</option>
+                            <option value="cpp">C++</option>
+                            <option value="java">Java</option>
+                            <option value="c">C</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="dsa-content-area" style="display: none;">
+                    <div class="bento-grid">
+                        <!-- Concept Card -->
+                        <div class="bento-item glass-panel col-span-2">
+                            <div class="panel-header">
+                                <h3 id="dsa-concept-title">Concept: Array Reversal</h3>
+                                <span class="badge" id="dsa-day-badge">Day 1</span>
+                            </div>
+                            <div class="dsa-body">
+                                <p id="dsa-concept-explanation" style="color: var(--text-muted); margin-bottom: 20px;">Explanation goes here...</p>
+                                <h4>Logic Breakdown</h4>
+                                <ul id="dsa-logic-list" style="color: var(--text-muted); margin-left: 20px; margin-top: 10px;">
+                                    <!-- Logic items -->
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Example Card -->
+                        <div class="bento-item glass-panel">
+                            <div class="panel-header">
+                                <h3><i class='bx bx-terminal'></i> Syntax & Example</h3>
+                            </div>
+                            <pre id="dsa-syntax-code" style="background: #000; padding: 15px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; overflow-x: auto;"></pre>
+                            <pre id="dsa-example-code" style="background: #000; padding: 15px; border-radius: 8px; font-size: 13px; overflow-x: auto; color: #10b981;"></pre>
+                        </div>
+
+                        <!-- Practice Card -->
+                        <div class="bento-item glass-panel col-span-3">
+                            <div class="panel-header">
+                                <h3><i class='bx bx-edit-alt'></i> Practice Problem</h3>
+                                <div class="external-links" id="dsa-external-links">
+                                    <!-- External links -->
+                                </div>
+                            </div>
+                            <p id="dsa-practice-problem" style="margin-bottom: 20px;">Problem statement...</p>
+                            
+                            <!-- Embedded Code Editor Simulation -->
+                            <div class="code-editor-sim glass-panel" style="background: #1e1e1e; border-radius: 12px; overflow: hidden;">
+                                <div class="editor-header" style="padding: 10px 20px; background: #252526; display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 12px; color: #858585;">solution.py</span>
+                                    <button class="btn-primary" style="padding: 4px 12px; font-size: 12px;">Run Code</button>
+                                </div>
+                                <textarea id="dsa-code-editor" style="width: 100%; height: 200px; background: transparent; border: none; color: #d4d4d4; font-family: 'Consolas', monospace; padding: 20px; outline: none; resize: none;" placeholder="Write your code here..."></textarea>
+                            </div>
+                            
+                            <div class="youtube-explanation" style="margin-top: 20px;">
+                                <a id="dsa-youtube-link" href="#" target="_blank" class="btn-glass" style="display: flex; align-items: center; gap: 10px; width: fit-content;">
+                                    <i class='bx bxl-youtube' style="color: #ff0000; font-size: 24px;"></i> Watch Video Explanation
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Language Selection Prompt -->
+                <div id="dsa-setup-prompt" class="glass-panel" style="padding: 60px; text-align: center; margin-top: 40px;">
+                    <i class='bx bx-code-block' style="font-size: 64px; color: var(--primary); margin-bottom: 20px;"></i>
+                    <h2>Welcome to Daily DSA!</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 30px;">Choose your primary programming language to start your daily coding journey.</p>
+                    <div style="display: flex; gap: 15px; justify-content: center;">
+                        <button class="btn-glass lang-setup-btn" data-lang="python">Python</button>
+                        <button class="btn-glass lang-setup-btn" data-lang="cpp">C++</button>
+                        <button class="btn-glass lang-setup-btn" data-lang="java">Java</button>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -649,6 +741,72 @@
         </div>
     </div>
 
+    <!-- Note AI Analysis Modal -->
+    <div class="modal-overlay" id="noteAnalysisModal">
+        <div class="modal-content glass-panel" style="width: 90%; height: 90%; max-width: 1400px; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div class="note-header-info">
+                    <i class='bx bxs-file-pdf' style="font-size: 32px; color: var(--accent);"></i>
+                    <div>
+                        <h2 id="analysisNoteTitle">Note Title</h2>
+                        <p id="analysisNoteMeta">Subject • Unit 1 • Faculty Name</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-glass" id="startAnalysisBtn"><i class='bx bx-brain'></i> AI Analysis</button>
+                    <button class="close-modal" id="closeAnalysisModal"><i class='bx bx-x'></i></button>
+                </div>
+            </div>
+            
+            <div class="modal-body" style="flex: 1; display: flex; padding: 0; overflow: hidden;">
+                <!-- Document Viewer -->
+                <div class="doc-viewer-container" style="flex: 1; background: #525659; position: relative;">
+                    <iframe id="analysisFrame" style="width: 100%; height: 100%; border: none;"></iframe>
+                    <div id="analysisLoading" class="glass-panel" style="position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); z-index: 10;">
+                        <div class="loader"></div>
+                        <p style="margin-top: 20px;">Aadhi is analyzing the document...</p>
+                    </div>
+                </div>
+
+                <!-- AI Sidebar -->
+                <div class="ai-sidebar glass-panel" style="width: 400px; border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; background: rgba(15, 23, 42, 0.5);">
+                    <div class="ai-tabs" style="display: flex; border-bottom: 1px solid var(--glass-border);">
+                        <button class="ai-tab active" data-tab="summary">Summary</button>
+                        <button class="ai-tab" data-tab="chat">Ask Aadhi</button>
+                    </div>
+                    
+                    <div class="ai-tab-content" id="analysisSummary" style="flex: 1; padding: 20px; overflow-y: auto;">
+                        <div class="placeholder-text" style="text-align: center; color: var(--text-muted); margin-top: 50px;">
+                            <i class='bx bx-info-circle' style="font-size: 48px; opacity: 0.3;"></i>
+                            <p>Click "AI Analysis" to generate insights for this note.</p>
+                        </div>
+                        <div id="analysisResultContent" style="display: none;">
+                            <h4 style="color: var(--primary-light); margin-bottom: 10px;">Summary</h4>
+                            <p id="aiSummaryText" style="font-size: 14px; margin-bottom: 20px; line-height: 1.6;"></p>
+                            
+                            <h4 style="color: var(--primary-light); margin-bottom: 10px;">Key Concepts</h4>
+                            <div id="aiKeyConcepts" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;"></div>
+                            
+                            <h4 style="color: var(--primary-light); margin-bottom: 10px;">Context</h4>
+                            <p id="aiContextText" style="font-size: 14px; line-height: 1.6;"></p>
+                        </div>
+                    </div>
+
+                    <div class="ai-tab-content" id="analysisChat" style="flex: 1; display: none; flex-direction: column;">
+                        <div class="chat-messages" id="analysisChatMessages" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                            <div class="chat-msg bot">I've read this document. You can ask me anything about its content!</div>
+                        </div>
+                        <div class="chat-input-area" style="padding: 15px;">
+                            <input type="text" id="analysisChatInput" placeholder="Ask about this note...">
+                            <button id="analysisChatSend"><i class='bx bx-send'></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
     <script src="student-dashboard.js"></script>
 </body>
 </html>

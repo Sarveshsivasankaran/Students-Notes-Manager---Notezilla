@@ -1,3 +1,6 @@
+// Initialize Socket.io
+const socket = io();
+
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Sidebar Toggle Logic
     const body = document.querySelector('body');
@@ -71,6 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Connect to socket room
+    socket.emit('join', user.id);
+    socket.on('live_activity', (data) => {
+        const liveUsersEl = document.getElementById('live-users-count');
+        if (liveUsersEl) liveUsersEl.textContent = data.activeUsers;
+    });
+    socket.on('progress_synced', (data) => {
+        // Update local stats UI
+        updateStudyProgress(data);
+    });
+
     // Helper: API Fetch with Token
     async function apiFetch(endpoint, options = {}) {
         const url = endpoint.startsWith('http') ? endpoint : `/api${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
@@ -102,10 +116,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'profile': { view: document.getElementById('profile-view'), nav: document.getElementById('nav-profile') },
         'subjects': { view: document.getElementById('subjects-view'), nav: document.getElementById('nav-subjects') },
         'announcements': { view: document.getElementById('announcements-view'), nav: document.getElementById('nav-announcements') },
-
         'progress': { view: document.getElementById('progress-view'), nav: document.getElementById('nav-progress') },
         'bookmarks': { view: document.getElementById('bookmarks-view'), nav: document.getElementById('nav-bookmarks') },
-        'faculty': { view: document.getElementById('faculty-view'), nav: document.getElementById('nav-faculty') }
+        'faculty': { view: document.getElementById('faculty-view'), nav: document.getElementById('nav-faculty') },
+        'dsa': { view: document.getElementById('dsa-view'), nav: document.getElementById('nav-dsa') }
     };
 
     function switchView(viewKey) {
@@ -295,7 +309,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiFetch('/bookmarks');
         if (res.success && Array.isArray(res.data)) {
             bookmarkedNoteIds = res.data.map(b => b.noteId);
-            localStorage.setItem('bookmarkedNotes', JSON.stringify(bookmarkedNoteIds));
             const countProfile = document.getElementById('bookmark-count-profile');
             if (countProfile) countProfile.textContent = bookmarkedNoteIds.length;
         }
@@ -310,7 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.success) {
             if (exists) bookmarkedNoteIds = bookmarkedNoteIds.filter(id => id !== noteId);
             else bookmarkedNoteIds.push(noteId);
-            localStorage.setItem('bookmarkedNotes', JSON.stringify(bookmarkedNoteIds));
             syncBookmarks();
             if (bookmarksView && bookmarksView.style.display !== 'none') renderBookmarks();
         }
@@ -342,32 +354,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // 4.4 Progress Tracker History & Tasks
-    let completedWork = JSON.parse(localStorage.getItem('completedWork') || '[]');
-    let savedTasks = JSON.parse(localStorage.getItem('studentTasks') || '[]');
+    let completedWork = [];
+    let savedTasks = [];
 
-    const logProgress = (type, title, desc = '') => {
-        completedWork.unshift({ id: Date.now(), type, title, desc, timestamp: new Date().toISOString() });
-        localStorage.setItem('completedWork', JSON.stringify(completedWork));
-        updateStudyProgress();
-        if (progressView && progressView.style.display !== 'none') renderProgress();
+    const logProgress = async (type, title, desc = '') => {
+        const res = await apiFetch('/user/activity', {
+            method: 'POST',
+            body: JSON.stringify({ action_type: type, title, description: desc })
+        });
+        if (res.success) {
+            completedWork.unshift(res.data);
+            updateStudyProgress();
+            if (progressView && progressView.style.display !== 'none') renderProgress();
+        }
     };
 
-    const renderProgress = () => {
+    const renderProgress = async () => {
         const historyList = document.getElementById('progress-history-list');
         if (!historyList) return;
+        
+        // Fetch fresh data if needed or use local cache
+        const res = await apiFetch('/user/activity');
+        if (res.success) {
+            completedWork = res.data;
+        }
+
         historyList.innerHTML = completedWork.length === 0 
             ? '<div style="text-align:center; padding: 40px;">No activity logged.</div>'
             : completedWork.map(item => `
                 <div class="notif-item" style="padding: 16px 24px; border-bottom: 1px solid var(--border-light);">
-                    <div class="notif-icon"><i class='bx ${item.type === 'task' ? 'bx-check-double' : 'bx-calendar-heart'}'></i></div>
-                    <div class="notif-text"><h4>${item.title}</h4><p>${item.desc || (item.type === 'task' ? 'Completed task' : 'Study session finished')}</p><span>${new Date(item.timestamp).toLocaleDateString()}</span></div>
+                    <div class="notif-icon"><i class='bx ${item.action_type === 'task' ? 'bx-check-double' : 'bx-calendar-heart'}'></i></div>
+                    <div class="notif-text"><h4>${item.title}</h4><p>${item.description || (item.action_type === 'task' ? 'Completed task' : 'Study session finished')}</p><span>${new Date(item.created_at).toLocaleDateString()}</span></div>
                 </div>
             `).join('');
     };
 
     const taskList = document.getElementById('taskList');
     const addTaskInput = document.querySelector('.add-task input');
-    const addTaskBtn = document.querySelector('.add-task button');
+    const addTaskBtn = document.getElementById('addTaskBtn') || document.querySelector('.add-task button');
 
     const renderTasks = () => {
         if (!taskList) return;
@@ -383,16 +407,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="checkmark"></span>
                     <span class="task-text ${t.completed ? 'completed' : ''}">${t.text}</span>
                 </label>
-                <button class="delete-task-btn" style="background:none; border:none; cursor:pointer; color:var(--text-muted);"><i class='bx bx-trash'></i></button>
+                <button class="delete-task-btn" type="button" title="Delete task"><i class='bx bx-trash'></i></button>
             `;
-            li.querySelector('input').onchange = (e) => {
-                savedTasks[i].completed = e.target.checked;
-                if (e.target.checked) logProgress('task', t.text);
-                saveTasks();
+            li.querySelector('input').onchange = async (e) => {
+                const completed = e.target.checked;
+                const res = await apiFetch(`/user/tasks/${t.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ is_completed: completed })
+                });
+                if (res.success) {
+                    savedTasks[i].completed = completed;
+                    if (completed) logProgress('task', t.text);
+                    saveTasks();
+                }
             };
-            li.querySelector('.delete-task-btn').onclick = () => {
-                savedTasks.splice(i, 1);
-                saveTasks();
+            li.querySelector('.delete-task-btn').onclick = async (event) => {
+                event.stopPropagation();
+                const res = await apiFetch(`/user/tasks/${t.id}`, { method: 'DELETE' });
+                if (res.success) {
+                    savedTasks.splice(i, 1);
+                    saveTasks();
+                }
             };
             taskList.appendChild(li);
         });
@@ -400,29 +435,66 @@ document.addEventListener('DOMContentLoaded', () => {
         if (badge) badge.textContent = `${left} left`;
     };
 
-    const saveTasks = () => {
-        localStorage.setItem('studentTasks', JSON.stringify(savedTasks));
+    const saveTasks = async () => {
         renderTasks();
-        updateStudyProgress();
+        await syncProgress();
     };
 
+    const syncProgress = async () => {
+        const compTasks = savedTasks.filter(t => t.completed).length;
+        const plannerCompleted = savedPlannerItems.filter(item => item.completed).length;
+        
+        await apiFetch('/user/progress/sync', {
+            method: 'POST',
+            body: JSON.stringify({
+                total_tasks_done: compTasks,
+                planner_sessions: plannerCompleted
+            })
+        });
+    };
+
+    const fetchTasks = async () => {
+        const res = await apiFetch('/user/tasks');
+        if (res.success) {
+            savedTasks = res.data.map(t => ({ id: t.id, text: t.text, completed: t.is_completed }));
+            renderTasks();
+            updateStudyProgress();
+        }
+    };
+    fetchTasks();
+
     if (addTaskBtn && addTaskInput) {
-        const add = () => {
+        const add = async () => {
             const val = addTaskInput.value.trim();
             if (val) {
-                savedTasks.push({ text: val, completed: false });
-                saveTasks();
-                addTaskInput.value = '';
+                const res = await apiFetch('/user/tasks', {
+                    method: 'POST',
+                    body: JSON.stringify({ text: val })
+                });
+                if (res.success) {
+                    savedTasks.unshift({ id: res.data.id, text: val, completed: false });
+                    renderTasks();
+                    addTaskInput.value = '';
+                }
             }
         };
-        addTaskBtn.onclick = add;
-        addTaskInput.onkeypress = (e) => { if (e.key === 'Enter') add(); };
+        addTaskBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            add();
+        });
+        addTaskInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                add();
+            }
+        });
     }
 
     // 5. Daily Planner
     const plannerTimeline = document.getElementById('plannerTimeline');
     const plannerForm = document.getElementById('plannerForm');
-    let savedPlannerItems = JSON.parse(localStorage.getItem('studentPlanner') || '[]');
+    let savedPlannerItems = [];
 
     const renderPlanner = () => {
         if (!plannerTimeline) return;
@@ -439,20 +511,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const div = document.createElement('div');
             div.className = `timeline-item ${isCompleted ? 'completed' : ''}`;
             div.style.opacity = isCompleted ? '0.6' : '1';
-            div.style.pointerEvents = isCompleted ? 'none' : 'auto';
+            // Removed pointerEvents none to ensure buttons remain clickable if needed
             
             div.innerHTML = `
                 <div class="time"><i class='bx bx-time-five'></i> ${item.time}</div>
-                <div class="content" style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="content planner-content">
                     <div style="${isCompleted ? 'text-decoration: line-through;' : ''}">
                         <h4>${item.title}</h4>
                         <span>${item.desc}</span>
                     </div>
-                    <div style="display:flex; gap:8px;">
-                        <button class="fin-btn" style="background:none; border:none; color:${isCompleted ? 'var(--accent-1)' : 'var(--text-muted)'}; cursor:pointer;" ${isCompleted ? 'disabled' : ''}>
+                    <div class="planner-actions">
+                        <button class="fin-btn" type="button" title="Mark complete" ${isCompleted ? 'disabled' : ''} style="color:${isCompleted ? 'var(--accent-1)' : ''}">
                             <i class='bx ${isCompleted ? 'bxs-check-circle' : 'bx-check-circle'}'></i>
                         </button>
-                        <button class="del-btn" style="background:none; border:none; color:var(--text-muted); cursor:pointer;">
+                        <button class="del-btn" type="button" title="Delete session">
                             <i class='bx bx-trash'></i>
                         </button>
                     </div>
@@ -460,26 +532,52 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             
             if (!isCompleted) {
-                div.querySelector('.fin-btn').onclick = () => {
-                    logProgress('planner', item.title, item.desc);
-                    savedPlannerItems[index].completed = true;
-                    savePlanner();
+                div.querySelector('.fin-btn').onclick = async (event) => {
+                    event.stopPropagation();
+                    const res = await apiFetch(`/user/planner/${item.id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ is_completed: true })
+                    });
+                    if (res.success) {
+                        logProgress('planner', item.title, item.desc);
+                        savedPlannerItems[index].completed = true;
+                        savePlanner();
+                    }
                 };
             }
             
-            div.querySelector('.del-btn').onclick = () => {
-                savedPlannerItems.splice(index, 1);
-                savePlanner();
+            div.querySelector('.del-btn').onclick = async (event) => {
+                event.stopPropagation();
+                const res = await apiFetch(`/user/planner/${item.id}`, { method: 'DELETE' });
+                if (res.success) {
+                    savedPlannerItems.splice(index, 1);
+                    savePlanner();
+                }
             };
             plannerTimeline.appendChild(div);
         });
     };
 
-    const savePlanner = () => {
-        localStorage.setItem('studentPlanner', JSON.stringify(savedPlannerItems));
+    const savePlanner = async () => {
         renderPlanner();
-        updateStudyProgress();
+        syncProgress();
     };
+
+    const fetchPlanner = async () => {
+        const res = await apiFetch('/user/planner');
+        if (res.success) {
+            savedPlannerItems = res.data.map(p => ({ 
+                id: p.id, 
+                time: p.task_time, 
+                title: p.title, 
+                desc: p.description, 
+                completed: p.is_completed 
+            }));
+            renderPlanner();
+            updateStudyProgress();
+        }
+    };
+    fetchPlanner();
 
     const addPlannerBtn = document.getElementById('addPlannerBtn');
     if (addPlannerBtn) addPlannerBtn.onclick = () => plannerForm.style.display = 'block';
@@ -487,14 +585,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cancelPlannerBtn) cancelPlannerBtn.onclick = () => plannerForm.style.display = 'none';
     const savePlannerBtn = document.getElementById('savePlannerBtn');
     if (savePlannerBtn) {
-        savePlannerBtn.onclick = () => {
+        savePlannerBtn.onclick = async () => {
             const t = document.getElementById('plannerTime').value;
             const h = document.getElementById('plannerTitle').value;
             const d = document.getElementById('plannerDesc').value;
             if (t && h) {
-                savedPlannerItems.push({ time: t, title: h, desc: d });
-                savePlanner();
-                plannerForm.style.display = 'none';
+                const res = await apiFetch('/user/planner', {
+                    method: 'POST',
+                    body: JSON.stringify({ title: h, description: d, task_time: t })
+                });
+                if (res.success) {
+                    savedPlannerItems.push({ id: res.data.id, time: t, title: h, desc: d, completed: false });
+                    savePlanner();
+                    plannerForm.style.display = 'none';
+                }
             }
         };
     }
@@ -1353,7 +1457,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <h5>${escapeHtml(childFolder.name || 'Folder')}</h5>
                     </div>
                     <div class="modal-note-actions">
-                        <button class="icon-btn-outline open-folder-btn"><i class='bx bx-right-arrow-alt'></i></button>
+                        <button class="icon-btn-outline open-folder-btn" type="button" title="Open folder"><i class='bx bx-right-arrow-alt'></i></button>
                     </div>
                 `;
 
@@ -1481,27 +1585,171 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 11. Top Rated Notes
-    const topRatedGrid = document.getElementById('topRatedNotesGrid');
+    // ==================== TOP RATED NOTES LOGIC ====================
     async function renderTopRatedNotes() {
-        if (!topRatedGrid) return;
-        topRatedGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center;"><i class="bx bx-loader-alt bx-spin"></i></div>';
-        const res = await apiFetch('/notes?limit=4&sort=downloads');
+        const grid = document.getElementById('topRatedNotesGrid');
+        if (!grid) return;
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center;"><i class="bx bx-loader-alt bx-spin"></i></div>';
+        
+        const res = await apiFetch('/stars/top');
         if (res.success && res.data) {
-            topRatedGrid.innerHTML = '';
-            res.data.forEach(note => {
-                const card = document.createElement('div');
-                card.className = 'note-card';
-                card.innerHTML = `
-                    <div class="note-icon"><i class='bx bxs-file-pdf'></i></div>
-                    <div class="note-details"><h4>${note.title}</h4><p>${note.downloads || 0} downloads</p></div>
-                    <button class="icon-btn-outline" title="Download"><i class='bx bx-download'></i></button>
-                `;
-                card.querySelector('button').onclick = () => window.open(note.fileUrl, '_blank');
-                topRatedGrid.appendChild(card);
-            });
+            grid.innerHTML = res.data.map(note => `
+                <div class="note-card glass-panel" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 16px; padding: 15px; transition: 0.3s;">
+                    <div class="note-card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <i class='bx bxs-file-pdf' style="font-size: 24px; color: var(--accent);"></i>
+                        <div class="star-rating" style="display: flex; align-items: center; gap: 4px; color: #fbbf24; font-weight: 600;">
+                            <i class='bx bxs-star'></i>
+                            <span>${note.star_count}</span>
+                        </div>
+                    </div>
+                    <div class="note-card-body" style="margin-bottom: 15px;">
+                        <h4 style="margin: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${note.title}</h4>
+                        <p style="margin: 4px 0 0; font-size: 12px; color: var(--text-muted);">${note.subject_name || 'Notezilla'}</p>
+                    </div>
+                    <div class="note-card-footer">
+                        <button class="btn-glass" onclick="openNoteAnalysis('${note.id}', '${note.title.replace(/'/g, "\\'")}', '${note.file_url}')" style="width: 100%; padding: 8px; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class='bx bx-brain'></i> Analyze
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center;">No high-rated notes found.</div>';
         }
     }
+
+    // ==================== DSA MODULE LOGIC ====================
+    const dsaSetupPrompt = document.getElementById('dsa-setup-prompt');
+    const dsaContentArea = document.getElementById('dsa-content-area');
+    
+    async function fetchDSA() {
+        const res = await apiFetch('/dsa/daily');
+        if (res.success) {
+            if (dsaSetupPrompt) dsaSetupPrompt.style.display = 'none';
+            if (dsaContentArea) dsaContentArea.style.display = 'block';
+            renderDSA(res.data);
+        } else if (res.needsLanguage) {
+            if (dsaSetupPrompt) dsaSetupPrompt.style.display = 'block';
+            if (dsaContentArea) dsaContentArea.style.display = 'none';
+        }
+    }
+
+    function renderDSA(data) {
+        if (!data) return;
+        const mapping = {
+            'dsa-concept-title': `Concept: ${data.concept}`,
+            'dsa-day-badge': `Day ${data.day}`,
+            'dsa-concept-explanation': data.explanation,
+            'dsa-syntax-code': data.syntax,
+            'dsa-example-code': data.example_code,
+            'dsa-practice-problem': data.practice_problem
+        };
+        Object.entries(mapping).forEach(([id, val]) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        });
+        
+        const logicList = document.getElementById('dsa-logic-list');
+        if (logicList) logicList.innerHTML = data.logic_breakdown ? data.logic_breakdown.map(item => `<li>${item}</li>`).join('') : '';
+        
+        const youtubeLink = document.getElementById('dsa-youtube-link');
+        if (youtubeLink) youtubeLink.href = data.youtube_url;
+    }
+
+    document.querySelectorAll('.lang-setup-btn').forEach(btn => {
+        btn.onclick = async () => {
+            const lang = btn.dataset.lang;
+            const res = await apiFetch('/dsa/preference', {
+                method: 'POST',
+                body: JSON.stringify({ language: lang })
+            });
+            if (res.success) fetchDSA();
+        };
+    });
+
+    // ==================== NOTE ANALYSIS LOGIC ====================
+    let currentNoteId = null;
+    const noteAnalysisModal = document.getElementById('noteAnalysisModal');
+    const analysisNoteTitle = document.getElementById('analysisNoteTitle');
+    const analysisFrame = document.getElementById('analysisFrame');
+    const startAnalysisBtn = document.getElementById('startAnalysisBtn');
+    const closeAnalysisModal = document.getElementById('closeAnalysisModal');
+
+    window.openNoteAnalysis = (noteId, title, url) => {
+        currentNoteId = noteId;
+        if (analysisNoteTitle) analysisNoteTitle.textContent = title;
+        if (analysisFrame) analysisFrame.src = url;
+        if (noteAnalysisModal) noteAnalysisModal.classList.add('active');
+        
+        const resultContent = document.getElementById('analysisResultContent');
+        const placeholder = document.querySelector('.placeholder-text');
+        if (resultContent) resultContent.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'block';
+    };
+
+    if (closeAnalysisModal) {
+        closeAnalysisModal.onclick = () => {
+            noteAnalysisModal.classList.remove('active');
+            analysisFrame.src = '';
+        };
+    }
+
+    if (startAnalysisBtn) {
+        startAnalysisBtn.onclick = async () => {
+            const loading = document.getElementById('analysisLoading');
+            if (loading) loading.style.display = 'flex';
+            
+            const res = await apiFetch(`/notes/${currentNoteId}/analyze`, { method: 'POST' });
+            if (loading) loading.style.display = 'none';
+            
+            if (res.success) {
+                document.querySelector('.placeholder-text').style.display = 'none';
+                document.getElementById('analysisResultContent').style.display = 'block';
+                document.getElementById('aiSummaryText').textContent = res.data.summary;
+                document.getElementById('aiContextText').textContent = res.data.contextExplanation;
+                const conceptsEl = document.getElementById('aiKeyConcepts');
+                if (conceptsEl) conceptsEl.innerHTML = res.data.keyConcepts ? res.data.keyConcepts.map(c => `<span class="badge" style="background:var(--primary-light); color:white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${c}</span>`).join('') : '';
+            }
+        };
+    }
+
+    // Chat Tabs & Messages
+    document.querySelectorAll('.ai-tab').forEach(tab => {
+        tab.onclick = () => {
+            document.querySelectorAll('.ai-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const target = tab.dataset.tab;
+            document.getElementById('analysisSummary').style.display = target === 'summary' ? 'block' : 'none';
+            document.getElementById('analysisChat').style.display = target === 'chat' ? 'flex' : 'none';
+        };
+    });
+
+    const sendNoteChat = async () => {
+        const input = document.getElementById('analysisChatInput');
+        const list = document.getElementById('analysisChatMessages');
+        if (!input || !input.value.trim()) return;
+        const msg = input.value.trim();
+        input.value = '';
+        
+        const userDiv = document.createElement('div');
+        userDiv.className = 'chat-msg user';
+        userDiv.textContent = msg;
+        list.appendChild(userDiv);
+        
+        const botDiv = document.createElement('div');
+        botDiv.className = 'chat-msg bot';
+        botDiv.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+        list.appendChild(botDiv);
+        
+        const res = await apiFetch(`/notes/${currentNoteId}/chat`, { method: 'POST', body: JSON.stringify({ message: msg }) });
+        botDiv.textContent = res.success ? res.response : "Aadhi is unavailable right now.";
+        list.scrollTop = list.scrollHeight;
+    };
+
+    const chatBtn = document.getElementById('analysisChatSend');
+    if (chatBtn) chatBtn.onclick = sendNoteChat;
+    const chatInp = document.getElementById('analysisChatInput');
+    if (chatInp) chatInp.onkeypress = (e) => { if (e.key === 'Enter') sendNoteChat(); };
 
     // Initial Support
     startLiveClock();
@@ -1512,11 +1760,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTopRatedNotes();
     renderAnnouncements();
     
-    // Default view or hash-based view
+    // Default view
     const hash = window.location.hash.substring(1);
     if (hash && navItems[hash]) {
         switchView(hash);
+        if (hash === 'dsa') fetchDSA();
     } else {
         switchView('dashboard');
+    }
+
+    if (navItems['dsa'].nav) {
+        navItems['dsa'].nav.addEventListener('click', fetchDSA);
     }
 });
