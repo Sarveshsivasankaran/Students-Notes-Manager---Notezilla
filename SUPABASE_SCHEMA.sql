@@ -15,6 +15,7 @@ create table if not exists users (
    department  text,
    semester    integer,
    is_approved boolean default true,
+   preferred_dsa_language text,
    created_at  timestamp with time zone default now(),
    updated_at  timestamp with time zone default now()
 );
@@ -26,6 +27,8 @@ create table if not exists faculty (
       references users ( id )
          on delete cascade,
    bio             text,
+   photo_url       text,
+   qualifications  text,
    office_hours    text,
    availability    text default 'available' check ( availability in ( 'available',
                                                                    'on_leave',
@@ -154,6 +157,44 @@ create table if not exists note_versions (
 
 -- Note Versions Index
 create index if not exists idx_note_versions_note_id on note_versions ( note_id );
+
+-- 9. DSA CONTENT TABLE
+create table if not exists dsa_content (
+    id uuid primary key default gen_random_uuid(),
+    day integer not null,
+    programming_language text not null,
+    concept text not null,
+    explanation text,
+    syntax text,
+    example text,
+    example_code text,
+    logic_breakdown jsonb,
+    practice_problem text,
+    external_links jsonb,
+    youtube_url text,
+    created_at timestamp with time zone default now(),
+    unique(day, programming_language)
+);
+
+-- 10. DSA USER PROGRESS TABLE
+create table if not exists dsa_user_progress (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null unique references users(id) on delete cascade,
+    preferred_language text not null default 'python',
+    start_date timestamp with time zone default now(),
+    current_day integer not null default 1,
+    completed_days jsonb default '[]'::jsonb,
+    topic_status jsonb default '{}'::jsonb,
+    code_drafts jsonb default '{}'::jsonb,
+    streak integer not null default 0,
+    total_minutes integer not null default 0,
+    last_activity_at timestamp with time zone,
+    created_at timestamp with time zone default now(),
+    updated_at timestamp with time zone default now()
+);
+
+create index if not exists idx_dsa_day_lang on dsa_content(day, programming_language);
+create index if not exists idx_dsa_progress_user on dsa_user_progress(user_id);
 
 -- Uncomment to enable RLS for security
 

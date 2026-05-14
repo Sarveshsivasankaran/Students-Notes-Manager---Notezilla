@@ -2197,6 +2197,254 @@ app.post('/api/notes/:id/chat', authenticateToken, async (req, res) => {
 
 // ==================== DSA MODULE ROUTES ====================
 
+const DSA_MAX_DAY = 14;
+
+const dsaConceptPlan = [
+    'Arrays and Traversal',
+    'Two Pointers',
+    'Sliding Window',
+    'Hash Maps',
+    'Stacks',
+    'Queues',
+    'Linked Lists',
+    'Binary Search',
+    'Recursion',
+    'Sorting',
+    'Trees',
+    'Graphs',
+    'Dynamic Programming',
+    'Greedy Algorithms'
+];
+
+const dsaLanguageMeta = {
+    python: {
+        label: 'Python',
+        extension: 'py',
+        syntax: 'for i, value in enumerate(values):\n    print(i, value)',
+        example: 'numbers = [2, 4, 6, 8]\nfor index, value in enumerate(numbers):\n    print(index, value)'
+    },
+    cpp: {
+        label: 'C++',
+        extension: 'cpp',
+        syntax: 'for (int i = 0; i < values.size(); i++) {\n    cout << i << " " << values[i] << "\\n";\n}',
+        example: 'vector<int> values = {2, 4, 6, 8};\nfor (int i = 0; i < values.size(); i++) {\n    cout << values[i] << "\\n";\n}'
+    },
+    java: {
+        label: 'Java',
+        extension: 'java',
+        syntax: 'for (int i = 0; i < values.length; i++) {\n    System.out.println(values[i]);\n}',
+        example: 'int[] values = {2, 4, 6, 8};\nfor (int value : values) {\n    System.out.println(value);\n}'
+    },
+    c: {
+        label: 'C',
+        extension: 'c',
+        syntax: 'for (int i = 0; i < n; i++) {\n    printf("%d\\n", values[i]);\n}',
+        example: 'int values[] = {2, 4, 6, 8};\nint n = 4;\nfor (int i = 0; i < n; i++) {\n    printf("%d\\n", values[i]);\n}'
+    }
+};
+
+function daysBetween(startDate) {
+    const start = new Date(startDate);
+    if (Number.isNaN(start.getTime())) return 0;
+    const today = new Date();
+    const startUtc = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+    const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+    return Math.max(0, Math.floor((todayUtc - startUtc) / 86400000));
+}
+
+function normalizeDsaArray(value) {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) return parsed;
+        } catch (_) {
+            return value.split(/\r?\n/).map(item => item.replace(/^[-*]\s*/, '').trim()).filter(Boolean);
+        }
+    }
+    return [];
+}
+
+function normalizeDsaLinks(value) {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    if (typeof value === 'object') return Object.values(value).flat().filter(Boolean);
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) return parsed;
+            if (parsed && typeof parsed === 'object') return Object.values(parsed).flat().filter(Boolean);
+        } catch (_) {
+            return [];
+        }
+    }
+    return [];
+}
+
+function buildFallbackDsaContent(day, language) {
+    const concept = dsaConceptPlan[(day - 1) % dsaConceptPlan.length];
+    const meta = dsaLanguageMeta[language] || dsaLanguageMeta.python;
+    return {
+        id: `fallback-${day}-${language}`,
+        day,
+        programming_language: language,
+        concept,
+        explanation: `${concept} is a core DSA topic. Focus on the data shape, the invariant you maintain while scanning or recursing, and the time-space tradeoff before writing code.`,
+        syntax: meta.syntax,
+        example_code: meta.example,
+        logic_breakdown: [
+            'Restate the input and expected output in plain language.',
+            'Identify the operation that repeats across the collection or state.',
+            'Track only the minimum state needed to prove correctness.',
+            'Check edge cases such as empty input, one element, duplicates, and large constraints.'
+        ],
+        practice_problem: `Solve one ${concept} problem in ${meta.label}. Write the brute force approach first, then improve the time or space complexity and note the reason for the improvement.`,
+        external_links: [],
+        youtube_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${concept} DSA ${meta.label}`)}`
+    };
+}
+
+function normalizeDsaContent(row, day, language) {
+    const fallback = buildFallbackDsaContent(day, language);
+    const content = row || fallback;
+    return {
+        ...fallback,
+        ...content,
+        day: content.day || day,
+        programming_language: content.programming_language || language,
+        example_code: content.example_code || content.example || fallback.example_code,
+        logic_breakdown: normalizeDsaArray(content.logic_breakdown).length ? normalizeDsaArray(content.logic_breakdown) : fallback.logic_breakdown,
+        external_links: normalizeDsaLinks(content.external_links),
+        youtube_url: content.youtube_url || fallback.youtube_url
+    };
+}
+
+function buildDsaSearchLinks(concept) {
+    const query = encodeURIComponent(concept);
+    return [
+        {
+            platform: 'LeetCode',
+            title: `Search LeetCode: ${concept}`,
+            url: `https://leetcode.com/problemset/?search=${query}`,
+            source: 'search'
+        },
+        {
+            platform: 'HackerRank',
+            title: `Search HackerRank: ${concept}`,
+            url: `https://www.hackerrank.com/search?term=${query}`,
+            source: 'search'
+        }
+    ];
+}
+
+function extractDsaLinksFromHtml(html, platform, concept) {
+    const links = [];
+    const hrefRegex = /href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi;
+    let match;
+
+    while ((match = hrefRegex.exec(html)) && links.length < 4) {
+        let url = decodeHtmlEntities(match[1]);
+        const label = stripHtmlTags(decodeHtmlEntities(match[2])).replace(/\s+/g, ' ').trim();
+        const decodedMatch = url.match(/[?&]uddg=([^&]+)/);
+        if (decodedMatch) url = decodeURIComponent(decodedMatch[1]);
+        if (url.startsWith('/')) url = platform === 'LeetCode' ? `https://leetcode.com${url}` : `https://www.hackerrank.com${url}`;
+
+        const isLeetcode = platform === 'LeetCode' && /^https:\/\/leetcode\.com\/problems\/[^/?#]+/i.test(url);
+        const isHackerrank = platform === 'HackerRank' && /^https:\/\/www\.hackerrank\.com\/challenges\/[^/?#]+/i.test(url);
+        if ((isLeetcode || isHackerrank) && !links.some(link => link.url === url)) {
+            links.push({
+                platform,
+                title: label || `${platform} practice: ${concept}`,
+                url,
+                source: 'scraped'
+            });
+        }
+    }
+
+    return links;
+}
+
+async function scrapeDsaLinks(concept) {
+    const fallbackLinks = buildDsaSearchLinks(concept);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4500);
+
+    try {
+        const searches = [
+            { platform: 'LeetCode', query: `site:leetcode.com/problems ${concept}` },
+            { platform: 'HackerRank', query: `site:hackerrank.com/challenges ${concept}` }
+        ];
+
+        const responses = await Promise.all(searches.map(async item => {
+            const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(item.query)}`;
+            const response = await fetch(url, {
+                signal: controller.signal,
+                headers: { 'User-Agent': 'Mozilla/5.0 Notezilla DSA Learning Bot' }
+            });
+            const html = await response.text();
+            return extractDsaLinksFromHtml(html, item.platform, concept);
+        }));
+
+        const scraped = responses.flat();
+        return scraped.length ? [...scraped, ...fallbackLinks] : fallbackLinks;
+    } catch (_) {
+        return fallbackLinks;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function getOrCreateDsaProgress(userId, language) {
+    const { data: existing, error } = await supabase
+        .from('dsa_user_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error && !String(error.message || '').includes('does not exist')) throw error;
+    if (existing) return existing;
+
+    const created = {
+        user_id: userId,
+        preferred_language: language,
+        start_date: new Date().toISOString(),
+        current_day: 1,
+        completed_days: [],
+        topic_status: {},
+        code_drafts: {},
+        streak: 0,
+        total_minutes: 0,
+        last_activity_at: new Date().toISOString()
+    };
+
+    const { data, error: insertError } = await supabase
+        .from('dsa_user_progress')
+        .insert(created)
+        .select('*')
+        .single();
+
+    if (insertError) throw insertError;
+    return data;
+}
+
+function buildDsaStats(progress, day) {
+    const completedDays = normalizeDsaArray(progress.completed_days);
+    const topicStatus = progress.topic_status || {};
+    const codeDrafts = progress.code_drafts || {};
+    return {
+        currentDay: day,
+        completedCount: completedDays.length,
+        completionPercent: Math.min(100, Math.round((completedDays.length / DSA_MAX_DAY) * 100)),
+        streak: progress.streak || 0,
+        totalMinutes: progress.total_minutes || 0,
+        todayStatus: {
+            ...(topicStatus[String(day)] || {}),
+            codeDraft: codeDrafts[String(day)] || ''
+        }
+    };
+}
+
 /**
  * GET Daily DSA Content
  */
@@ -2213,18 +2461,39 @@ app.get('/api/dsa/daily', authenticateToken, async (req, res) => {
             return res.json({ success: false, needsLanguage: true });
         }
 
-        // Get current day (simplified for demo: day since registration or global day)
-        const day = 1; // Demo: Day 1
+        const progress = await getOrCreateDsaProgress(req.userId, user.preferred_dsa_language);
+        const day = Math.min(DSA_MAX_DAY, Math.max(progress.current_day || 1, daysBetween(progress.start_date) + 1));
         
-        const { data, error } = await supabase
+        let { data, error } = await supabase
             .from('dsa_content')
             .select('*')
             .eq('day', day)
             .eq('programming_language', user.preferred_dsa_language)
             .maybeSingle();
         
-        if (error) throw error;
-        res.json({ success: true, data });
+        if (error) {
+            const message = String(error.message || '');
+            if (message.includes('does not exist') || message.includes('relation')) {
+                data = null;
+            } else {
+                throw error;
+            }
+        }
+        const content = normalizeDsaContent(data, day, user.preferred_dsa_language);
+        const scrapedLinks = await scrapeDsaLinks(content.concept);
+        const externalLinks = [...content.external_links, ...scrapedLinks]
+            .filter((link, index, all) => link && link.url && all.findIndex(item => item.url === link.url) === index)
+            .slice(0, 8);
+
+        res.json({
+            success: true,
+            data: {
+                ...content,
+                external_links: externalLinks,
+                progress: buildDsaStats(progress, day),
+                language_meta: dsaLanguageMeta[user.preferred_dsa_language] || dsaLanguageMeta.python
+            }
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -2236,11 +2505,109 @@ app.get('/api/dsa/daily', authenticateToken, async (req, res) => {
 app.post('/api/dsa/preference', authenticateToken, async (req, res) => {
     try {
         const { language } = req.body;
+        if (!dsaLanguageMeta[language]) {
+            return res.status(400).json({ success: false, message: 'Unsupported DSA language' });
+        }
+
         await supabase
             .from('users')
             .update({ preferred_dsa_language: language })
             .eq('id', req.userId);
+
+        const progress = await getOrCreateDsaProgress(req.userId, language);
+        await supabase
+            .from('dsa_user_progress')
+            .update({ preferred_language: language, updated_at: new Date().toISOString() })
+            .eq('id', progress.id);
+
         res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * UPDATE User DSA Learning Progress
+ */
+app.post('/api/dsa/progress', authenticateToken, async (req, res) => {
+    try {
+        const { day, status = {}, codeDraft = '', minutes = 0, advance = false } = req.body;
+        const safeDay = Number(day);
+        if (!Number.isInteger(safeDay) || safeDay < 1 || safeDay > DSA_MAX_DAY) {
+            return res.status(400).json({ success: false, message: 'Invalid DSA day' });
+        }
+
+        const { data: user } = await supabase
+            .from('users')
+            .select('preferred_dsa_language')
+            .eq('id', req.userId)
+            .single();
+
+        if (!user.preferred_dsa_language) {
+            return res.json({ success: false, needsLanguage: true });
+        }
+
+        const progress = await getOrCreateDsaProgress(req.userId, user.preferred_dsa_language);
+        const completedDays = new Set(normalizeDsaArray(progress.completed_days).map(Number));
+        const topicStatus = progress.topic_status || {};
+        const codeDrafts = progress.code_drafts || {};
+        const now = new Date().toISOString();
+        const nextStatus = {
+            ...(topicStatus[String(safeDay)] || {}),
+            ...status,
+            updatedAt: now
+        };
+
+        if (status.completed) completedDays.add(safeDay);
+        if (typeof codeDraft === 'string') codeDrafts[String(safeDay)] = codeDraft;
+        topicStatus[String(safeDay)] = nextStatus;
+
+        const lastActivityDate = progress.last_activity_at ? new Date(progress.last_activity_at) : null;
+        const todayKey = new Date().toISOString().slice(0, 10);
+        const lastKey = lastActivityDate && !Number.isNaN(lastActivityDate.getTime()) ? lastActivityDate.toISOString().slice(0, 10) : null;
+        const yesterday = new Date();
+        yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+        const yesterdayKey = yesterday.toISOString().slice(0, 10);
+        const streak = lastKey === todayKey
+            ? (progress.streak || 0)
+            : (lastKey === yesterdayKey ? (progress.streak || 0) + 1 : 1);
+
+        const nextCurrentDay = advance || status.completed
+            ? Math.min(DSA_MAX_DAY, Math.max(progress.current_day || 1, safeDay + 1))
+            : Math.max(progress.current_day || 1, safeDay);
+
+        const update = {
+            current_day: nextCurrentDay,
+            completed_days: [...completedDays].sort((a, b) => a - b),
+            topic_status: topicStatus,
+            code_drafts: codeDrafts,
+            streak,
+            total_minutes: (progress.total_minutes || 0) + Math.max(0, Number(minutes) || 0),
+            last_activity_at: now,
+            updated_at: now
+        };
+
+        const { data, error } = await supabase
+            .from('dsa_user_progress')
+            .update(update)
+            .eq('id', progress.id)
+            .select('*')
+            .single();
+
+        if (error) throw error;
+
+        const payload = {
+            userId: req.userId,
+            day: safeDay,
+            progress: buildDsaStats(data, Math.min(DSA_MAX_DAY, nextCurrentDay)),
+            topicStatus: {
+                ...(data.topic_status[String(safeDay)] || {}),
+                codeDraft: (data.code_drafts || {})[String(safeDay)] || ''
+            }
+        };
+
+        io.to(`user_${req.userId}`).emit('dsa_progress_updated', payload);
+        res.json({ success: true, data: payload });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

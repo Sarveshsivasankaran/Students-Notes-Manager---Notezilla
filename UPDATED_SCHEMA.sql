@@ -144,14 +144,33 @@ create table if not exists dsa_content (
     day integer not null,
     programming_language text not null,
     concept text not null,
+    explanation text,
     syntax text,
     example text,
-    logic_breakdown text,
+    example_code text,
+    logic_breakdown jsonb,
     practice_problem text,
     external_links jsonb,
     youtube_url text,
     created_at timestamp with time zone default now(),
     unique(day, programming_language)
+);
+
+-- 13. DSA USER PROGRESS TABLE (Realtime learning tracking)
+create table if not exists dsa_user_progress (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null unique references users(id) on delete cascade,
+    preferred_language text not null default 'python',
+    start_date timestamp with time zone default now(),
+    current_day integer not null default 1,
+    completed_days jsonb default '[]'::jsonb,
+    topic_status jsonb default '{}'::jsonb,
+    code_drafts jsonb default '{}'::jsonb,
+    streak integer not null default 0,
+    total_minutes integer not null default 0,
+    last_activity_at timestamp with time zone,
+    created_at timestamp with time zone default now(),
+    updated_at timestamp with time zone default now()
 );
 
 -- ========================================
@@ -165,6 +184,7 @@ create index if not exists idx_todo_user on todo_tasks(user_id);
 create index if not exists idx_announcements_target on announcements(target_dept, target_sem);
 create index if not exists idx_activity_user on activity_logs(user_id);
 create index if not exists idx_dsa_day_lang on dsa_content(day, programming_language);
+create index if not exists idx_dsa_progress_user on dsa_user_progress(user_id);
 
 -- ========================================
 -- STORED PROCEDURES (RPCs)
@@ -217,3 +237,4 @@ alter table progress_stats disable row level security;
 alter table announcements disable row level security;
 alter table activity_logs disable row level security;
 alter table dsa_content disable row level security;
+alter table dsa_user_progress disable row level security;

@@ -570,14 +570,14 @@
             </div>
 
             <!-- Daily DSA View -->
-            <div id="dsa-view" class="dashboard-grid view-section" style="display: none;">
-                <div class="welcome-banner glass-panel">
+            <div id="dsa-view" class="dashboard-grid view-section dsa-view" style="display: none;">
+                <div class="welcome-banner glass-panel dsa-hero">
                     <div class="welcome-text">
                         <h1>Daily <span class="highlight">DSA</span> Module</h1>
-                        <p>Master Data Structures and Algorithms with one focused concept every day.</p>
+                        <p>One focused concept every day, tracked across your sessions with examples, syntax, and practice links.</p>
                     </div>
                     <div class="dsa-lang-selector">
-                        <select id="dsaLanguageSelect" class="glass-input" style="padding: 10px 20px; border-radius: 12px; background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--glass-border);">
+                        <select id="dsaLanguageSelect" class="glass-input dsa-language-select">
                             <option value="">Select Language</option>
                             <option value="python">Python</option>
                             <option value="cpp">C++</option>
@@ -587,55 +587,98 @@
                     </div>
                 </div>
 
-                <div id="dsa-content-area" style="display: none;">
-                    <div class="bento-grid">
-                        <!-- Concept Card -->
-                        <div class="bento-item glass-panel col-span-2">
-                            <div class="panel-header">
-                                <h3 id="dsa-concept-title">Concept: Array Reversal</h3>
-                                <span class="badge" id="dsa-day-badge">Day 1</span>
+                <div id="dsa-content-area" class="dsa-content-area" style="display: none;">
+                    <div class="dsa-progress-strip">
+                        <div class="dsa-stat glass-panel">
+                            <span>Today</span>
+                            <strong id="dsa-day-badge">Day 1</strong>
+                        </div>
+                        <div class="dsa-stat glass-panel">
+                            <span>Streak</span>
+                            <strong id="dsa-streak">0 days</strong>
+                        </div>
+                        <div class="dsa-stat glass-panel">
+                            <span>Completed</span>
+                            <strong id="dsa-completed-count">0 / 14</strong>
+                        </div>
+                        <div class="dsa-stat glass-panel">
+                            <span>Study Time</span>
+                            <strong id="dsa-total-minutes">0 min</strong>
+                        </div>
+                    </div>
+
+                    <div class="dsa-progress-bar glass-panel">
+                        <div>
+                            <span>Learning progress</span>
+                            <strong id="dsa-progress-percent">0%</strong>
+                        </div>
+                        <div class="dsa-meter"><span id="dsa-progress-fill"></span></div>
+                    </div>
+
+                    <div class="bento-grid dsa-grid">
+                        <div class="bento-item glass-panel col-span-2 dsa-card dsa-concept-card">
+                            <div class="panel-header dsa-panel-header">
+                                <div>
+                                    <span class="dsa-eyebrow">Current concept</span>
+                                    <h3 id="dsa-concept-title">Arrays and Traversal</h3>
+                                </div>
+                                <span class="dsa-pill" id="dsa-language-pill">Python</span>
                             </div>
                             <div class="dsa-body">
-                                <p id="dsa-concept-explanation" style="color: var(--text-muted); margin-bottom: 20px;">Explanation goes here...</p>
+                                <p id="dsa-concept-explanation">Explanation goes here...</p>
                                 <h4>Logic Breakdown</h4>
-                                <ul id="dsa-logic-list" style="color: var(--text-muted); margin-left: 20px; margin-top: 10px;">
-                                    <!-- Logic items -->
-                                </ul>
+                                <ul id="dsa-logic-list"></ul>
                             </div>
                         </div>
 
-                        <!-- Example Card -->
-                        <div class="bento-item glass-panel">
-                            <div class="panel-header">
+                        <div class="bento-item glass-panel dsa-card">
+                            <div class="panel-header dsa-panel-header">
                                 <h3><i class='bx bx-terminal'></i> Syntax & Example</h3>
                             </div>
-                            <pre id="dsa-syntax-code" style="background: #000; padding: 15px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; overflow-x: auto;"></pre>
-                            <pre id="dsa-example-code" style="background: #000; padding: 15px; border-radius: 8px; font-size: 13px; overflow-x: auto; color: #10b981;"></pre>
+                            <label class="dsa-code-label">Syntax</label>
+                            <pre id="dsa-syntax-code" class="dsa-code-block"></pre>
+                            <label class="dsa-code-label">Example</label>
+                            <pre id="dsa-example-code" class="dsa-code-block dsa-example-block"></pre>
                         </div>
 
-                        <!-- Practice Card -->
-                        <div class="bento-item glass-panel col-span-3">
-                            <div class="panel-header">
-                                <h3><i class='bx bx-edit-alt'></i> Practice Problem</h3>
-                                <div class="external-links" id="dsa-external-links">
-                                    <!-- External links -->
+                        <div class="bento-item glass-panel col-span-3 dsa-card">
+                            <div class="panel-header dsa-panel-header dsa-practice-header">
+                                <div>
+                                    <span class="dsa-eyebrow">Practice</span>
+                                    <h3><i class='bx bx-edit-alt'></i> Daily challenge</h3>
+                                </div>
+                                <div class="dsa-confidence">
+                                    <button class="dsa-confidence-btn" data-confidence="learning">Learning</button>
+                                    <button class="dsa-confidence-btn" data-confidence="comfortable">Comfortable</button>
+                                    <button class="dsa-confidence-btn" data-confidence="mastered">Mastered</button>
                                 </div>
                             </div>
-                            <p id="dsa-practice-problem" style="margin-bottom: 20px;">Problem statement...</p>
-                            
-                            <!-- Embedded Code Editor Simulation -->
-                            <div class="code-editor-sim glass-panel" style="background: #1e1e1e; border-radius: 12px; overflow: hidden;">
-                                <div class="editor-header" style="padding: 10px 20px; background: #252526; display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-size: 12px; color: #858585;">solution.py</span>
-                                    <button class="btn-primary" style="padding: 4px 12px; font-size: 12px;">Run Code</button>
-                                </div>
-                                <textarea id="dsa-code-editor" style="width: 100%; height: 200px; background: transparent; border: none; color: #d4d4d4; font-family: 'Consolas', monospace; padding: 20px; outline: none; resize: none;" placeholder="Write your code here..."></textarea>
+                            <p id="dsa-practice-problem" class="dsa-practice-text">Problem statement...</p>
+
+                            <div class="dsa-links-wrap">
+                                <h4>Related practice links</h4>
+                                <div class="external-links dsa-external-links" id="dsa-external-links"></div>
                             </div>
-                            
-                            <div class="youtube-explanation" style="margin-top: 20px;">
-                                <a id="dsa-youtube-link" href="#" target="_blank" class="btn-glass" style="display: flex; align-items: center; gap: 10px; width: fit-content;">
-                                    <i class='bx bxl-youtube' style="color: #ff0000; font-size: 24px;"></i> Watch Video Explanation
+
+                            <div class="code-editor-sim glass-panel dsa-editor">
+                                <div class="editor-header dsa-editor-header">
+                                    <span id="dsa-editor-file">solution.py</span>
+                                    <div>
+                                        <button id="dsa-save-progress" class="btn-glass dsa-small-btn">Save Draft</button>
+                                        <button id="dsa-run-code" class="btn-primary dsa-small-btn">Run Check</button>
+                                    </div>
+                                </div>
+                                <textarea id="dsa-code-editor" class="dsa-code-editor" placeholder="Write your solution notes or code here..."></textarea>
+                                <div id="dsa-run-output" class="dsa-run-output">Draft autosaves locally while you work.</div>
+                            </div>
+
+                            <div class="dsa-actions">
+                                <a id="dsa-youtube-link" href="#" target="_blank" class="btn-glass dsa-video-link">
+                                    <i class='bx bxl-youtube'></i> Watch Video Explanation
                                 </a>
+                                <button id="dsa-mark-complete" class="btn-primary dsa-complete-btn">
+                                    <i class='bx bx-check-circle'></i> Mark Complete
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -650,6 +693,7 @@
                         <button class="btn-glass lang-setup-btn" data-lang="python">Python</button>
                         <button class="btn-glass lang-setup-btn" data-lang="cpp">C++</button>
                         <button class="btn-glass lang-setup-btn" data-lang="java">Java</button>
+                        <button class="btn-glass lang-setup-btn" data-lang="c">C</button>
                     </div>
                 </div>
             </div>
