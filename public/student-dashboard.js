@@ -672,9 +672,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const botMsg = res.success ? res.response : "I'm sorry, I couldn't connect to my brain. Try asking about REC departments!";
             const botMsgEl = document.createElement('div');
             botMsgEl.className = 'chat-msg bot';
-            // Simple newline mapping to HTML breaks
-            botMsgEl.innerHTML = botMsg.replace(/\n/g, '<br>');
+            // Use marked for rich formatting
+            botMsgEl.innerHTML = marked.parse(botMsg);
             chatBody.appendChild(botMsgEl);
+
+            // Render math if KaTeX is loaded
+            if (window.renderMathInElement) {
+                renderMathInElement(botMsgEl, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError : false
+                });
+            }
             chatBody.scrollTop = chatBody.scrollHeight;
         } catch(e) { 
             console.error(e);
@@ -822,9 +835,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const isDbNote = note.hasOwnProperty('downloads') || note.hasOwnProperty('subject_id') || note.hasOwnProperty('is_verified');
+        const source = isDbNote ? 'db' : 'drive';
+
         // Open the AI Analysis Modal instead of inline preview for all faculty files
         if (window.openNoteAnalysis) {
-            window.openNoteAnalysis(note.id, getNoteFileName(note), getDrivePreviewUrl(url), 'drive', getNoteFileName(note));
+            window.openNoteAnalysis(note.id, getNoteFileName(note), getDrivePreviewUrl(url), source, getNoteFileName(note));
         }
     }
 
@@ -1678,7 +1694,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentNoteFileName = fileName || title;
         if (analysisNoteTitle) analysisNoteTitle.textContent = title;
         if (analysisFrame) analysisFrame.src = url;
-        if (noteAnalysisModal) noteAnalysisModal.classList.add('active');
+        if (noteAnalysisModal) noteAnalysisModal.classList.add('show');
         
         const resultContent = document.getElementById('analysisResultContent');
         const placeholder = document.querySelector('.placeholder-text');
@@ -1693,7 +1709,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (closeAnalysisModal) {
         closeAnalysisModal.onclick = () => {
-            noteAnalysisModal.classList.remove('active');
+            noteAnalysisModal.classList.remove('show');
             analysisFrame.src = '';
         };
     }
@@ -1721,6 +1737,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('aiContextText').textContent = res.data.contextExplanation;
                 const conceptsEl = document.getElementById('aiKeyConcepts');
                 if (conceptsEl) conceptsEl.innerHTML = res.data.keyConcepts ? res.data.keyConcepts.map(c => `<span class="badge" style="background:var(--primary-light); color:white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${c}</span>`).join('') : '';
+            } else {
+                alert('Analysis failed: ' + (res.message || 'Unknown error'));
+                const placeholder = document.querySelector('.placeholder-text');
+                if (placeholder) {
+                    placeholder.style.display = 'block';
+                    placeholder.innerHTML = `<i class='bx bx-error-circle' style="font-size: 48px; color: #ef4444; opacity: 0.8;"></i><p style="color: #ef4444; margin-top: 10px;">${res.message || 'Analysis failed. Please try again later.'}</p>`;
+                }
             }
         };
     }
@@ -1733,6 +1756,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const target = tab.dataset.tab;
             document.getElementById('analysisSummary').style.display = target === 'summary' ? 'block' : 'none';
             document.getElementById('analysisChat').style.display = target === 'chat' ? 'flex' : 'none';
+            
+            // Scroll chat to bottom if switching to chat
+            if (target === 'chat') {
+                const list = document.getElementById('analysisChatMessages');
+                if (list) list.scrollTop = list.scrollHeight;
+            }
         };
     });
 
@@ -1762,7 +1791,30 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             res = await apiFetch(`/notes/${currentNoteId}/chat`, { method: 'POST', body: JSON.stringify({ message: msg }) });
         }
-        botDiv.textContent = res.success ? res.response : "Aadhi is unavailable right now.";
+        if (res.success) {
+            botDiv.classList.add('ai-md-body'); // Apply rich markdown styles
+            botDiv.innerHTML = marked.parse(res.response);
+            
+            // Render math if KaTeX is loaded
+            if (window.renderMathInElement) {
+                renderMathInElement(botDiv, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError : false
+                });
+            }
+            
+            // Final scroll after content and math are rendered
+            setTimeout(() => {
+                list.scrollTop = list.scrollHeight;
+            }, 50);
+        } else {
+            botDiv.textContent = "Aadhi is unavailable right now.";
+        }
         list.scrollTop = list.scrollHeight;
     };
 

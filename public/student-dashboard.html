@@ -11,6 +11,11 @@
     <!-- Boxicons for icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link rel="stylesheet" href="student-dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -760,11 +765,6 @@
             </div>
             <div class="chat-body" id="chatBody">
                 <div class="chat-msg bot">Hi there! 👋 I'm Aadhi, Notezilla's AI assistant. How can I help you today?</div>
-                <div class="quick-prompts" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">
-                    <button style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); color:var(--primary-light); border-radius:20px; padding:6px 12px; font-size:11px; cursor:pointer;">Show REC Departments</button>
-                    <button style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); color:var(--primary-light); border-radius:20px; padding:6px 12px; font-size:11px; cursor:pointer;">Hostel facilities at REC</button>
-                    <button style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); color:var(--primary-light); border-radius:20px; padding:6px 12px; font-size:11px; cursor:pointer;">Contact REC Admin</button>
-                </div>
             </div>
             <div class="chat-input-area">
                 <input type="text" id="chatInput" placeholder="Type your message...">
@@ -787,7 +787,7 @@
 
     <!-- Note AI Analysis Modal -->
     <div class="modal-overlay" id="noteAnalysisModal">
-        <div class="modal-content glass-panel" style="width: 90%; height: 90%; max-width: 1400px; display: flex; flex-direction: column;">
+        <div class="modal-content glass-panel" style="width: 95%; height: 90%; max-width: 1600px; display: flex; flex-direction: column;">
             <div class="modal-header">
                 <div class="note-header-info">
                     <i class='bx bxs-file-pdf' style="font-size: 32px; color: var(--accent);"></i>
@@ -813,13 +813,13 @@
                 </div>
 
                 <!-- AI Sidebar -->
-                <div class="ai-sidebar glass-panel" style="width: 400px; border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; background: rgba(15, 23, 42, 0.5);">
-                    <div class="ai-tabs" style="display: flex; border-bottom: 1px solid var(--glass-border);">
+                <div class="ai-sidebar">
+                    <div class="ai-tabs">
                         <button class="ai-tab active" data-tab="summary">Summary</button>
                         <button class="ai-tab" data-tab="chat">Ask Aadhi</button>
                     </div>
                     
-                    <div class="ai-tab-content" id="analysisSummary" style="flex: 1; padding: 20px; overflow-y: auto;">
+                    <div class="ai-tab-content" id="analysisSummary">
                         <div class="placeholder-text" style="text-align: center; color: var(--text-muted); margin-top: 50px;">
                             <i class='bx bx-info-circle' style="font-size: 48px; opacity: 0.3;"></i>
                             <p>Click "AI Analysis" to generate insights for this note.</p>
@@ -836,11 +836,11 @@
                         </div>
                     </div>
 
-                    <div class="ai-tab-content" id="analysisChat" style="flex: 1; display: none; flex-direction: column;">
-                        <div class="chat-messages" id="analysisChatMessages" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                    <div class="ai-tab-content" id="analysisChat">
+                        <div class="chat-messages" id="analysisChatMessages">
                             <div class="chat-msg bot">I've read this document. You can ask me anything about its content!</div>
                         </div>
-                        <div class="chat-input-area" style="padding: 15px;">
+                        <div class="chat-input-area">
                             <input type="text" id="analysisChatInput" placeholder="Ask about this note...">
                             <button id="analysisChatSend"><i class='bx bx-send'></i></button>
                         </div>

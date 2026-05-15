@@ -2109,55 +2109,31 @@ app.use((err, req, res, next) => {
 // ==================== AI ANALYSIS & CHAT ROUTES ====================
 
 /**
- * ANALYZE a Note (OCR + LangChain)
+ * ANALYZE a Note (passes buffer directly to Gemini multimodal)
  */
 app.post('/api/notes/:id/analyze', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        
-        // Fetch note metadata
-        const { data: note, error } = await supabase
-            .from('notes')
-            .select('*')
-            .eq('id', id)
-            .single();
-        
+        const { data: note, error } = await supabase.from('notes').select('*').eq('id', id).single();
         if (error || !note) return res.status(404).json({ success: false, message: 'Note not found' });
-        
-        // If already analyzed, return cache
+
         if (note.ai_summary) {
-            return res.json({ 
-                success: true, 
-                data: { 
-                    summary: note.ai_summary, 
-                    keyConcepts: note.key_concepts, 
-                    contextExplanation: note.context_explanation 
-                } 
-            });
+            return res.json({ success: true, data: { summary: note.ai_summary, keyConcepts: note.key_concepts, contextExplanation: note.context_explanation } });
         }
 
-        // Fetch file content from Google Drive (or URL)
-        // For this demo, we'll use a fetch to get the buffer
-        const response = await fetch(note.file_url);
-        const buffer = await response.arrayBuffer();
-        const fileBuffer = Buffer.from(buffer);
-        
-        // 1. Extract Text
-        const text = await aiService.extractText(fileBuffer, 'application/pdf'); // Defaulting to PDF for demo
-        
-        // 2. Analyze with LangChain
-        const analysis = await aiService.analyzeNote(text);
-        
-        // 3. Cache results
-        await supabase
-            .from('notes')
-            .update({
-                ai_summary: analysis.summary,
-                key_concepts: analysis.keyConcepts,
-                context_explanation: analysis.contextExplanation
-            })
-            .eq('id', id);
-        
+        let downloadUrl = note.file_url;
+        const driveMatch = downloadUrl.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+        if (driveMatch) downloadUrl = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}&confirm=t`;
+        else if (downloadUrl.includes('drive.google.com') && downloadUrl.match(/[?&]id=([^&]+)/)) downloadUrl = `https://drive.google.com/uc?export=download&id=${downloadUrl.match(/[?&]id=([^&]+)/)[1]}&confirm=t`;
+
+        const response = await fetch(downloadUrl);
+        const fileBuffer = Buffer.from(await response.arrayBuffer());
+        const ext = (note.file_name || '').split('.').pop().toLowerCase();
+        const mimeType = aiService.getMimeType(ext);
+        console.log(`[Analyze Note] id=${id} ext=${ext} mime=${mimeType} size=${fileBuffer.length}`);
+
+        const analysis = await aiService.analyzeBuffer(fileBuffer, mimeType);
+        await supabase.from('notes').update({ ai_summary: analysis.summary, key_concepts: analysis.keyConcepts, context_explanation: analysis.contextExplanation }).eq('id', id);
         res.json({ success: true, data: analysis });
     } catch (error) {
         console.error('AI Analysis Error:', error);
@@ -2172,23 +2148,19 @@ app.post('/api/notes/:id/chat', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { message } = req.body;
-        
-        const { data: note, error } = await supabase
-            .from('notes')
-            .select('*')
-            .eq('id', id)
-            .single();
-        
+        const { data: note, error } = await supabase.from('notes').select('*').eq('id', id).single();
         if (error || !note) return res.status(404).json({ success: false, message: 'Note not found' });
-        
-        // In a real app, you'd use a vector DB or RAG. 
-        // For now, we'll extract text and send to Ollama with context.
-        const response = await fetch(note.file_url);
-        const buffer = await response.arrayBuffer();
-        const text = await aiService.extractText(Buffer.from(buffer), 'application/pdf');
-        
-        const botResponse = await aiService.chatWithNote(text, message);
-        
+
+        let downloadUrl = note.file_url;
+        const driveMatch = downloadUrl.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+        if (driveMatch) downloadUrl = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}&confirm=t`;
+        else if (downloadUrl.includes('drive.google.com') && downloadUrl.match(/[?&]id=([^&]+)/)) downloadUrl = `https://drive.google.com/uc?export=download&id=${downloadUrl.match(/[?&]id=([^&]+)/)[1]}&confirm=t`;
+
+        const response = await fetch(downloadUrl);
+        const fileBuffer = Buffer.from(await response.arrayBuffer());
+        const ext = (note.file_name || '').split('.').pop().toLowerCase();
+        const mimeType = aiService.getMimeType(ext);
+        const botResponse = await aiService.chatWithBuffer(fileBuffer, mimeType, message);
         res.json({ success: true, response: botResponse });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -2198,36 +2170,23 @@ app.post('/api/notes/:id/chat', authenticateToken, async (req, res) => {
 const driveAnalysisCache = {};
 
 /**
- * ANALYZE a Drive File (OCR + LangChain)
+ * ANALYZE a Drive File (passes buffer directly to Gemini multimodal)
  */
 app.post('/api/drive/analyze', authenticateToken, async (req, res) => {
     try {
         const { fileId, fileName } = req.body;
         if (!fileId) return res.status(400).json({ success: false, message: 'fileId is required' });
-
         if (driveAnalysisCache[fileId] && driveAnalysisCache[fileId].analysis) {
             return res.json({ success: true, data: driveAnalysisCache[fileId].analysis });
         }
-
-        const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
         const response = await fetch(driveDownloadUrl);
-        const buffer = await response.arrayBuffer();
-        const fileBuffer = Buffer.from(buffer);
-
+        const fileBuffer = Buffer.from(await response.arrayBuffer());
         const ext = (fileName || '').split('.').pop().toLowerCase();
-        let mimeType = 'application/pdf';
-        if (ext === 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        else if (['png', 'jpg', 'jpeg'].includes(ext)) mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-        else if (ext === 'pptx') mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-
-        const text = await aiService.extractText(fileBuffer, mimeType);
-        const analysis = await aiService.analyzeNote(text);
-
-        driveAnalysisCache[fileId] = {
-            text,
-            analysis
-        };
-
+        const mimeType = aiService.getMimeType(ext);
+        console.log(`[Drive Analyze] fileId=${fileId} ext=${ext} mime=${mimeType} size=${fileBuffer.length}`);
+        const analysis = await aiService.analyzeBuffer(fileBuffer, mimeType);
+        driveAnalysisCache[fileId] = { fileBuffer, mimeType, analysis };
         res.json({ success: true, data: analysis });
     } catch (error) {
         console.error('Drive AI Analysis Error:', error);
@@ -2240,20 +2199,21 @@ app.post('/api/drive/analyze', authenticateToken, async (req, res) => {
  */
 app.post('/api/drive/chat', authenticateToken, async (req, res) => {
     try {
-        const { fileId, message } = req.body;
+        const { fileId, fileName, message } = req.body;
         if (!fileId) return res.status(400).json({ success: false, message: 'fileId is required' });
-
-        let text = driveAnalysisCache[fileId] ? driveAnalysisCache[fileId].text : null;
-
-        if (!text) {
-            const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        let fileBuffer, mimeType;
+        if (driveAnalysisCache[fileId] && driveAnalysisCache[fileId].fileBuffer) {
+            fileBuffer = driveAnalysisCache[fileId].fileBuffer;
+            mimeType = driveAnalysisCache[fileId].mimeType;
+        } else {
+            const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
             const response = await fetch(driveDownloadUrl);
-            const buffer = await response.arrayBuffer();
-            text = await aiService.extractText(Buffer.from(buffer), 'application/pdf'); // Fallback mimeType
-            driveAnalysisCache[fileId] = { text, analysis: null };
+            fileBuffer = Buffer.from(await response.arrayBuffer());
+            const ext = (fileName || '').split('.').pop().toLowerCase();
+            mimeType = aiService.getMimeType(ext);
+            driveAnalysisCache[fileId] = { fileBuffer, mimeType, analysis: null };
         }
-
-        const botResponse = await aiService.chatWithNote(text, message);
+        const botResponse = await aiService.chatWithBuffer(fileBuffer, mimeType, message);
         res.json({ success: true, response: botResponse });
     } catch (error) {
         console.error('Drive AI Chat Error:', error);
