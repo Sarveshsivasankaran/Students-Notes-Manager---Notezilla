@@ -9,7 +9,7 @@ const { StringOutputParser } = require('@langchain/core/output_parsers');
 // Initialize Ollama
 const ollama = new Ollama({
     baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-    model: process.env.OLLAMA_MODEL || 'llama3',
+    model: process.env.OLLAMA_MODEL || 'gemma4:31b-cloud',
 });
 
 /**

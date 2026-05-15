@@ -1645,6 +1645,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    pointer-events: none;
 }
 
 .chatbot-toggle {
@@ -1661,6 +1662,7 @@ body {
     border: 2px solid rgba(255, 255, 255, 0.2);
     position: relative;
     z-index: 2001;
+    pointer-events: auto;
 }
 
 .chatbot-toggle:hover {
@@ -1729,6 +1731,7 @@ body {
     margin-bottom: 20px;
     display: flex;
     flex-direction: column;
+    pointer-events: auto;
     overflow: hidden;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     transform-origin: bottom right;

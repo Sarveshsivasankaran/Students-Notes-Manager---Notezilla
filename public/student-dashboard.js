@@ -822,15 +822,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const frame = context === 'modal' ? modalFilePreviewFrame : facultyFilePreviewFrame;
-        const panel = context === 'modal' ? modalFilePreviewPanel : facultyFilePreviewPanel;
-        const title = context === 'modal' ? modalPreviewTitle : facultyPreviewTitle;
-
-        if (!frame || !panel || !title) return;
-        title.textContent = getNoteFileName(note);
-        frame.src = getDrivePreviewUrl(url);
-        panel.style.display = 'block';
-        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // Open the AI Analysis Modal instead of inline preview for all faculty files
+        if (window.openNoteAnalysis) {
+            window.openNoteAnalysis(note.id, getNoteFileName(note), getDrivePreviewUrl(url), 'drive', getNoteFileName(note));
+        }
     }
 
     function renderRepoBreadcrumbs(items) {
@@ -1669,14 +1664,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ==================== NOTE ANALYSIS LOGIC ====================
     let currentNoteId = null;
+    let currentNoteSource = 'db'; // 'db' or 'drive'
+    let currentNoteFileName = '';
     const noteAnalysisModal = document.getElementById('noteAnalysisModal');
     const analysisNoteTitle = document.getElementById('analysisNoteTitle');
     const analysisFrame = document.getElementById('analysisFrame');
     const startAnalysisBtn = document.getElementById('startAnalysisBtn');
     const closeAnalysisModal = document.getElementById('closeAnalysisModal');
 
-    window.openNoteAnalysis = (noteId, title, url) => {
+    window.openNoteAnalysis = (noteId, title, url, source = 'db', fileName = '') => {
         currentNoteId = noteId;
+        currentNoteSource = source;
+        currentNoteFileName = fileName || title;
         if (analysisNoteTitle) analysisNoteTitle.textContent = title;
         if (analysisFrame) analysisFrame.src = url;
         if (noteAnalysisModal) noteAnalysisModal.classList.add('active');
@@ -1685,6 +1684,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const placeholder = document.querySelector('.placeholder-text');
         if (resultContent) resultContent.style.display = 'none';
         if (placeholder) placeholder.style.display = 'block';
+
+        const chatMessages = document.getElementById('analysisChatMessages');
+        if (chatMessages) {
+            chatMessages.innerHTML = '<div class="chat-msg bot">Hi! I\'m Aadhi. I can help you understand this document. What would you like to know?</div>';
+        }
     };
 
     if (closeAnalysisModal) {
@@ -1699,7 +1703,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const loading = document.getElementById('analysisLoading');
             if (loading) loading.style.display = 'flex';
             
-            const res = await apiFetch(`/notes/${currentNoteId}/analyze`, { method: 'POST' });
+            let res;
+            if (currentNoteSource === 'drive') {
+                res = await apiFetch(`/drive/analyze`, { 
+                    method: 'POST',
+                    body: JSON.stringify({ fileId: currentNoteId, fileName: currentNoteFileName })
+                });
+            } else {
+                res = await apiFetch(`/notes/${currentNoteId}/analyze`, { method: 'POST' });
+            }
             if (loading) loading.style.display = 'none';
             
             if (res.success) {
@@ -1741,7 +1753,15 @@ document.addEventListener('DOMContentLoaded', () => {
         botDiv.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
         list.appendChild(botDiv);
         
-        const res = await apiFetch(`/notes/${currentNoteId}/chat`, { method: 'POST', body: JSON.stringify({ message: msg }) });
+        let res;
+        if (currentNoteSource === 'drive') {
+            res = await apiFetch(`/drive/chat`, { 
+                method: 'POST', 
+                body: JSON.stringify({ fileId: currentNoteId, message: msg }) 
+            });
+        } else {
+            res = await apiFetch(`/notes/${currentNoteId}/chat`, { method: 'POST', body: JSON.stringify({ message: msg }) });
+        }
         botDiv.textContent = res.success ? res.response : "Aadhi is unavailable right now.";
         list.scrollTop = list.scrollHeight;
     };

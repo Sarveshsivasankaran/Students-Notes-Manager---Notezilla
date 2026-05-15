@@ -2065,7 +2065,7 @@ app.post('/api/chat', async (req, res) => {
 
         const model = new ChatOllama({
             baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-            model: process.env.OLLAMA_MODEL || 'gemini-3-flash-preview:latest',
+            model: process.env.OLLAMA_MODEL || 'gemma4:31b-cloud',
             temperature: 0.25,
             headers: ollamaHeaders
         });
@@ -2084,14 +2084,14 @@ app.post('/api/chat', async (req, res) => {
         return res.status(200).json({
             success: true,
             provider: 'ollama',
-            model: process.env.OLLAMA_MODEL || 'gemini-3-flash-preview:latest',
+            model: process.env.OLLAMA_MODEL || 'gemma4:31b-cloud',
             response: responseText.trim() || "Sorry, I'm having trouble analyzing that right now."
         });
     } catch (error) {
         console.error('Ollama/LangChain Chat error:', error);
         res.status(500).json({
             success: false,
-            message: 'Error interacting with local Ollama model. Make sure Ollama is running and gemma4:31b is pulled.'
+            message: 'Error interacting with the AI model. Make sure the service is available and gemma4:31b-cloud is configured.'
         });
     }
 });
@@ -2191,6 +2191,72 @@ app.post('/api/notes/:id/chat', authenticateToken, async (req, res) => {
         
         res.json({ success: true, response: botResponse });
     } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+const driveAnalysisCache = {};
+
+/**
+ * ANALYZE a Drive File (OCR + LangChain)
+ */
+app.post('/api/drive/analyze', authenticateToken, async (req, res) => {
+    try {
+        const { fileId, fileName } = req.body;
+        if (!fileId) return res.status(400).json({ success: false, message: 'fileId is required' });
+
+        if (driveAnalysisCache[fileId] && driveAnalysisCache[fileId].analysis) {
+            return res.json({ success: true, data: driveAnalysisCache[fileId].analysis });
+        }
+
+        const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        const response = await fetch(driveDownloadUrl);
+        const buffer = await response.arrayBuffer();
+        const fileBuffer = Buffer.from(buffer);
+
+        const ext = (fileName || '').split('.').pop().toLowerCase();
+        let mimeType = 'application/pdf';
+        if (ext === 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        else if (['png', 'jpg', 'jpeg'].includes(ext)) mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+        else if (ext === 'pptx') mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+
+        const text = await aiService.extractText(fileBuffer, mimeType);
+        const analysis = await aiService.analyzeNote(text);
+
+        driveAnalysisCache[fileId] = {
+            text,
+            analysis
+        };
+
+        res.json({ success: true, data: analysis });
+    } catch (error) {
+        console.error('Drive AI Analysis Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * CHAT with Drive File
+ */
+app.post('/api/drive/chat', authenticateToken, async (req, res) => {
+    try {
+        const { fileId, message } = req.body;
+        if (!fileId) return res.status(400).json({ success: false, message: 'fileId is required' });
+
+        let text = driveAnalysisCache[fileId] ? driveAnalysisCache[fileId].text : null;
+
+        if (!text) {
+            const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+            const response = await fetch(driveDownloadUrl);
+            const buffer = await response.arrayBuffer();
+            text = await aiService.extractText(Buffer.from(buffer), 'application/pdf'); // Fallback mimeType
+            driveAnalysisCache[fileId] = { text, analysis: null };
+        }
+
+        const botResponse = await aiService.chatWithNote(text, message);
+        res.json({ success: true, response: botResponse });
+    } catch (error) {
+        console.error('Drive AI Chat Error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
