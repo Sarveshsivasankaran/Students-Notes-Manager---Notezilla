@@ -1813,7 +1813,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 list.scrollTop = list.scrollHeight;
             }, 50);
         } else {
-            botDiv.textContent = "Aadhi is unavailable right now.";
+            botDiv.innerHTML = `<div style="color: #ef4444; display: flex; align-items: center; gap: 8px;">
+                <i class='bx bx-error-circle'></i>
+                <span>${res.message || "Aadhi is unavailable right now."}</span>
+            </div>`;
         }
         list.scrollTop = list.scrollHeight;
     };
