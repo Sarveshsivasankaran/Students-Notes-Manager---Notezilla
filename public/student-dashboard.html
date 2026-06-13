@@ -687,21 +687,183 @@
                             </div>
                         </div>
                     </div>
+                </div>                <!-- Language & Goal Selection Onboarding Prompt -->
+                <div id="dsa-setup-prompt" class="glass-panel dsa-onboarding-card" style="padding: 40px; max-width: 600px; margin: 40px auto; text-align: center; border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+                    <i class='bx bx-code-block' style="font-size: 64px; color: var(--primary); margin-bottom: 20px; text-shadow: 0 0 15px rgba(99,102,241,0.3);"></i>
+                    <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 10px; color: var(--text-main);">Personalize your DSA Journey</h2>
+                    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 30px; line-height: 1.5;">Choose your primary programming language and target goal. We'll generate a personalized 14-day dynamic curriculum tailored just for you.</p>
+                    
+                    <form id="dsa-onboarding-form" style="display: flex; flex-direction: column; gap: 20px; text-align: left;">
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                            <label for="onboarding-lang" style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Preferred Programming Language</label>
+                            <select id="onboarding-lang" class="glass-input" style="width: 100%; padding: 12px; border-radius: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-light); color: white; outline: none; font-size: 14px;" required>
+                                <option value="" style="background: #111;">-- Select Language --</option>
+                                <option value="python" style="background: #111;">Python</option>
+                                <option value="cpp" style="background: #111;">C++</option>
+                                <option value="java" style="background: #111;">Java</option>
+                                <option value="c" style="background: #111;">C</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                            <label for="onboarding-goal" style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Your Learning Goal</label>
+                            <select id="onboarding-goal" class="glass-input" style="width: 100%; padding: 12px; border-radius: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-light); color: white; outline: none; font-size: 14px;" required>
+                                <option value="" style="background: #111;">-- Select Goal --</option>
+                                <option value="Placement Prep" style="background: #111;">Placement Preparation (FAANG/Product Companies)</option>
+                                <option value="Competitive Programming" style="background: #111;">Competitive Programming (LeetCode/Codeforces)</option>
+                                <option value="University Exams" style="background: #111;">University Curriculum (Academic Exams)</option>
+                                <option value="General Skill" style="background: #111;">General Coding & Problem Solving Skill</option>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 14px; border-radius: 12px; font-weight: 700; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; border: none; cursor: pointer; color: white; background: var(--primary);">
+                            <i class='bx bx-rocket'></i> Generate My DSA Curriculum
+                        </button>
+                    </form>
                 </div>
 
-                <!-- Language Selection Prompt -->
-                <div id="dsa-setup-prompt" class="glass-panel" style="padding: 60px; text-align: center; margin-top: 40px;">
-                    <i class='bx bx-code-block' style="font-size: 64px; color: var(--primary); margin-bottom: 20px;"></i>
-                    <h2>Welcome to Daily DSA!</h2>
-                    <p style="color: var(--text-muted); margin-bottom: 30px;">Choose your primary programming language to start your daily coding journey.</p>
-                    <div style="display: flex; gap: 15px; justify-content: center;">
-                        <button class="btn-glass lang-setup-btn" data-lang="python">Python</button>
-                        <button class="btn-glass lang-setup-btn" data-lang="cpp">C++</button>
-                        <button class="btn-glass lang-setup-btn" data-lang="java">Java</button>
-                        <button class="btn-glass lang-setup-btn" data-lang="c">C</button>
-                    </div>
+                <!-- Custom Loading Screen for DSA Generation -->
+                <div id="dsa-loading-overlay" class="glass-panel" style="display: none; padding: 60px; text-align: center; margin-top: 40px; border-radius: 24px; max-width: 600px; margin-left: auto; margin-right: auto; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.08);">
+                    <div class="loader-spinner" style="border: 4px solid rgba(255,255,255,0.1); border-left-color: var(--primary); width: 50px; height: 50px; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+                    <h3 style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-bottom: 10px;">Personalizing Your DSA Roadmap...</h3>
+                    <p style="color: var(--text-muted); font-size: 14px;">Gemini is tailoring the curriculum, example solutions, and practice problems to your profile. This will take just a moment...</p>
                 </div>
             </div>
+
+<style>
+/* Daily DSA Premium Styling */
+.dsa-onboarding-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    transition: all 0.3s ease;
+}
+.dsa-onboarding-card select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+}
+.dsa-code-editor {
+    width: 100%;
+    height: 320px;
+    background: rgba(10, 10, 15, 0.85) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0 0 16px 16px;
+    padding: 16px;
+    color: #38bdf8 !important;
+    font-family: 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    tab-size: 4;
+}
+.dsa-code-editor:focus {
+    border-color: var(--primary-light);
+    box-shadow: inset 0 0 10px rgba(99, 102, 241, 0.1);
+}
+.dsa-editor-header {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.dsa-code-block {
+    background: rgba(10, 10, 15, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 14px;
+    color: #e2e8f0;
+    font-family: 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    overflow-x: auto;
+    margin-bottom: 15px;
+    max-height: 180px;
+}
+.dsa-run-output {
+    background: #08080c !important;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 15px;
+    font-family: 'Fira Code', 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    color: #a78bfa;
+    margin-top: 15px;
+    max-height: 250px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+}
+.dsa-link-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+}
+.dsa-link-card:hover {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.2);
+    transform: translateY(-2px);
+}
+.dsa-link-card .platform-badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 800;
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--primary-light);
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+.dsa-link-card .link-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: right;
+    color: var(--text-muted);
+}
+.dsa-link-card:hover .link-title {
+    color: white;
+}
+.dsa-tc-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    display: inline-block;
+    margin-right: 8px;
+}
+.dsa-tc-badge.passed {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.dsa-tc-badge.failed {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.dsa-tc-row {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.dsa-tc-row:last-child {
+    border-bottom: none;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
         </main>
     </div>
 
@@ -826,19 +988,21 @@
                         </div>
                         <div id="analysisResultContent" style="display: none;">
                             <h4 style="color: var(--primary-light); margin-bottom: 10px;">Summary</h4>
-                            <p id="aiSummaryText" style="font-size: 14px; margin-bottom: 20px; line-height: 1.6;"></p>
+                            <div id="aiSummaryText" class="ai-md-body" style="font-size: 14px; margin-bottom: 24px; line-height: 1.6; color: var(--text-main);"></div>
                             
                             <h4 style="color: var(--primary-light); margin-bottom: 10px;">Key Concepts</h4>
-                            <div id="aiKeyConcepts" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;"></div>
-                            
-                            <h4 style="color: var(--primary-light); margin-bottom: 10px;">Context</h4>
-                            <p id="aiContextText" style="font-size: 14px; line-height: 1.6;"></p>
+                            <div id="aiKeyConcepts" style="margin-bottom: 20px;"></div>
                         </div>
                     </div>
 
                     <div class="ai-tab-content" id="analysisChat">
                         <div class="chat-messages" id="analysisChatMessages">
                             <div class="chat-msg bot">I've read this document. You can ask me anything about its content!</div>
+                        </div>
+                        <div class="chat-shortcuts" style="padding: 10px 14px; display: flex; gap: 8px; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.01); border-bottom: 1px solid rgba(255,255,255,0.03);">
+                            <button id="shortcutCollegePattern" class="btn-glass" style="font-size: 11px; padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 6px; cursor: pointer; color: #ffffff; background: var(--primary-light); border: 1px solid var(--primary-light);">
+                                <i class='bx bx-notepad'></i> Generate Questions with College pattern
+                            </button>
                         </div>
                         <div class="chat-input-area">
                             <input type="text" id="analysisChatInput" placeholder="Ask about this note...">

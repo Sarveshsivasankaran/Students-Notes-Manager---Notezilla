@@ -3363,3 +3363,79 @@ input:checked + .slider:before {
 /* Summary tab scroll */
 #analysisSummary::-webkit-scrollbar { width:5px; }
 #analysisSummary::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:4px; }
+
+/* Custom spacing for AI summary headings and sections */
+#aiSummaryText h1, #aiSummaryText h2, #aiSummaryText h3 {
+    margin-top: 36px !important;
+    margin-bottom: 16px !important;
+    padding-top: 12px;
+}
+#aiSummaryText h1:first-of-type, #aiSummaryText h2:first-of-type, #aiSummaryText h3:first-of-type {
+    margin-top: 10px !important;
+    padding-top: 0;
+}
+
+/* ── Copy Button for Chat Messages ── */
+.chat-msg.bot,
+.ai-bubble.bot {
+    position: relative;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
+.chat-copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0;
+    transition: all 0.2s ease;
+    z-index: 5;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.chat-msg.bot:hover .chat-copy-btn,
+.ai-bubble.bot:hover .chat-copy-btn {
+    opacity: 1;
+}
+
+.chat-copy-btn:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: var(--primary-light);
+    transform: scale(1.1);
+}
+
+.chat-copy-btn.copied {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #10b981;
+    opacity: 1;
+}
+
+.chat-copy-btn.copied i::before {
+    content: "\ec86"; /* bx-check icon */
+}
+
+/* Ensure AI summary content is also copyable */
+#aiSummaryText,
+#analysisResultContent,
+.ai-md-body {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}

@@ -1144,7 +1144,7 @@ app.get('/api/faculty/:id/notes', async (req, res) => {
  */
 app.get('/api/subjects', async (req, res) => {
     try {
-        const { department, semester } = req.query;
+        const { department, semester, search } = req.query;
 
         let query = supabase
             .from('subjects')
@@ -1157,6 +1157,13 @@ app.get('/api/subjects', async (req, res) => {
                 credits,
                 description
             `);
+
+        if (search) {
+            const cleanSearch = String(search).replace(/[^a-zA-Z0-9\s]/g, '').trim();
+            if (cleanSearch) {
+                query = query.or(`name.ilike.%${cleanSearch}%,code.ilike.%${cleanSearch}%`);
+            }
+        }
 
         if (department) {
             query = query.eq('department', department);
@@ -1989,41 +1996,34 @@ app.delete('/api/admin/reject-note/:id', authenticateToken, requireRole(['admin'
 // ==================== CHATBOT ROUTE ====================
 
 const NOTEZILLA_ASSISTANT_CONTEXT = `
-You are Aadhi, the AI support assistant for Notezilla.
+You are "Aadhi", the official AI Support Assistant for Notezilla.
 
-Product analysis:
-Notezilla is a faculty-structured academic repository for Rajalakshmi Engineering College. It helps students find verified study material by department, semester, subject, faculty, unit, and content type. It helps staff publish and maintain academic material. It helps admins keep uploaded content and staff access trustworthy.
+STRICT BEHAVIOR RULES:
+1. ONLY answer questions directly related to:
+   - Notezilla (features, navigation, how to search/download/bookmark, DSA dynamic study roadmap, built-in compiler, profile, and roles).
+   - Rajalakshmi Engineering College (REC) academic departments, location, and info.
+   - The creator of Notezilla: Sarvesh Sivasankaran (widely known as Solo-P-Leveller).
+2. If a user asks questions outside this scope (e.g., general programming questions unrelated to the DSA console, general history, writing creative content, or unrelated off-topic queries), politely refuse, explaining that your knowledge is limited strictly to Notezilla, Rajalakshmi Engineering College, and its creator.
+3. SECURITY FIRST: Under no circumstances should you disclose backend details, database secrets, database keys, config files, passwords, or personal private details. If asked to show system secrets, refuse politely.
 
-Primary user types and needs:
-Students:
-- Sign up with an @rajalakshmi.edu.in email, log in, browse subjects, open notes, download files, bookmark useful materials, rate clarity/completeness/helpfulness, and ask how to find content for their department or semester.
-- Common queries include account signup problems, where to find notes, why a note is missing, how to bookmark, how ratings work, and how to contact or identify faculty content.
+--- notezilla platform navigation ---
+- Students: Can search subjects, download notes, bookmark study materials, rate notes, access the Daily DSA roadmap, write code in the local compiler/sandbox, track study statistics (streak, completion percentage, study minutes). Student emails must end in "@rajalakshmi.edu.in".
+- Staff: Register as staff, map subjects, upload verified notes/question papers/assignments, sync with Google Drive, and view pending note status. Staff notes must be approved by admins before they are public.
+- Admins: Approve pending staff, verify/reject uploaded notes, manage the repository.
 
-Staff:
-- Register as staff, wait for admin approval, complete their profile, map or find subjects, upload notes/question papers/assignments/e-books, sync Google Drive files, update materials, and understand why uploaded content is not visible until verified.
-- Common queries include approval status, upload steps, subject mapping, office-hour extraction from timetable images, profile updates, and note verification.
+--- about rajalakshmi engineering college (rec) ---
+- REC is a premier autonomous engineering college located in Thandalam, Chennai, Tamil Nadu, India, affiliated with Anna University.
+- Mapped departments: CSE (Computer Science & Engineering), ECE (Electronics & Communication Engineering), EEE (Electrical & Electronics Engineering), MECH (Mechanical Engineering), CIVIL (Civil Engineering), and BioMed (Biomedical Engineering).
 
-Admins:
-- Approve or reject staff accounts, verify or reject pending notes, monitor repository quality, and troubleshoot missing or unverified content.
-- Common queries include staff approval flow, pending notes, verification rules, and moderation responsibilities.
+--- about the creator ---
+- Notezilla was envisioned, designed, and fully developed by Sarvesh Sivasankaran, who codes under the developer handle "Solo-P-Leveller".
+- He created Notezilla as a premium academic repository solution to facilitate note accessibility, automated Drive updates, AI study analysis, and sandbox DSA practice for the engineering student community.
 
-Public visitors:
-- Need to understand what Notezilla is, who can use it, how to create an account, and why institutional email validation is required.
-
-Known product rules:
-- Student accounts must use @rajalakshmi.edu.in email addresses.
-- Staff accounts require admin approval before full access.
-- Staff uploads require admin verification before students can rely on them as published material.
-- Supported departments include CSE, ECE, EEE, MECH, CIVIL, and BioMed.
-- Notes can be organized by department, semester, subject, faculty, unit, and material type.
-- Ratings focus on clarity, completeness, and helpfulness.
-
-Answer style:
+Answer Style:
 - Give concise, practical help in simple text.
-- Prefer exact next steps inside Notezilla over generic advice.
-- If a query needs account-specific data you cannot see, say what the user should check in the app.
-- Do not invent live database values, pending counts, file names, or approval status.
-- Do not use markdown tables. Short bullets are okay when they make steps clearer.
+- Be polite, encouraging, and clear.
+- Do not make up database values, pending counts, or filenames.
+- Do not use markdown tables. Short bullet points are allowed.
 `;
 
 function buildChatUserProfile(userContext = {}) {
@@ -2053,45 +2053,19 @@ app.post('/api/chat', async (req, res) => {
             });
         }
 
-        const [{ ChatOllama }, { ChatPromptTemplate }, { StringOutputParser }] = await Promise.all([
-            import('@langchain/ollama'),
-            import('@langchain/core/prompts'),
-            import('@langchain/core/output_parsers')
-        ]);
-
-        const ollamaHeaders = process.env.OLLAMA_API_KEY
-            ? { Authorization: `Bearer ${process.env.OLLAMA_API_KEY}` }
-            : undefined;
-
-        const model = new ChatOllama({
-            baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-            model: process.env.OLLAMA_MODEL || 'gemma4:31b-cloud',
-            temperature: 0.25,
-            headers: ollamaHeaders
-        });
-
-        const prompt = ChatPromptTemplate.fromMessages([
-            ['system', NOTEZILLA_ASSISTANT_CONTEXT],
-            ['human', 'Current user profile:\n{userProfile}\n\nUser question:\n{message}']
-        ]);
-
-        const chain = prompt.pipe(model).pipe(new StringOutputParser());
-        const responseText = await chain.invoke({
-            userProfile: buildChatUserProfile(userContext),
-            message: cleanMessage
-        });
+        const responseText = await aiService.chatWithAadhi(cleanMessage, userContext);
 
         return res.status(200).json({
             success: true,
-            provider: 'ollama',
-            model: process.env.OLLAMA_MODEL || 'gemma4:31b-cloud',
+            provider: 'openrouter',
+            model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3-8b-instruct:free',
             response: responseText.trim() || "Sorry, I'm having trouble analyzing that right now."
         });
     } catch (error) {
-        console.error('Ollama/LangChain Chat error:', error);
+        console.error('OpenRouter Chatbot error:', error);
         res.status(500).json({
             success: false,
-            message: 'Error interacting with the AI model. Make sure the service is available and gemma4:31b-cloud is configured.'
+            message: 'Error interacting with the Aadhi AI chatbot. Please try again later.'
         });
     }
 });
@@ -2117,9 +2091,8 @@ app.post('/api/notes/:id/analyze', authenticateToken, async (req, res) => {
         const { data: note, error } = await supabase.from('notes').select('*').eq('id', id).single();
         if (error || !note) return res.status(404).json({ success: false, message: 'Note not found' });
 
-        if (note.ai_summary) {
-            return res.json({ success: true, data: { summary: note.ai_summary, keyConcepts: note.key_concepts, contextExplanation: note.context_explanation } });
-        }
+        // Always generate fresh analysis (clear old stored data)
+        await supabase.from('notes').update({ ai_summary: null, key_concepts: null, context_explanation: null }).eq('id', id);
 
         let downloadUrl = note.file_url;
         const driveMatch = downloadUrl.match(/drive\.google\.com\/file\/d\/([^/]+)/);
@@ -2137,7 +2110,7 @@ app.post('/api/notes/:id/analyze', authenticateToken, async (req, res) => {
         res.json({ success: true, data: analysis });
     } catch (error) {
         console.error('AI Analysis Error:', error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: 'Failed to analyze note. Please try again later.' });
     }
 });
 
@@ -2163,7 +2136,8 @@ app.post('/api/notes/:id/chat', authenticateToken, async (req, res) => {
         const botResponse = await aiService.chatWithBuffer(fileBuffer, mimeType, message);
         res.json({ success: true, response: botResponse });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Chat with Note Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to interact with Aadhi. Please try again later.' });
     }
 });
 
@@ -2176,9 +2150,8 @@ app.post('/api/drive/analyze', authenticateToken, async (req, res) => {
     try {
         const { fileId, fileName } = req.body;
         if (!fileId) return res.status(400).json({ success: false, message: 'fileId is required' });
-        if (driveAnalysisCache[fileId] && driveAnalysisCache[fileId].analysis) {
-            return res.json({ success: true, data: driveAnalysisCache[fileId].analysis });
-        }
+        // Always generate fresh analysis (skip cache)
+        delete driveAnalysisCache[fileId];
         const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}&confirm=t`;
         const response = await fetch(driveDownloadUrl);
         const fileBuffer = Buffer.from(await response.arrayBuffer());
@@ -2190,7 +2163,7 @@ app.post('/api/drive/analyze', authenticateToken, async (req, res) => {
         res.json({ success: true, data: analysis });
     } catch (error) {
         console.error('Drive AI Analysis Error:', error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: 'Failed to analyze Drive file. Please try again later.' });
     }
 });
 
@@ -2217,7 +2190,7 @@ app.post('/api/drive/chat', authenticateToken, async (req, res) => {
         res.json({ success: true, response: botResponse });
     } catch (error) {
         console.error('Drive AI Chat Error:', error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: 'Failed to query Drive file. Please try again later.' });
     }
 });
 
@@ -2471,43 +2444,110 @@ function buildDsaStats(progress, day) {
     };
 }
 
+const fs = require('fs');
+const { exec } = require('child_process');
+
+/**
+ * Helper to execute Python code locally with input redirection and a timeout
+ */
+async function runPythonLocally(code, testCases, userId) {
+    const tempDir = path.join(__dirname, 'scratch', 'temp_compiler');
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const fileName = `sol_${userId}_${Date.now()}.py`;
+    const filePath = path.join(tempDir, fileName);
+    fs.writeFileSync(filePath, code);
+
+    const results = [];
+    for (const tc of testCases) {
+        const result = await new Promise((resolve) => {
+            const process = exec(`python "${filePath}"`, { timeout: 3000 }, (error, stdout, stderr) => {
+                let status = 'passed';
+                let passed = true;
+                if (error) {
+                    if (error.killed) {
+                        status = 'runtime_error';
+                        stderr = 'Execution Timeout (3 seconds exceeded)';
+                        passed = false;
+                    } else {
+                        status = 'runtime_error';
+                        passed = false;
+                    }
+                }
+
+                const trimmedOut = (stdout || '').trim();
+                const trimmedExpected = (tc.expected_output || '').trim();
+                if (passed && trimmedOut !== trimmedExpected) {
+                    status = 'failed';
+                    passed = false;
+                }
+
+                resolve({
+                    passed,
+                    status,
+                    stdout: stdout || '',
+                    stderr: stderr || (error ? error.message : '')
+                });
+            });
+
+            if (tc.input) {
+                try {
+                    process.stdin.write(tc.input);
+                } catch (_) {}
+            }
+            process.stdin.end();
+        });
+        results.push(result);
+    }
+
+    try { fs.unlinkSync(filePath); } catch(_) {}
+    return results;
+}
+
 /**
  * GET Daily DSA Content
  */
 app.get('/api/dsa/daily', authenticateToken, async (req, res) => {
     try {
-        // Get user preferred language
-        const { data: user } = await supabase
-            .from('users')
-            .select('preferred_dsa_language')
-            .eq('id', req.userId)
-            .single();
-        
-        if (!user.preferred_dsa_language) {
+        const progress = await getOrCreateDsaProgress(req.userId, 'python');
+        const learningGoal = progress.topic_status?._metadata?.learning_goal;
+        const preferredLanguage = progress.preferred_language;
+
+        if (!learningGoal || !preferredLanguage) {
             return res.json({ success: false, needsLanguage: true });
         }
 
-        const progress = await getOrCreateDsaProgress(req.userId, user.preferred_dsa_language);
-        const day = Math.min(DSA_MAX_DAY, Math.max(progress.current_day || 1, daysBetween(progress.start_date) + 1));
+        const day = Math.min(DSA_MAX_DAY, Math.max(1, progress.current_day || 1));
         
-        let { data, error } = await supabase
-            .from('dsa_content')
-            .select('*')
-            .eq('day', day)
-            .eq('programming_language', user.preferred_dsa_language)
-            .maybeSingle();
+        let content = progress.topic_status?.[String(day)]?.custom_content;
         
-        if (error) {
-            const message = String(error.message || '');
-            if (message.includes('does not exist') || message.includes('relation')) {
-                data = null;
-            } else {
-                throw error;
+        if (!content) {
+            const concept = dsaConceptPlan[(day - 1) % dsaConceptPlan.length];
+            console.log(`[DSA Module] Generating Day ${day} (${concept}) for User ${req.userId} with goal ${learningGoal} in ${preferredLanguage}...`);
+            
+            try {
+                content = await aiService.generateDailyDSA(day, concept, preferredLanguage, learningGoal);
+            } catch (err) {
+                console.error('[DSA Module] Gemini generation failed, using fallback:', err);
+                content = buildFallbackDsaContent(day, preferredLanguage);
             }
+
+            // Update user progress to cache the generated lesson
+            const topicStatus = progress.topic_status || {};
+            topicStatus[String(day)] = {
+                ...(topicStatus[String(day)] || {}),
+                custom_content: content
+            };
+
+            await supabase
+                .from('dsa_user_progress')
+                .update({ topic_status: topicStatus, updated_at: new Date().toISOString() })
+                .eq('id', progress.id);
         }
-        const content = normalizeDsaContent(data, day, user.preferred_dsa_language);
+
         const scrapedLinks = await scrapeDsaLinks(content.concept);
-        const externalLinks = [...content.external_links, ...scrapedLinks]
+        const externalLinks = [...(content.external_links || []), ...scrapedLinks]
             .filter((link, index, all) => link && link.url && all.findIndex(item => item.url === link.url) === index)
             .slice(0, 8);
 
@@ -2515,40 +2555,96 @@ app.get('/api/dsa/daily', authenticateToken, async (req, res) => {
             success: true,
             data: {
                 ...content,
+                day,
                 external_links: externalLinks,
                 progress: buildDsaStats(progress, day),
-                language_meta: dsaLanguageMeta[user.preferred_dsa_language] || dsaLanguageMeta.python
+                language_meta: dsaLanguageMeta[preferredLanguage] || dsaLanguageMeta.python
             }
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('[DSA Daily] Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch daily DSA lesson. Please try again later.' });
     }
 });
 
 /**
- * SET User DSA Language Preference
+ * SET User DSA Language & Goal Preference
  */
 app.post('/api/dsa/preference', authenticateToken, async (req, res) => {
     try {
-        const { language } = req.body;
+        const { language, learningGoal } = req.body;
         if (!dsaLanguageMeta[language]) {
             return res.status(400).json({ success: false, message: 'Unsupported DSA language' });
         }
-
-        await supabase
-            .from('users')
-            .update({ preferred_dsa_language: language })
-            .eq('id', req.userId);
+        if (!learningGoal) {
+            return res.status(400).json({ success: false, message: 'Learning goal is required' });
+        }
 
         const progress = await getOrCreateDsaProgress(req.userId, language);
+        const topicStatus = progress.topic_status || {};
+        if (!topicStatus._metadata) {
+            topicStatus._metadata = {};
+        }
+        topicStatus._metadata.learning_goal = learningGoal;
+
         await supabase
             .from('dsa_user_progress')
-            .update({ preferred_language: language, updated_at: new Date().toISOString() })
+            .update({ 
+                preferred_language: language, 
+                topic_status: topicStatus, 
+                start_date: new Date().toISOString(), // Reset to today so day calculations start fresh
+                updated_at: new Date().toISOString() 
+            })
             .eq('id', progress.id);
 
         res.json({ success: true });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('[DSA Preference] Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to save DSA preference. Please try again later.' });
+    }
+});
+
+/**
+ * RUN & CHECK Compiler Endpoint
+ */
+app.post('/api/dsa/run', authenticateToken, async (req, res) => {
+    try {
+        const { code, language, day } = req.body;
+        const safeDay = Number(day);
+        
+        if (!code) {
+            return res.status(400).json({ success: false, message: 'Code cannot be empty' });
+        }
+
+        const progress = await getOrCreateDsaProgress(req.userId, language || 'python');
+        const content = progress.topic_status?.[String(safeDay)]?.custom_content;
+        
+        let testCases = content?.test_cases;
+        if (!testCases || testCases.length === 0) {
+            testCases = [
+                { input: '', expected_output: '' }
+            ];
+        }
+
+        let results;
+        if (language === 'python') {
+            try {
+                results = await runPythonLocally(code, testCases, req.userId);
+            } catch (err) {
+                console.warn('[Compiler] Local Python run failed, falling back to AI:', err);
+                results = await aiService.simulateCodeExecution(code, language, testCases);
+            }
+        } else {
+            results = await aiService.simulateCodeExecution(code, language, testCases);
+        }
+
+        res.json({
+            success: true,
+            results
+        });
+    } catch (error) {
+        console.error('[DSA Run] Error:', error);
+        res.status(500).json({ success: false, message: 'Code execution failed. Please check your syntax and try again.' });
     }
 });
 
@@ -2563,17 +2659,7 @@ app.post('/api/dsa/progress', authenticateToken, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid DSA day' });
         }
 
-        const { data: user } = await supabase
-            .from('users')
-            .select('preferred_dsa_language')
-            .eq('id', req.userId)
-            .single();
-
-        if (!user.preferred_dsa_language) {
-            return res.json({ success: false, needsLanguage: true });
-        }
-
-        const progress = await getOrCreateDsaProgress(req.userId, user.preferred_dsa_language);
+        const progress = await getOrCreateDsaProgress(req.userId, 'python');
         const completedDays = new Set(normalizeDsaArray(progress.completed_days).map(Number));
         const topicStatus = progress.topic_status || {};
         const codeDrafts = progress.code_drafts || {};
@@ -2635,7 +2721,8 @@ app.post('/api/dsa/progress', authenticateToken, async (req, res) => {
         io.to(`user_${req.userId}`).emit('dsa_progress_updated', payload);
         res.json({ success: true, data: payload });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error('Update progress error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update DSA progress. Please try again later.' });
     }
 });
 

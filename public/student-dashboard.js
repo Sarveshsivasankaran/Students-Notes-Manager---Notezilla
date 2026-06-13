@@ -204,6 +204,44 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = 'login.html';
     };
 
+    // Helper: Add copy button to a bot message element
+    function addCopyButton(botMsgEl) {
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'chat-copy-btn';
+        copyBtn.title = 'Copy to clipboard';
+        copyBtn.innerHTML = "<i class='bx bx-copy'></i>";
+        copyBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const textContent = botMsgEl.innerText || botMsgEl.textContent || '';
+            try {
+                await navigator.clipboard.writeText(textContent);
+                copyBtn.innerHTML = "<i class='bx bx-check'></i>";
+                copyBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyBtn.innerHTML = "<i class='bx bx-copy'></i>";
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = textContent;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                copyBtn.innerHTML = "<i class='bx bx-check'></i>";
+                copyBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyBtn.innerHTML = "<i class='bx bx-copy'></i>";
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }
+        });
+        botMsgEl.appendChild(copyBtn);
+    }
+
     const logoutBtn = document.getElementById('logoutBtn');
     const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
     if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
@@ -688,6 +726,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     throwOnError : false
                 });
             }
+            // Add copy button to bot response
+            addCopyButton(botMsgEl);
             chatBody.scrollTop = chatBody.scrollHeight;
         } catch(e) { 
             console.error(e);
@@ -1632,21 +1672,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==================== DSA MODULE LOGIC ====================
     const dsaSetupPrompt = document.getElementById('dsa-setup-prompt');
     const dsaContentArea = document.getElementById('dsa-content-area');
+    const dsaLoadingOverlay = document.getElementById('dsa-loading-overlay');
+    const dsaOnboardingForm = document.getElementById('dsa-onboarding-form');
+    
+    let currentDsaDay = 1;
+    let currentDsaLanguage = 'python';
     
     async function fetchDSA() {
+        if (dsaLoadingOverlay) dsaLoadingOverlay.style.display = 'none';
+        
         const res = await apiFetch('/dsa/daily');
         if (res.success) {
             if (dsaSetupPrompt) dsaSetupPrompt.style.display = 'none';
+            if (dsaLoadingOverlay) dsaLoadingOverlay.style.display = 'none';
             if (dsaContentArea) dsaContentArea.style.display = 'block';
+            
+            currentDsaDay = res.data.day;
+            currentDsaLanguage = res.data.programming_language;
+            
             renderDSA(res.data);
         } else if (res.needsLanguage) {
             if (dsaSetupPrompt) dsaSetupPrompt.style.display = 'block';
+            if (dsaLoadingOverlay) dsaLoadingOverlay.style.display = 'none';
             if (dsaContentArea) dsaContentArea.style.display = 'none';
         }
     }
 
     function renderDSA(data) {
         if (!data) return;
+        
         const mapping = {
             'dsa-concept-title': `Concept: ${data.concept}`,
             'dsa-day-badge': `Day ${data.day}`,
@@ -1660,23 +1714,252 @@ document.addEventListener('DOMContentLoaded', () => {
             if (el) el.textContent = val;
         });
         
+        // Render logic list
         const logicList = document.getElementById('dsa-logic-list');
-        if (logicList) logicList.innerHTML = data.logic_breakdown ? data.logic_breakdown.map(item => `<li>${item}</li>`).join('') : '';
+        if (logicList) {
+            logicList.innerHTML = data.logic_breakdown 
+                ? data.logic_breakdown.map(item => `<li>${item}</li>`).join('') 
+                : '';
+        }
         
+        // Video tutorial url
         const youtubeLink = document.getElementById('dsa-youtube-link');
         if (youtubeLink) youtubeLink.href = data.youtube_url;
+        
+        // Programming language pill
+        const langPill = document.getElementById('dsa-language-pill');
+        if (langPill) {
+            const meta = data.language_meta || {};
+            langPill.textContent = meta.label || data.programming_language.toUpperCase();
+        }
+        
+        // Editor configuration
+        const editorFile = document.getElementById('dsa-editor-file');
+        const codeEditor = document.getElementById('dsa-code-editor');
+        if (codeEditor) {
+            if (editorFile) {
+                const ext = data.programming_language === 'python' ? 'py' : (data.programming_language === 'cpp' ? 'cpp' : (data.programming_language === 'java' ? 'java' : 'c'));
+                editorFile.textContent = `solution.${ext}`;
+            }
+            // Load saved draft, fallback to example code
+            const draft = data.progress?.todayStatus?.codeDraft;
+            codeEditor.value = draft || data.example_code || '';
+        }
+        
+        // Render stats and metrics
+        const progress = data.progress || {};
+        
+        const streakEl = document.getElementById('dsa-streak');
+        if (streakEl) streakEl.textContent = `${progress.streak || 0} days`;
+
+        const completedEl = document.getElementById('dsa-completed-count');
+        if (completedEl) completedEl.textContent = `${progress.completedCount || 0} / 14`;
+
+        const minutesEl = document.getElementById('dsa-total-minutes');
+        if (minutesEl) minutesEl.textContent = `${progress.totalMinutes || 0} min`;
+
+        const percentEl = document.getElementById('dsa-progress-percent');
+        if (percentEl) percentEl.textContent = `${progress.completionPercent || 0}%`;
+
+        const fillEl = document.getElementById('dsa-progress-fill');
+        if (fillEl) fillEl.style.width = `${progress.completionPercent || 0}%`;
+
+        // Render external practice links
+        const linksWrap = document.getElementById('dsa-external-links');
+        if (linksWrap && data.external_links) {
+            linksWrap.innerHTML = data.external_links.map(link => `
+                <a href="${link.url}" target="_blank" class="dsa-link-card">
+                    <span class="platform-badge">${link.platform}</span>
+                    <span class="link-title">${link.title}</span>
+                </a>
+            `).join('');
+        }
+        
+        // Reset output console
+        const runOutput = document.getElementById('dsa-run-output');
+        if (runOutput) {
+            runOutput.textContent = 'Draft autosaves locally while you work. Run Check to test your solution.';
+            runOutput.style.color = '#a78bfa';
+        }
     }
 
-    document.querySelectorAll('.lang-setup-btn').forEach(btn => {
-        btn.onclick = async () => {
-            const lang = btn.dataset.lang;
+    // Onboarding Form Submit handler
+    if (dsaOnboardingForm) {
+        dsaOnboardingForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const lang = document.getElementById('onboarding-lang').value;
+            const goal = document.getElementById('onboarding-goal').value;
+            
+            if (!lang || !goal) return;
+            
+            if (dsaSetupPrompt) dsaSetupPrompt.style.display = 'none';
+            if (dsaLoadingOverlay) dsaLoadingOverlay.style.display = 'block';
+            
             const res = await apiFetch('/dsa/preference', {
                 method: 'POST',
-                body: JSON.stringify({ language: lang })
+                body: JSON.stringify({ language: lang, learningGoal: goal })
             });
-            if (res.success) fetchDSA();
+            
+            if (res.success) {
+                await fetchDSA();
+            } else {
+                alert('Preference configuration failed: ' + (res.message || 'Unknown error'));
+                if (dsaSetupPrompt) dsaSetupPrompt.style.display = 'block';
+                if (dsaLoadingOverlay) dsaLoadingOverlay.style.display = 'none';
+            }
         };
-    });
+    }
+
+    // Compiler / Draft Actions
+    const saveProgressBtn = document.getElementById('dsa-save-progress');
+    if (saveProgressBtn) {
+        saveProgressBtn.onclick = async () => {
+            const codeEditor = document.getElementById('dsa-code-editor');
+            if (!codeEditor) return;
+            
+            saveProgressBtn.disabled = true;
+            saveProgressBtn.textContent = 'Saving...';
+            
+            const res = await apiFetch('/dsa/progress', {
+                method: 'POST',
+                body: JSON.stringify({
+                    day: currentDsaDay,
+                    codeDraft: codeEditor.value,
+                    status: {},
+                    minutes: 5 // log 5 minutes of study time
+                })
+            });
+            
+            saveProgressBtn.disabled = false;
+            saveProgressBtn.textContent = 'Save Draft';
+            
+            const runOutput = document.getElementById('dsa-run-output');
+            if (runOutput) {
+                if (res.success) {
+                    runOutput.textContent = 'Draft saved successfully to dashboard cloud storage!';
+                    runOutput.style.color = '#10b981';
+                } else {
+                    runOutput.textContent = 'Failed to save draft: ' + (res.message || 'Unknown error');
+                    runOutput.style.color = '#ef4444';
+                }
+            }
+        };
+    }
+
+    const markCompleteBtn = document.getElementById('dsa-mark-complete');
+    if (markCompleteBtn) {
+        markCompleteBtn.onclick = async () => {
+            const codeEditor = document.getElementById('dsa-code-editor');
+            const code = codeEditor ? codeEditor.value : '';
+            
+            markCompleteBtn.disabled = true;
+            markCompleteBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Completing...";
+            
+            const res = await apiFetch('/dsa/progress', {
+                method: 'POST',
+                body: JSON.stringify({
+                    day: currentDsaDay,
+                    codeDraft: code,
+                    status: { completed: true },
+                    minutes: 15, // log 15 minutes of completion time
+                    advance: true
+                })
+            });
+            
+            markCompleteBtn.disabled = false;
+            markCompleteBtn.innerHTML = "<i class='bx bx-check-circle'></i> Mark Complete";
+            
+            if (res.success) {
+                // Fetch next day content
+                await fetchDSA();
+            } else {
+                alert('Failed to mark complete: ' + (res.message || 'Unknown error'));
+            }
+        };
+    }
+
+    const runCodeBtn = document.getElementById('dsa-run-code');
+    if (runCodeBtn) {
+        runCodeBtn.onclick = async () => {
+            const codeEditor = document.getElementById('dsa-code-editor');
+            const runOutput = document.getElementById('dsa-run-output');
+            if (!codeEditor || !runOutput) return;
+            
+            runCodeBtn.disabled = true;
+            runCodeBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Running...";
+            
+            runOutput.textContent = 'Compiling and running tests in sandbox env...\n';
+            runOutput.style.color = '#f59e0b';
+            
+            try {
+                const res = await apiFetch('/dsa/run', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        code: codeEditor.value,
+                        language: currentDsaLanguage,
+                        day: currentDsaDay
+                    })
+                });
+                
+                runCodeBtn.disabled = false;
+                runCodeBtn.innerHTML = 'Run Check';
+                
+                if (res.success && res.results) {
+                    runOutput.innerHTML = '';
+                    let allPassed = true;
+                    
+                    res.results.forEach((tc, idx) => {
+                        const tcRow = document.createElement('div');
+                        tcRow.className = 'dsa-tc-row';
+                        
+                        const statusClass = tc.passed ? 'passed' : 'failed';
+                        const statusLabel = tc.status.toUpperCase();
+                        
+                        let detailHtml = `
+                            <div style="margin-bottom: 5px;">
+                                <span class="dsa-tc-badge ${statusClass}">${statusLabel}</span>
+                                <strong>Test Case #${idx + 1}</strong>
+                            </div>
+                        `;
+                        
+                        if (tc.stdout) {
+                            detailHtml += `<div style="color: #cbd5e1; margin-left: 15px;">Output: ${tc.stdout.trim()}</div>`;
+                        }
+                        if (tc.stderr) {
+                            detailHtml += `<div style="color: #ef4444; margin-left: 15px; font-weight: 600;">Error: ${tc.stderr}</div>`;
+                        }
+                        
+                        tcRow.innerHTML = detailHtml;
+                        runOutput.appendChild(tcRow);
+                        
+                        if (!tc.passed) allPassed = false;
+                    });
+                    
+                    const summary = document.createElement('div');
+                    summary.style.marginTop = '15px';
+                    summary.style.fontWeight = 'bold';
+                    
+                    if (allPassed) {
+                        summary.textContent = '🎉 All test cases passed! Outstanding work!';
+                        summary.style.color = '#10b981';
+                    } else {
+                        summary.textContent = '❌ Some test cases failed or code generated compiler errors. Check outputs above.';
+                        summary.style.color = '#ef4444';
+                    }
+                    runOutput.appendChild(summary);
+                    
+                } else {
+                    runOutput.textContent = 'Compiler Execution Error: ' + (res.message || 'Unknown compilation error.');
+                    runOutput.style.color = '#ef4444';
+                }
+            } catch (err) {
+                runCodeBtn.disabled = false;
+                runCodeBtn.innerHTML = 'Run Check';
+                runOutput.textContent = 'Network or connection error during code run check.';
+                runOutput.style.color = '#ef4444';
+            }
+        };
+    }
 
     // ==================== NOTE ANALYSIS LOGIC ====================
     let currentNoteId = null;
@@ -1733,10 +2016,33 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.success) {
                 document.querySelector('.placeholder-text').style.display = 'none';
                 document.getElementById('analysisResultContent').style.display = 'block';
-                document.getElementById('aiSummaryText').textContent = res.data.summary;
-                document.getElementById('aiContextText').textContent = res.data.contextExplanation;
+                const summaryEl = document.getElementById('aiSummaryText');
+                if (summaryEl) {
+                    summaryEl.innerHTML = typeof marked !== 'undefined' ? marked.parse(res.data.summary || '') : (res.data.summary || '');
+                    if (window.renderMathInElement) {
+                        renderMathInElement(summaryEl, {
+                            delimiters: [
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false},
+                                {left: '\\(', right: '\\)', display: false},
+                                {left: '\\[', right: '\\]', display: true}
+                            ],
+                            throwOnError : false
+                        });
+                    }
+                }
+                const contextEl = document.getElementById('aiContextText');
+                if (contextEl) contextEl.textContent = res.data.contextExplanation;
                 const conceptsEl = document.getElementById('aiKeyConcepts');
-                if (conceptsEl) conceptsEl.innerHTML = res.data.keyConcepts ? res.data.keyConcepts.map(c => `<span class="badge" style="background:var(--primary-light); color:white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${c}</span>`).join('') : '';
+                if (conceptsEl) {
+                    if (res.data.keyConcepts && res.data.keyConcepts.length > 0) {
+                        conceptsEl.innerHTML = `<ul style="list-style-type: disc; padding-left: 20px; color: var(--text-main); font-size: 13.5px; line-height: 1.7;">` + 
+                            res.data.keyConcepts.map(c => `<li style="margin-bottom: 8px;"><strong>${c}</strong></li>`).join('') + 
+                            `</ul>`;
+                    } else {
+                        conceptsEl.innerHTML = '<span style="color: var(--text-muted); font-size: 13px;">No key concepts identified.</span>';
+                    }
+                }
             } else {
                 alert('Analysis failed: ' + (res.message || 'Unknown error'));
                 const placeholder = document.querySelector('.placeholder-text');
@@ -1765,22 +2071,22 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     });
 
-    const sendNoteChat = async () => {
-        const input = document.getElementById('analysisChatInput');
+    const sendAadhiChatMessage = async (msg) => {
         const list = document.getElementById('analysisChatMessages');
-        if (!input || !input.value.trim()) return;
-        const msg = input.value.trim();
-        input.value = '';
+        if (!list || !msg.trim()) return;
         
         const userDiv = document.createElement('div');
         userDiv.className = 'chat-msg user';
-        userDiv.textContent = msg;
+        userDiv.textContent = msg === "Draft subjective study/exam questions using the Bloom's Taxonomy method based on this document. Generate detailed 11-16 marks questions, including explanations, advantages, disadvantages, and critical architectural/technical terms for each concept."
+            ? "Generate Questions with College pattern"
+            : msg;
         list.appendChild(userDiv);
         
         const botDiv = document.createElement('div');
         botDiv.className = 'chat-msg bot';
         botDiv.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
         list.appendChild(botDiv);
+        list.scrollTop = list.scrollHeight;
         
         let res;
         if (currentNoteSource === 'drive') {
@@ -1808,6 +2114,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             
+            // Add copy button to bot response
+            addCopyButton(botDiv);
+            
             // Final scroll after content and math are rendered
             setTimeout(() => {
                 list.scrollTop = list.scrollHeight;
@@ -1820,6 +2129,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         list.scrollTop = list.scrollHeight;
     };
+
+    const sendNoteChat = async () => {
+        const input = document.getElementById('analysisChatInput');
+        if (!input || !input.value.trim()) return;
+        const msg = input.value.trim();
+        input.value = '';
+        await sendAadhiChatMessage(msg);
+    };
+
+    const shortcutBtn = document.getElementById('shortcutCollegePattern');
+    if (shortcutBtn) {
+        shortcutBtn.onclick = async () => {
+            const specializedPrompt = "Draft subjective study/exam questions using the Bloom's Taxonomy method based on this document. Generate detailed 11-16 marks questions, including explanations, advantages, disadvantages, and critical architectural/technical terms for each concept.";
+            await sendAadhiChatMessage(specializedPrompt);
+        };
+    }
 
     const chatBtn = document.getElementById('analysisChatSend');
     if (chatBtn) chatBtn.onclick = sendNoteChat;
