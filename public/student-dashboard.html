@@ -12,6 +12,7 @@
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link rel="stylesheet" href="student-dashboard.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
@@ -161,6 +162,34 @@
                     </div>
                 </div>
 
+                <section class="timetable-card glass-panel" id="timetableCard" aria-labelledby="timetableTitle">
+                    <div class="timetable-card-copy">
+                        <span class="timetable-kicker"><i class='bx bx-calendar'></i> Semester schedule</span>
+                        <h2 id="timetableTitle">Your timetable</h2>
+                        <p>Upload it once for quick access. Replace it whenever a new semester begins.</p>
+                        <label class="timetable-upload-button" for="timetableInput">
+                            <i class='bx bx-cloud-upload'></i>
+                            <span id="timetableUploadLabel">Upload timetable</span>
+                        </label>
+                        <input id="timetableInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                        <small id="timetableStatus" class="timetable-status" aria-live="polite">PNG, JPG or WebP · up to 5 MB</small>
+                    </div>
+                    <div class="timetable-preview" id="timetablePreview" tabindex="0" aria-label="Timetable preview">
+                        <div class="timetable-empty" id="timetableEmpty">
+                            <div class="timetable-default-sheet" aria-hidden="true">
+                                <div class="default-sheet-header"><span>TIME</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span></div>
+                                <div class="default-sheet-row"><span>09:00</span><b></b><b></b><b></b><b></b><b></b></div>
+                                <div class="default-sheet-row"><span>10:00</span><b></b><b></b><b></b><b></b><b></b></div>
+                                <div class="default-sheet-row"><span>11:00</span><b></b><b></b><b></b><b></b><b></b></div>
+                                <div class="default-sheet-row"><span>01:00</span><b></b><b></b><b></b><b></b><b></b></div>
+                            </div>
+                            <span>Upload your semester timetable to replace this default view</span>
+                        </div>
+                        <img id="timetableImage" alt="Your current semester timetable. Click to open a larger view." hidden>
+                        <span class="timetable-zoom-hint" id="timetableZoomHint" hidden><i class='bx bx-zoom-in'></i> Click to zoom</span>
+                    </div>
+                </section>
+
                 <!-- Main Grid Layout -->
                 <div class="bento-grid">
                     
@@ -286,14 +315,14 @@
                         </div>
                     </div>
 
-                    <!-- Top Rated Notes Section (Feature 14) -->
+                    <!-- Most Bookmarked Notes -->
                     <div class="bento-item top-notes glass-panel col-span-3">
                         <div class="panel-header">
-                            <h3><i class='bx bx-star'></i> Top Rated Study Materials</h3>
+                            <h3><i class='bx bxs-bookmark-star'></i> Most Bookmarked Notes</h3>
                             <a href="#" class="view-all">Browse All</a>
                         </div>
                         <div class="notes-grid" id="topRatedNotesGrid">
-                            <!-- Dynamic top rated notes will be rendered here -->
+                            <!-- Most bookmarked notes across all users render here -->
                         </div>
                     </div>
                 </div>
@@ -506,26 +535,29 @@
                         <h1>Productivity <span class="highlight">Tracker</span></h1>
                         <p>Track your academic achievements and study habits over the last 30 days.</p>
                     </div>
-                    <div class="banner-actions">
-                        <button class="btn btn-outline" id="clearProgressBtn" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">
-                            <i class='bx bx-trash'></i> Clear All History
-                        </button>
-                    </div>
                 </div>
 
                 <!-- Stats Overview -->
-                <div class="bento-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
-                    <div class="glass-panel stat-box" style="padding: 24px; text-align: center;">
-                        <span style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 8px;">Total Tasks Done</span>
-                        <h2 id="totalTasksCount" style="font-size: 32px; font-weight: 800; color: var(--primary);">0</h2>
+                <div class="productivity-stats-grid">
+                    <div class="glass-panel productivity-stat-card tasks-stat">
+                        <i class='bx bx-check-double'></i>
+                        <div><span>Tasks completed</span><h2 id="totalTasksCount">0</h2><small id="tasksCompletionMeta">of 0 tasks</small></div>
                     </div>
-                    <div class="glass-panel stat-box" style="padding: 24px; text-align: center;">
-                        <span style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 8px;">Planner Sessions</span>
-                        <h2 id="totalSessionsCount" style="font-size: 32px; font-weight: 800; color: var(--primary-light);">0</h2>
+                    <div class="glass-panel productivity-stat-card sessions-stat">
+                        <i class='bx bx-calendar-check'></i>
+                        <div><span>Sessions completed</span><h2 id="totalSessionsCount">0</h2><small id="sessionsCompletionMeta">of 0 sessions</small></div>
                     </div>
-                    <div class="glass-panel stat-box" style="padding: 24px; text-align: center;">
-                        <span style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 8px;">Productivity Score</span>
-                        <h2 id="productivityScore" style="font-size: 32px; font-weight: 800; color: #10b981;">0%</h2>
+                    <div class="glass-panel productivity-stat-card notes-stat">
+                        <i class='bx bx-book-reader'></i>
+                        <div><span>Notes studied</span><h2 id="notesStudiedCount">0</h2><small>last 30 days</small></div>
+                    </div>
+                    <div class="glass-panel productivity-stat-card days-stat">
+                        <i class='bx bx-calendar-star'></i>
+                        <div><span>Active study days</span><h2 id="activeStudyDays">0</h2><small>last 30 days</small></div>
+                    </div>
+                    <div class="glass-panel productivity-stat-card score-stat">
+                        <i class='bx bx-trending-up'></i>
+                        <div><span>Productivity score</span><h2 id="productivityScore">0%</h2><small>goals + study consistency</small></div>
                     </div>
                 </div>
 
@@ -688,7 +720,7 @@
                         </div>
                     </div>
                 </div>                <!-- Language & Goal Selection Onboarding Prompt -->
-                <div id="dsa-setup-prompt" class="glass-panel dsa-onboarding-card" style="padding: 40px; max-width: 600px; margin: 40px auto; text-align: center; border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+                <div id="dsa-setup-prompt" class="glass-panel dsa-onboarding-card" style="padding: 40px; max-width: 600px; margin: 0 auto; text-align: center; border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
                     <i class='bx bx-code-block' style="font-size: 64px; color: var(--primary); margin-bottom: 20px; text-shadow: 0 0 15px rgba(99,102,241,0.3);"></i>
                     <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 10px; color: var(--text-main);">Personalize your DSA Journey</h2>
                     <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 30px; line-height: 1.5;">Choose your primary programming language and target goal. We'll generate a personalized 14-day dynamic curriculum tailored just for you.</p>
@@ -723,7 +755,7 @@
                 </div>
 
                 <!-- Custom Loading Screen for DSA Generation -->
-                <div id="dsa-loading-overlay" class="glass-panel" style="display: none; padding: 60px; text-align: center; margin-top: 40px; border-radius: 24px; max-width: 600px; margin-left: auto; margin-right: auto; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.08);">
+                <div id="dsa-loading-overlay" class="glass-panel" style="display: none; padding: 60px; text-align: center; margin-top: 0; border-radius: 24px; max-width: 600px; margin-left: auto; margin-right: auto; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.08);">
                     <div class="loader-spinner" style="border: 4px solid rgba(255,255,255,0.1); border-left-color: var(--primary); width: 50px; height: 50px; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
                     <h3 style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-bottom: 10px;">Personalizing Your DSA Roadmap...</h3>
                     <p style="color: var(--text-muted); font-size: 14px;">Gemini is tailoring the curriculum, example solutions, and practice problems to your profile. This will take just a moment...</p>
@@ -959,15 +991,27 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn-glass" id="startAnalysisBtn"><i class='bx bx-brain'></i> AI Analysis</button>
+                    <button class="note-save-button" id="analysisBookmarkBtn" type="button" aria-pressed="false">
+                        <span class="note-save-icon"><i class='bx bx-bookmark'></i></span>
+                        <span class="note-save-copy"><strong>Save note</strong><small>Add to bookmarks</small></span>
+                    </button>
+                    <button class="note-save-button ai-analysis-button" id="startAnalysisBtn" type="button">
+                        <span class="note-save-icon"><i class='bx bx-brain'></i></span>
+                        <span class="note-save-copy"><strong>AI analysis</strong><small>Summarize this note</small></span>
+                    </button>
                     <button class="close-modal" id="closeAnalysisModal"><i class='bx bx-x'></i></button>
                 </div>
             </div>
             
             <div class="modal-body" style="flex: 1; display: flex; padding: 0; overflow: hidden;">
                 <!-- Document Viewer -->
-                <div class="doc-viewer-container" style="flex: 1; background: #525659; position: relative;">
+                <div class="doc-viewer-container" id="docViewerContainer" style="flex: 1; background: #525659; position: relative;">
                     <iframe id="analysisFrame" style="width: 100%; height: 100%; border: none;"></iframe>
+                    <div id="pdfDocumentViewer" class="pdf-document-viewer" aria-label="Selectable PDF viewer"></div>
+                    <div id="textSelectionActions" class="text-selection-actions" role="toolbar" aria-label="Actions for selected note text">
+                        <button type="button" data-selection-action="flashcards"><i class='bx bx-layer'></i> Create flashcards</button>
+                        <button type="button" data-selection-action="explain"><i class='bx bx-bulb'></i> Explain</button>
+                    </div>
                     <div id="analysisLoading" class="glass-panel" style="position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); z-index: 10;">
                         <div class="loader"></div>
                         <p style="margin-top: 20px;">Aadhi is analyzing the document...</p>
@@ -979,6 +1023,7 @@
                     <div class="ai-tabs">
                         <button class="ai-tab active" data-tab="summary">Summary</button>
                         <button class="ai-tab" data-tab="chat">Ask Aadhi</button>
+                        <button class="ai-tab" data-tab="flashcards">Flashcards</button>
                     </div>
                     
                     <div class="ai-tab-content" id="analysisSummary">
@@ -1009,9 +1054,22 @@
                             <button id="analysisChatSend"><i class='bx bx-send'></i></button>
                         </div>
                     </div>
+
+                    <div class="ai-tab-content" id="analysisFlashcards">
+                        <div class="flashcards-empty" id="flashcardsEmpty">
+                            <i class='bx bx-select-multiple'></i>
+                            <h4>Select text in the note</h4>
+                            <p>Highlight a passage, then choose Create flashcards or Explain.</p>
+                        </div>
+                        <div id="flashcardsResult" class="flashcards-result"></div>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="timetable-lightbox" id="timetableLightbox" role="dialog" aria-modal="true" aria-label="Zoomed timetable" aria-hidden="true">
+        <img id="timetableLightboxImage" alt="Enlarged semester timetable">
     </div>
 
     <script src="/socket.io/socket.io.js"></script>

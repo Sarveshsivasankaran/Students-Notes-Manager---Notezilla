@@ -229,6 +229,7 @@
         <div class="tabs">
             <button class="tab active" id="staffTab" onclick="switchTab('staff')">Pending Staff</button>
             <button class="tab" id="notesTab" onclick="switchTab('notes')">Pending Notes</button>
+            <button class="tab" id="bookmarksTab" onclick="switchTab('bookmarks')">Bookmarks</button>
         </div>
 
         <div id="content" class="grid">
@@ -258,7 +259,8 @@
             document.getElementById(view + 'Tab').classList.add('active');
 
             if (view === 'staff') loadPendingStaff();
-            else loadPendingNotes();
+            else if (view === 'notes') loadPendingNotes();
+            else if (view === 'bookmarks') loadBookmarks();
         }
 
         async function loadPendingStaff() {
@@ -370,6 +372,53 @@
                 if (res.ok) loadPendingNotes();
                 else alert('Failed to remove request');
             } catch (err) { alert('Error communicating with server'); }
+        }
+
+        async function loadBookmarks() {
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading">Loading bookmarks...</div>';
+
+            try {
+                const res = await fetch(`${API_URL}/bookmarks`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                if (data.data && data.data.length > 0) {
+                    content.innerHTML = data.data.map(n => `
+                        <div class="item-card" style="cursor: pointer;" onclick="openAdminNoteDetail('${n.noteId}')">
+                            <div class="item-info">
+                                <h3>${n.title}</h3>
+                                <p>${n.type} · Subject: ${n.subject || 'N/A'}</p>
+                            </div>
+                            <div class="actions" onclick="event.stopPropagation()">
+                                <button class="btn btn-view" onclick="window.open('${n.fileUrl}', '_blank')">Preview</button>
+                                <button class="btn btn-reject" onclick="removeAdminBookmark('${n.noteId}')">Remove</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    content.innerHTML = '<div class="empty">No bookmarked notes yet</div>';
+                }
+            } catch (err) {
+                content.innerHTML = '<div class="empty">Error loading bookmarks</div>';
+            }
+        }
+
+        window.openAdminNoteDetail = (noteId) => {
+            localStorage.setItem('selectedNoteId', noteId);
+            window.location.href = 'note-detail.html';
+        };
+
+        async function removeAdminBookmark(noteId) {
+            if (!confirm('Remove bookmark?')) return;
+            try {
+                const res = await fetch(`${API_URL}/bookmarks/${noteId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) loadBookmarks();
+            } catch (err) { alert('Error'); }
         }
 
         function logout() {

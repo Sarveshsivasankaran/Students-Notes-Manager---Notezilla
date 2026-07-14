@@ -893,9 +893,9 @@
             <p>High-quality content verified by students. Download from the most helpful instructors.</p>
         </div>
         <div class="feature-card">
-            <div class="feature-icon">🔒</div>
-            <h3>Secure Verification</h3>
-            <p>All materials are reviewed by admins before publishing to ensure academic integrity.</p>
+            <div class="feature-icon">🧠</div>
+            <h3>Aadhi AI Study Assistant</h3>
+            <p>Analyze notes, ask questions, explain highlighted text, and turn important concepts into flashcards.</p>
         </div>
     </section>
 
@@ -907,25 +907,25 @@
                 <span class="live-label">Live Activity</span>
             </div>
             <div class="stats-counters">
-                <div class="stat-counter-item" data-target="1200" data-suffix="+">
+                <div class="stat-counter-item" data-target="0" data-suffix="">
                     <div class="stat-counter-number" id="counter-students">0</div>
                     <div class="stat-counter-label">
                         <span class="active-dot"></span>
-                        Students Active
+                        Users Online
                     </div>
                 </div>
                 <div class="stat-counter-divider"></div>
-                <div class="stat-counter-item" data-target="850" data-suffix="+">
+                <div class="stat-counter-item" data-target="0" data-suffix="">
                     <div class="stat-counter-number" id="counter-notes">0</div>
                     <div class="stat-counter-label">Notes Uploaded</div>
                 </div>
                 <div class="stat-counter-divider"></div>
-                <div class="stat-counter-item" data-target="40" data-suffix="+">
+                <div class="stat-counter-item" data-target="0" data-suffix="">
                     <div class="stat-counter-number" id="counter-faculty">0</div>
                     <div class="stat-counter-label">Faculty Members</div>
                 </div>
                 <div class="stat-counter-divider"></div>
-                <div class="stat-counter-item" data-target="8" data-suffix="">
+                <div class="stat-counter-item" data-target="0" data-suffix="">
                     <div class="stat-counter-number" id="counter-depts">0</div>
                     <div class="stat-counter-label">Departments</div>
                 </div>
@@ -1040,75 +1040,76 @@
         </div>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script>
-        // FEATURE #9: Animated Counters with IntersectionObserver
+        // Live counters backed by the website database, Drive repository and Socket.IO presence.
         (function() {
             const statsSection = document.getElementById('stats-section');
             if (!statsSection) return;
 
-            async function updateStatTargets() {
-                try {
-                    const response = await fetch('/api/public/stats');
-                    const result = await response.json();
-                    if (result.success) {
-                        const data = result.data;
-                        document.querySelector('[id="counter-students"]').parentElement.dataset.target = data.students;
-                        document.querySelector('[id="counter-notes"]').parentElement.dataset.target = data.notes;
-                        document.querySelector('[id="counter-faculty"]').parentElement.dataset.target = data.faculty;
-                        document.querySelector('[id="counter-depts"]').parentElement.dataset.target = data.departments;
-                    }
-                } catch (err) {
-                    console.error('Failed to fetch stats:', err);
-                }
+            const counterIds = {
+                activeUsers: 'counter-students',
+                notes: 'counter-notes',
+                faculty: 'counter-faculty',
+                departments: 'counter-depts'
+            };
+
+            function getCurrentValue(element) {
+                return Number((element.textContent || '').replace(/[^0-9]/g, '')) || 0;
             }
 
-            function animateCounter(el, target, suffix, duration) {
-                const start = performance.now();
+            function renderCounter(key, value) {
+                const element = document.getElementById(counterIds[key]);
+                if (!element) return;
+                const startValue = getCurrentValue(element);
+                const targetValue = Math.max(0, Number(value) || 0);
+                if (startValue === targetValue) return;
+
+                const startedAt = performance.now();
+                const duration = 550;
                 function update(now) {
-                    const elapsed = now - start;
-                    const progress = Math.min(elapsed / duration, 1);
+                    const progress = Math.min((now - startedAt) / duration, 1);
                     const eased = 1 - Math.pow(1 - progress, 3);
-                    const current = Math.round(eased * target);
-                    el.textContent = current.toLocaleString() + suffix;
+                    element.textContent = Math.round(startValue + ((targetValue - startValue) * eased)).toLocaleString();
                     if (progress < 1) requestAnimationFrame(update);
                 }
                 requestAnimationFrame(update);
             }
 
-            let countersStarted = false;
-            const observer = new IntersectionObserver(async (entries) => {
-                for (const entry of entries) {
-                    if (entry.isIntersecting && !countersStarted) {
-                        countersStarted = true;
-                        
-                        // Fetch real data before animating
-                        await updateStatTargets();
-
-                        const items = statsSection.querySelectorAll('.stat-counter-item');
-                        items.forEach((item, i) => {
-                            const target = parseInt(item.dataset.target);
-                            const suffix = item.dataset.suffix || '';
-                            const numEl = item.querySelector('.stat-counter-number');
-                            setTimeout(() => animateCounter(numEl, target, suffix, 2000), i * 150);
-                        });
-
-                        // Live "Students Active" slow increment
-                        const studentsEl = document.getElementById('counter-students');
-                        if (studentsEl) {
-                            function liveIncrement() {
-                                const currentText = studentsEl.textContent.replace(/[^0-9]/g, '');
-                                const current = parseInt(currentText) || 0;
-                                studentsEl.textContent = (current + 1).toLocaleString() + '+';
-                                const nextDelay = 8000 + Math.random() * 4000;
-                                setTimeout(liveIncrement, nextDelay);
-                            }
-                            setTimeout(liveIncrement, 2500);
-                        }
-                    }
+            async function refreshRepositoryStats() {
+                try {
+                    const response = await fetch('/api/public/stats', { cache: 'no-store' });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) throw new Error(result.message || 'Stats unavailable');
+                    Object.keys(counterIds).forEach(key => renderCounter(key, result.data[key]));
+                } catch (error) {
+                    console.error('Failed to refresh live website statistics:', error);
                 }
-            }, { threshold: 0.3 });
+            }
 
-            observer.observe(statsSection);
+            refreshRepositoryStats();
+            setInterval(refreshRepositoryStats, 60000);
+
+            if (typeof io === 'function') {
+                const socket = io();
+                const liveLabel = statsSection.querySelector('.live-label');
+                let visitorId = localStorage.getItem('notezilla_presence_id');
+                if (!visitorId) {
+                    visitorId = self.crypto?.randomUUID?.() || `visitor-${Date.now()}`;
+                    localStorage.setItem('notezilla_presence_id', visitorId);
+                }
+
+                socket.on('connect', () => {
+                    if (liveLabel) liveLabel.textContent = 'Live Activity';
+                    socket.emit('identify', visitorId);
+                });
+                socket.on('disconnect', () => {
+                    if (liveLabel) liveLabel.textContent = 'Reconnecting…';
+                });
+                socket.on('live_activity', data => renderCounter('activeUsers', data.activeUsers));
+                socket.on('repository_updated', refreshRepositoryStats);
+                socket.on('new_upload', refreshRepositoryStats);
+            }
         })();
     </script>
 

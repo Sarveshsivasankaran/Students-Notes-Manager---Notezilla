@@ -9,6 +9,7 @@ const { google } = require('googleapis');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const upload = multer({ storage: multer.memoryStorage() });
 const path = require('path');
+const fsp = require('fs/promises');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcryptjs = require('bcryptjs');
@@ -20,7 +21,7 @@ const { supabase, initializeDatabase } = require('./models/db');
 const app = express();
 const http = require('http');
 const server = http.createServer(app);
-const { initializeSocket } = require('./socket-handler');
+const { initializeSocket, notifyRepositoryUpdate, getPresenceSnapshot } = require('./socket-handler');
 const io = initializeSocket(server);
 const aiService = require('./ai-service');
 
@@ -107,22 +108,39 @@ function stripHtmlTags(value = '') {
  */
 app.get('/api/public/stats', async (req, res) => {
     try {
-        const { count: notesCount } = await supabase.from('notes').select('*', { count: 'exact', head: true });
-        const { count: facultyCount } = await supabase.from('faculty').select('*', { count: 'exact', head: true });
-        const { count: studentsCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student');
-        const { count: deptsCount } = await supabase.from('subjects').select('department', { count: 'exact', head: true }); // Approximated by distinct departments if possible, or just count subjects/unique depts
+        const [notesResult, facultyResult, studentsResult, departmentsResult] = await Promise.all([
+            supabase.from('notes').select('*', { count: 'exact', head: true }),
+            supabase.from('faculty').select('*', { count: 'exact', head: true }),
+            supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+            supabase.from('subjects').select('department')
+        ]);
 
-        // For departments, let's just get the unique count if we want to be precise, or hardcode if the list is static
-        const { data: depts } = await supabase.from('subjects').select('department');
+        const queryError = notesResult.error || facultyResult.error || studentsResult.error || departmentsResult.error;
+        if (queryError) throw queryError;
+
+        let driveNotes = 0;
+        let driveFaculty = 0;
+        try {
+            const repository = await getDriveFacultyRepository(false);
+            driveNotes = repository?.root?.fileCount || 0;
+            driveFaculty = repository?.faculties?.length || 0;
+        } catch (driveError) {
+            console.warn('[Public Stats] Drive repository unavailable:', driveError.message || driveError);
+        }
+
+        const depts = departmentsResult.data || [];
         const uniqueDepts = depts ? [...new Set(depts.map(d => d.department))].length : 0;
+        const presence = getPresenceSnapshot();
 
         res.json({
             success: true,
             data: {
-                notes: notesCount || 0,
-                faculty: facultyCount || 0,
-                students: studentsCount || 0,
-                departments: uniqueDepts || 8 // Fallback to 8 if none found
+                activeUsers: presence.activeUsers,
+                students: studentsResult.count || 0,
+                notes: Math.max(notesResult.count || 0, driveNotes),
+                faculty: Math.max(facultyResult.count || 0, driveFaculty),
+                departments: uniqueDepts,
+                updatedAt: new Date().toISOString()
             }
         });
     } catch (error) {
@@ -538,6 +556,90 @@ app.get('/api/auth/verify', authenticateToken, async (req, res) => {
 
 // ==================== USER PRODUCTIVITY & SYNC ROUTES ====================
 
+const TIMETABLE_DIR = path.join(__dirname, 'data', 'timetables');
+const TIMETABLE_TYPES = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    webp: 'image/webp'
+};
+
+const getTimetableUserKey = (userId) => String(userId).replace(/[^a-zA-Z0-9-]/g, '');
+
+async function findTimetableFile(userId) {
+    const userKey = getTimetableUserKey(userId);
+    for (const [extension, mime] of Object.entries(TIMETABLE_TYPES)) {
+        const filePath = path.join(TIMETABLE_DIR, `${userKey}.${extension}`);
+        try {
+            const [buffer, stats] = await Promise.all([fsp.readFile(filePath), fsp.stat(filePath)]);
+            return { filePath, buffer, mime, updatedAt: stats.mtime.toISOString() };
+        } catch (error) {
+            if (error.code !== 'ENOENT') throw error;
+        }
+    }
+    return null;
+}
+
+/**
+ * GET the signed-in user's current timetable image.
+ */
+app.get('/api/user/timetable', authenticateToken, async (req, res) => {
+    try {
+        const current = await findTimetableFile(req.userId);
+        if (!current) return res.json({ success: true, data: null });
+        res.json({
+            success: true,
+            data: {
+                imageUrl: `data:${current.mime};base64,${current.buffer.toString('base64')}`,
+                updatedAt: current.updatedAt
+            }
+        });
+    } catch (error) {
+        console.error('Timetable fetch error:', error);
+        res.status(500).json({ success: false, message: 'Unable to load your timetable' });
+    }
+});
+
+/**
+ * Upload or replace the signed-in user's timetable image.
+ */
+app.post('/api/user/timetable', authenticateToken, upload.single('timetable'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ success: false, message: 'Choose a timetable image first' });
+        if (req.file.size > 5 * 1024 * 1024) {
+            return res.status(413).json({ success: false, message: 'Timetable image must be 5 MB or smaller' });
+        }
+
+        const { default: imageType } = await import('image-type');
+        const detected = await imageType(req.file.buffer);
+        if (!detected || !['image/png', 'image/jpeg', 'image/webp'].includes(detected.mime)) {
+            return res.status(415).json({ success: false, message: 'Upload a valid PNG, JPG or WebP image' });
+        }
+
+        await fsp.mkdir(TIMETABLE_DIR, { recursive: true });
+        const userKey = getTimetableUserKey(req.userId);
+        await Promise.all(Object.keys(TIMETABLE_TYPES).map(async extension => {
+            try {
+                await fsp.unlink(path.join(TIMETABLE_DIR, `${userKey}.${extension}`));
+            } catch (error) {
+                if (error.code !== 'ENOENT') throw error;
+            }
+        }));
+
+        const extension = detected.ext === 'jpeg' ? 'jpg' : detected.ext;
+        await fsp.writeFile(path.join(TIMETABLE_DIR, `${userKey}.${extension}`), req.file.buffer);
+        res.json({
+            success: true,
+            data: {
+                imageUrl: `data:${detected.mime};base64,${req.file.buffer.toString('base64')}`,
+                updatedAt: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error('Timetable upload error:', error);
+        res.status(500).json({ success: false, message: 'Unable to save your timetable' });
+    }
+});
+
 /**
  * GET User Planner Tasks
  */
@@ -688,13 +790,44 @@ app.delete('/api/user/tasks/:id', authenticateToken, async (req, res) => {
  */
 app.get('/api/user/progress', authenticateToken, async (req, res) => {
     try {
-        const { data, error } = await supabase
-            .from('progress_stats')
-            .select('*')
-            .eq('user_id', req.userId)
-            .maybeSingle();
-        if (error) throw error;
-        res.json({ success: true, data: data || { total_tasks_done: 0, planner_sessions: 0, productivity_score: 0 } });
+        const cutoff = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString();
+        const [tasksResult, plannerResult, activityResult] = await Promise.all([
+            supabase.from('todo_tasks').select('id, is_completed').eq('user_id', req.userId),
+            supabase.from('planner_tasks').select('id, is_completed').eq('user_id', req.userId),
+            supabase.from('activity_logs').select('action_type, created_at').eq('user_id', req.userId).gte('created_at', cutoff)
+        ]);
+
+        const queryError = tasksResult.error || plannerResult.error || activityResult.error;
+        if (queryError) throw queryError;
+
+        const tasks = tasksResult.data || [];
+        const planner = plannerResult.data || [];
+        const activity = activityResult.data || [];
+        const completedTasks = tasks.filter(item => item.is_completed).length;
+        const completedSessions = planner.filter(item => item.is_completed).length;
+        const totalGoals = tasks.length + planner.length;
+        const completedGoals = completedTasks + completedSessions;
+        const completionRate = totalGoals ? completedGoals / totalGoals : 0;
+        const studyActivities = activity.filter(item => item.action_type === 'note').length;
+        const activeDays = new Set(activity.map(item => new Date(item.created_at).toISOString().slice(0, 10))).size;
+        const engagementRate = Math.min(1, activeDays / 10);
+        const productivityScore = Math.round(((completionRate * 0.75) + (engagementRate * 0.25)) * 100);
+
+        res.json({
+            success: true,
+            data: {
+                total_tasks_done: completedTasks,
+                planner_sessions: completedSessions,
+                productivity_score: productivityScore,
+                total_tasks: tasks.length,
+                total_planner_sessions: planner.length,
+                completed_goals: completedGoals,
+                total_goals: totalGoals,
+                note_views: studyActivities,
+                active_days: activeDays,
+                period_days: 30
+            }
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -738,12 +871,14 @@ app.post('/api/user/progress/sync', authenticateToken, async (req, res) => {
  */
 app.get('/api/user/activity', authenticateToken, async (req, res) => {
     try {
+        const cutoff = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString();
         const { data, error } = await supabase
             .from('activity_logs')
             .select('*')
             .eq('user_id', req.userId)
+            .gte('created_at', cutoff)
             .order('created_at', { ascending: false })
-            .limit(20);
+            .limit(100);
         if (error) throw error;
         res.json({ success: true, data });
     } catch (error) {
@@ -1405,6 +1540,12 @@ app.post('/api/drive/sync', authenticateToken, requireRole(['staff']), async (re
 
         const repository = await getDriveFacultyRepository(true);
 
+        notifyRepositoryUpdate({
+            notes: repository.root.fileCount || 0,
+            faculty: repository.faculties.length || 0,
+            updatedAt: repository.fetchedAt
+        });
+
         return res.status(200).json({
             success: true,
             message: 'Shared Google Drive faculty folders refreshed successfully.',
@@ -1684,10 +1825,59 @@ app.get('/api/ratings/note/:id', async (req, res) => {
 // ==================== BOOKMARK ROUTES ====================
 
 /**
+ * GET Most Bookmarked Notes across all users
+ * GET /api/bookmarks/top
+ */
+app.get('/api/bookmarks/top', authenticateToken, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('student_bookmarks')
+            .select(`
+                note_id,
+                notes(
+                    id,
+                    title,
+                    type,
+                    file_url,
+                    file_name,
+                    subjects(name)
+                )
+            `);
+
+        if (error) throw error;
+
+        const counts = new Map();
+        (data || []).forEach((bookmark) => {
+            if (!bookmark.notes) return;
+            const existing = counts.get(bookmark.note_id) || {
+                id: bookmark.note_id,
+                title: bookmark.notes.title,
+                type: bookmark.notes.type,
+                file_url: bookmark.notes.file_url,
+                file_name: bookmark.notes.file_name,
+                subject_name: bookmark.notes.subjects?.name,
+                bookmark_count: 0
+            };
+            existing.bookmark_count += 1;
+            counts.set(bookmark.note_id, existing);
+        });
+
+        const topNotes = [...counts.values()]
+            .sort((a, b) => b.bookmark_count - a.bookmark_count || a.title.localeCompare(b.title))
+            .slice(0, 6);
+
+        res.json({ success: true, data: topNotes });
+    } catch (error) {
+        console.error('Most bookmarked notes error:', error);
+        res.status(500).json({ success: false, message: 'Error fetching most bookmarked notes' });
+    }
+});
+
+/**
  * GET Student Bookmarks
  * GET /api/bookmarks
  */
-app.get('/api/bookmarks', authenticateToken, requireRole(['student']), async (req, res) => {
+app.get('/api/bookmarks', authenticateToken, requireRole(['student', 'staff', 'admin']), async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('student_bookmarks')
@@ -1733,15 +1923,137 @@ app.get('/api/bookmarks', authenticateToken, requireRole(['student']), async (re
  * POST Add Bookmark
  * POST /api/bookmarks
  */
-app.post('/api/bookmarks', authenticateToken, requireRole(['student']), async (req, res) => {
+app.post('/api/bookmarks', authenticateToken, requireRole(['student', 'staff', 'admin']), async (req, res) => {
     try {
-        const { note_id } = req.body;
+        const { note_id, file_name, file_url, faculty_name, subject_name } = req.body;
 
-        if (!note_id) {
-            return res.status(400).json({
-                success: false,
-                message: 'Missing note_id'
-            });
+        let dbNoteId = note_id;
+
+        if (!dbNoteId) {
+            if (!file_name || !file_url) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing note_id or file details'
+                });
+            }
+
+            // Check if note already exists in database by file_url
+            const { data: existingNote } = await supabase
+                .from('notes')
+                .select('id')
+                .eq('file_url', file_url)
+                .maybeSingle();
+
+            if (existingNote) {
+                dbNoteId = existingNote.id;
+            } else {
+                // Look up a staff account and ensure it has a faculty profile.
+                let facultyId = null;
+                let facultyUserId = null;
+                if (faculty_name) {
+                    const { data: facultyUser } = await supabase
+                        .from('users')
+                        .select('id')
+                        .eq('role', 'staff')
+                        .ilike('name', `%${faculty_name}%`)
+                        .maybeSingle();
+
+                    if (facultyUser) {
+                        facultyUserId = facultyUser.id;
+                        const { data: facultyProfile } = await supabase
+                            .from('faculty')
+                            .select('id')
+                            .eq('user_id', facultyUser.id)
+                            .maybeSingle();
+                        if (facultyProfile) facultyId = facultyProfile.id;
+                    }
+                }
+
+                // Reuse any faculty profile when a folder-to-staff match is unavailable.
+                if (!facultyId) {
+                    const { data: firstFaculty } = await supabase
+                        .from('faculty')
+                        .select('id, user_id')
+                        .limit(1)
+                        .maybeSingle();
+                    if (firstFaculty) {
+                        facultyId = firstFaculty.id;
+                        facultyUserId = firstFaculty.user_id;
+                    }
+                }
+
+                // Older databases may contain staff users without their faculty profile.
+                // Create the missing profile so Drive notes can satisfy notes.faculty_id.
+                if (!facultyId) {
+                    if (!facultyUserId) {
+                        const { data: firstStaff } = await supabase
+                            .from('users')
+                            .select('id')
+                            .eq('role', 'staff')
+                            .limit(1)
+                            .maybeSingle();
+                        facultyUserId = firstStaff?.id || null;
+                    }
+
+                    if (facultyUserId) {
+                        const { data: ensuredFaculty, error: facultyError } = await supabase
+                            .from('faculty')
+                            .upsert({ user_id: facultyUserId }, { onConflict: 'user_id' })
+                            .select('id')
+                            .single();
+                        if (facultyError) throw facultyError;
+                        facultyId = ensuredFaculty.id;
+                    }
+                }
+
+                // Look up subject ID by subject_name
+                let subjectId = null;
+                if (subject_name) {
+                    const { data: subject } = await supabase
+                        .from('subjects')
+                        .select('id')
+                        .ilike('name', `%${subject_name}%`)
+                        .maybeSingle();
+                    if (subject) subjectId = subject.id;
+                }
+
+                // Fallback subject if not found
+                if (!subjectId) {
+                    const { data: firstSubject } = await supabase
+                        .from('subjects')
+                        .select('id')
+                        .limit(1)
+                        .maybeSingle();
+                    if (firstSubject) subjectId = firstSubject.id;
+                }
+
+                if (!facultyId || !subjectId) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Could not associate note with faculty or subject'
+                    });
+                }
+
+                // Create the note
+                const { data: newNote, error: createError } = await supabase
+                    .from('notes')
+                    .insert({
+                        faculty_id: facultyId,
+                        subject_id: subjectId,
+                        title: file_name,
+                        type: 'notes',
+                        unit: 1,
+                        semester: 4,
+                        file_url: file_url,
+                        file_name: file_name,
+                        is_verified: true
+                    })
+                    .select('id')
+                    .single();
+
+                if (createError) throw createError;
+                dbNoteId = newNote.id;
+            }
         }
 
         // Check if already bookmarked
@@ -1749,8 +2061,8 @@ app.post('/api/bookmarks', authenticateToken, requireRole(['student']), async (r
             .from('student_bookmarks')
             .select('id')
             .eq('student_id', req.userId)
-            .eq('note_id', note_id)
-            .single();
+            .eq('note_id', dbNoteId)
+            .maybeSingle();
 
         if (existing) {
             return res.status(400).json({
@@ -1760,16 +2072,16 @@ app.post('/api/bookmarks', authenticateToken, requireRole(['student']), async (r
         }
 
         // Create bookmark
-        const { data: bookmark, error } = await supabase
+        const { data: bookmark, error: bookmarkError } = await supabase
             .from('student_bookmarks')
             .insert({
                 student_id: req.userId,
-                note_id
+                note_id: dbNoteId
             })
             .select()
             .single();
 
-        if (error) throw error;
+        if (bookmarkError) throw bookmarkError;
 
         res.status(201).json({
             success: true,
@@ -1789,7 +2101,7 @@ app.post('/api/bookmarks', authenticateToken, requireRole(['student']), async (r
  * DELETE Bookmark
  * DELETE /api/bookmarks/:noteId
  */
-app.delete('/api/bookmarks/:noteId', authenticateToken, requireRole(['student']), async (req, res) => {
+app.delete('/api/bookmarks/:noteId', authenticateToken, requireRole(['student', 'staff', 'admin']), async (req, res) => {
     try {
         const { error } = await supabase
             .from('student_bookmarks')
@@ -2081,6 +2393,59 @@ app.use((err, req, res, next) => {
 });
 
 // ==================== AI ANALYSIS & CHAT ROUTES ====================
+
+async function fetchNoteFileBuffer(note) {
+    let downloadUrl = note.file_url;
+    const driveMatch = downloadUrl.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+    if (driveMatch) downloadUrl = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}&confirm=t`;
+    else if (downloadUrl.includes('drive.google.com') && downloadUrl.match(/[?&]id=([^&]+)/)) {
+        downloadUrl = `https://drive.google.com/uc?export=download&id=${downloadUrl.match(/[?&]id=([^&]+)/)[1]}&confirm=t`;
+    }
+
+    const response = await fetch(downloadUrl);
+    if (!response.ok) throw new Error(`File download failed with status ${response.status}`);
+    return Buffer.from(await response.arrayBuffer());
+}
+
+/**
+ * Stream note content to the authenticated, selectable PDF viewer.
+ */
+app.get('/api/notes/:id/content', authenticateToken, async (req, res) => {
+    try {
+        const { data: note, error } = await supabase
+            .from('notes')
+            .select('file_url, file_name')
+            .eq('id', req.params.id)
+            .single();
+        if (error || !note) return res.status(404).json({ success: false, message: 'Note not found' });
+
+        const fileBuffer = await fetchNoteFileBuffer(note);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${(note.file_name || 'note.pdf').replace(/["\r\n]/g, '')}"`);
+        res.send(fileBuffer);
+    } catch (error) {
+        console.error('Note content error:', error);
+        res.status(500).json({ success: false, message: 'Failed to load note content' });
+    }
+});
+
+/**
+ * Stream a Google Drive PDF to the authenticated, selectable PDF viewer.
+ */
+app.post('/api/drive/content', authenticateToken, async (req, res) => {
+    try {
+        const { fileId } = req.body;
+        if (!fileId) return res.status(400).json({ success: false, message: 'fileId is required' });
+        const response = await fetch(`https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=t`);
+        if (!response.ok) throw new Error(`Drive download failed with status ${response.status}`);
+        const fileBuffer = Buffer.from(await response.arrayBuffer());
+        res.setHeader('Content-Type', 'application/pdf');
+        res.send(fileBuffer);
+    } catch (error) {
+        console.error('Drive content error:', error);
+        res.status(500).json({ success: false, message: 'Failed to load Drive content' });
+    }
+});
 
 /**
  * ANALYZE a Note (passes buffer directly to Gemini multimodal)

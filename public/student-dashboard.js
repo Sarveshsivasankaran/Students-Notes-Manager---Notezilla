@@ -2,6 +2,9 @@
 const socket = io();
 
 document.addEventListener('DOMContentLoaded', () => {
+    let bookmarkedNoteIds = [];
+    let bookmarkedNoteUrls = [];
+    let bookmarkedNotesList = [];
     // 1. Sidebar Toggle Logic
     const body = document.querySelector('body');
     const sidebar = document.querySelector('.sidebar');
@@ -82,7 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     socket.on('progress_synced', (data) => {
         // Update local stats UI
-        updateStudyProgress(data);
+        applyProductivityStats(data);
+        updateStudyProgress();
     });
 
     // Helper: API Fetch with Token
@@ -130,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const target = navItems[viewKey];
         if (target) {
-            if (target.view) target.view.style.display = (viewKey === 'dashboard' || viewKey === 'profile' || viewKey === 'subjects' || viewKey === 'progress' || viewKey === 'bookmarks' || viewKey === 'faculty') ? 'flex' : 'block';
+            if (target.view) target.view.style.display = (viewKey === 'dashboard' || viewKey === 'profile' || viewKey === 'subjects' || viewKey === 'progress' || viewKey === 'bookmarks' || viewKey === 'faculty' || viewKey === 'dsa') ? 'flex' : 'block';
             // Announcements and Profile sometimes use different layouts, but let's stick to flex mostly
             if (viewKey === 'announcements') target.view.style.display = 'block';
             if (target.nav) target.nav.classList.add('active');
@@ -347,23 +351,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await apiFetch('/bookmarks');
         if (res.success && Array.isArray(res.data)) {
             bookmarkedNoteIds = res.data.map(b => b.noteId);
+            bookmarkedNotesList = res.data;
+            bookmarkedNoteUrls = res.data.map(b => b.fileUrl || b.file_url).filter(Boolean);
             const countProfile = document.getElementById('bookmark-count-profile');
             if (countProfile) countProfile.textContent = bookmarkedNoteIds.length;
         }
     }
 
     async function toggleBookmark(noteId) {
-        const exists = bookmarkedNoteIds.includes(noteId);
+        const exists = bookmarkedNoteIds.some(id => String(id) === String(noteId));
         const res = await apiFetch(exists ? `/bookmarks/${noteId}` : '/bookmarks', {
             method: exists ? 'DELETE' : 'POST',
             body: exists ? null : JSON.stringify({ note_id: noteId })
         });
         if (res.success) {
-            if (exists) bookmarkedNoteIds = bookmarkedNoteIds.filter(id => id !== noteId);
+            if (exists) bookmarkedNoteIds = bookmarkedNoteIds.filter(id => String(id) !== String(noteId));
             else bookmarkedNoteIds.push(noteId);
-            syncBookmarks();
+            await syncBookmarks();
             if (bookmarksView && bookmarksView.style.display !== 'none') renderBookmarks();
+            renderTopRatedNotes();
+            return res;
         }
+        return res;
     }
 
     async function renderBookmarks() {
@@ -379,12 +388,21 @@ document.addEventListener('DOMContentLoaded', () => {
         res.data.forEach(note => {
             const card = document.createElement('div');
             card.className = 'note-card';
+            card.style.cursor = 'pointer';
             card.innerHTML = `
                 <div class="note-icon type-pdf"><i class='bx bxs-file-pdf'></i></div>
                 <div class="note-details"><h4>${note.title}</h4><p>${note.subject || 'Note'}</p></div>
                 <button class="icon-btn-outline remove-bookmark"><i class='bx bxs-trash' style="color: #ef4444;"></i></button>
             `;
-            card.querySelector('.remove-bookmark').onclick = () => toggleBookmark(note.noteId);
+            card.querySelector('.remove-bookmark').onclick = (e) => {
+                e.stopPropagation();
+                toggleBookmark(note.noteId);
+            };
+            card.onclick = (e) => {
+                if (e.target.closest('button')) return;
+                localStorage.setItem('selectedNoteId', note.noteId);
+                window.location.href = 'note-detail.html';
+            };
             savedGrid.appendChild(card);
         });
     }
@@ -394,6 +412,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4.4 Progress Tracker History & Tasks
     let completedWork = [];
     let savedTasks = [];
+    let productivityStats = {
+        total_tasks_done: 0,
+        planner_sessions: 0,
+        productivity_score: 0,
+        total_tasks: 0,
+        total_planner_sessions: 0,
+        note_views: 0,
+        active_days: 0
+    };
+
+    const applyProductivityStats = (stats = {}) => {
+        productivityStats = { ...productivityStats, ...stats };
+        const mappings = {
+            totalTasksCount: productivityStats.total_tasks_done,
+            totalSessionsCount: productivityStats.planner_sessions,
+            notesStudiedCount: productivityStats.note_views,
+            activeStudyDays: productivityStats.active_days,
+            productivityScore: `${Math.round(Number(productivityStats.productivity_score) || 0)}%`,
+            tasksCompletionMeta: `of ${productivityStats.total_tasks || 0} tasks`,
+            sessionsCompletionMeta: `of ${productivityStats.total_planner_sessions || 0} sessions`
+        };
+        Object.entries(mappings).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = value;
+        });
+    };
 
     const logProgress = async (type, title, desc = '') => {
         const res = await apiFetch('/user/activity', {
@@ -403,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.success) {
             completedWork.unshift(res.data);
             updateStudyProgress();
-            if (progressView && progressView.style.display !== 'none') renderProgress();
+            await renderProgress();
         }
     };
 
@@ -411,18 +455,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const historyList = document.getElementById('progress-history-list');
         if (!historyList) return;
         
-        // Fetch fresh data if needed or use local cache
-        const res = await apiFetch('/user/activity');
-        if (res.success) {
-            completedWork = res.data;
-        }
+        const [activityResponse, statsResponse] = await Promise.all([
+            apiFetch('/user/activity'),
+            apiFetch('/user/progress')
+        ]);
+        if (activityResponse.success) completedWork = activityResponse.data || [];
+        if (statsResponse.success) applyProductivityStats(statsResponse.data);
+        updateStudyProgress();
 
         historyList.innerHTML = completedWork.length === 0 
-            ? '<div style="text-align:center; padding: 40px;">No activity logged.</div>'
+            ? '<div style="text-align:center; padding: 40px; color:var(--text-muted);">No study activity in the last 30 days.</div>'
             : completedWork.map(item => `
                 <div class="notif-item" style="padding: 16px 24px; border-bottom: 1px solid var(--border-light);">
-                    <div class="notif-icon"><i class='bx ${item.action_type === 'task' ? 'bx-check-double' : 'bx-calendar-heart'}'></i></div>
-                    <div class="notif-text"><h4>${item.title}</h4><p>${item.description || (item.action_type === 'task' ? 'Completed task' : 'Study session finished')}</p><span>${new Date(item.created_at).toLocaleDateString()}</span></div>
+                    <div class="notif-icon"><i class='bx ${item.action_type === 'task' ? 'bx-check-double' : item.action_type === 'planner' ? 'bx-calendar-heart' : 'bx-book-reader'}'></i></div>
+                    <div class="notif-text"><h4>${escapeHtml(item.title)}</h4><p>${escapeHtml(item.description || (item.action_type === 'task' ? 'Completed task' : item.action_type === 'planner' ? 'Study session finished' : 'Studied a note'))}</p><span>${new Date(item.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span></div>
                 </div>
             `).join('');
     };
@@ -807,8 +853,8 @@ document.addEventListener('DOMContentLoaded', () => {
             barsContainer.innerHTML = '';
             const subMap = {};
             completedWork.forEach(item => {
-                if (item.type === 'note' && item.desc.includes('Subject:')) {
-                    const s = item.desc.split('Subject:')[1].trim();
+                if (item.action_type === 'note' && (item.description || '').includes('Subject:')) {
+                    const s = item.description.split('Subject:')[1].trim();
                     subMap[s] = (subMap[s] || 0) + 1;
                 }
             });
@@ -880,8 +926,160 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Open the AI Analysis Modal instead of inline preview for all faculty files
         if (window.openNoteAnalysis) {
-            window.openNoteAnalysis(note.id, getNoteFileName(note), getDrivePreviewUrl(url), source, getNoteFileName(note));
+            window.openNoteAnalysis(
+                note.id,
+                getNoteFileName(note),
+                getDrivePreviewUrl(url),
+                source,
+                getNoteFileName(note),
+                {
+                    fileUrl: url,
+                    facultyName: note.faculty_name || activeFacultyModalStack[0]?.name || '',
+                    subjectName: note.subject_name || activeFacultyModalStack[1]?.name || ''
+                }
+            );
         }
+    }
+
+    // Current-semester timetable
+    const timetableInput = document.getElementById('timetableInput');
+    const timetableImage = document.getElementById('timetableImage');
+    const timetableEmpty = document.getElementById('timetableEmpty');
+    const timetablePreview = document.getElementById('timetablePreview');
+    const timetableZoomHint = document.getElementById('timetableZoomHint');
+    const timetableStatus = document.getElementById('timetableStatus');
+    const timetableUploadLabel = document.getElementById('timetableUploadLabel');
+    const timetableLightbox = document.getElementById('timetableLightbox');
+    const timetableLightboxImage = document.getElementById('timetableLightboxImage');
+    const timetableLightboxCanvas = document.getElementById('timetableLightboxCanvas');
+    const timetableZoomLevel = document.getElementById('timetableZoomLevel');
+    const timetableZoomIn = document.getElementById('timetableZoomIn');
+    const timetableZoomOut = document.getElementById('timetableZoomOut');
+    const timetableZoomReset = document.getElementById('timetableZoomReset');
+    const timetableLightboxClose = document.getElementById('timetableLightboxClose');
+    let timetableScale = 1;
+
+    const applyTimetableZoom = (nextScale) => {
+        timetableScale = Math.min(4, Math.max(1, Math.round(nextScale * 4) / 4));
+        if (!timetableLightboxImage) return;
+        if (timetableScale === 1) {
+            timetableLightboxImage.style.width = 'auto';
+            timetableLightboxImage.style.maxWidth = '100%';
+            timetableLightboxImage.style.maxHeight = '100%';
+        } else {
+            timetableLightboxImage.style.width = `${timetableScale * 100}%`;
+            timetableLightboxImage.style.maxWidth = 'none';
+            timetableLightboxImage.style.maxHeight = 'none';
+        }
+        if (timetableZoomLevel) timetableZoomLevel.textContent = `${Math.round(timetableScale * 100)}%`;
+    };
+
+    const openTimetableLightbox = () => {
+        if (!timetableImage?.src || timetableImage.hidden || !timetableLightbox) return;
+        timetableLightboxImage.src = timetableImage.src;
+        timetableLightbox.classList.add('show');
+        timetableLightbox.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        applyTimetableZoom(1);
+        timetableLightboxClose?.focus();
+    };
+
+    const closeTimetableLightbox = () => {
+        if (!timetableLightbox) return;
+        timetableLightbox.classList.remove('show');
+        timetableLightbox.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        applyTimetableZoom(1);
+        timetablePreview?.focus();
+    };
+
+    const showTimetable = (data) => {
+        const hasImage = Boolean(data?.imageUrl);
+        if (timetableImage) {
+            timetableImage.hidden = !hasImage;
+            timetableImage.src = hasImage ? data.imageUrl : '';
+        }
+        if (timetableEmpty) timetableEmpty.style.display = hasImage ? 'none' : 'flex';
+        if (timetableZoomHint) timetableZoomHint.hidden = !hasImage;
+        if (timetablePreview) timetablePreview.classList.toggle('has-image', hasImage);
+        if (timetableUploadLabel) timetableUploadLabel.textContent = hasImage ? 'Replace timetable' : 'Upload timetable';
+        if (timetableStatus) {
+            timetableStatus.textContent = hasImage && data.updatedAt
+                ? `Updated ${new Date(data.updatedAt).toLocaleDateString([], { dateStyle: 'medium' })}`
+                : 'PNG, JPG or WebP · up to 5 MB';
+        }
+    };
+
+    if (timetablePreview) {
+        timetablePreview.addEventListener('click', openTimetableLightbox);
+        timetablePreview.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openTimetableLightbox();
+            }
+        });
+    }
+    if (timetableZoomIn) timetableZoomIn.onclick = () => applyTimetableZoom(timetableScale + 0.25);
+    if (timetableZoomOut) timetableZoomOut.onclick = () => applyTimetableZoom(timetableScale - 0.25);
+    if (timetableZoomReset) timetableZoomReset.onclick = () => applyTimetableZoom(1);
+    if (timetableLightboxClose) timetableLightboxClose.onclick = closeTimetableLightbox;
+    if (timetableLightbox) {
+        timetableLightbox.addEventListener('wheel', event => {
+            event.preventDefault();
+            applyTimetableZoom(timetableScale + (event.deltaY < 0 ? 0.25 : -0.25));
+        }, { passive: false });
+        timetableLightbox.addEventListener('click', event => {
+            if (event.target === timetableLightbox) closeTimetableLightbox();
+        });
+    }
+    if (timetableLightboxImage) {
+        timetableLightboxImage.addEventListener('dblclick', event => {
+            event.stopPropagation();
+            applyTimetableZoom(timetableScale === 1 ? 2 : 1);
+        });
+    }
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && timetableLightbox?.classList.contains('show')) closeTimetableLightbox();
+    });
+
+    const loadTimetable = async () => {
+        const response = await apiFetch('/user/timetable');
+        if (response.success) showTimetable(response.data);
+        else if (timetableStatus) timetableStatus.textContent = response.message || 'Unable to load timetable';
+    };
+
+    if (timetableInput) {
+        timetableInput.addEventListener('change', async () => {
+            const file = timetableInput.files?.[0];
+            if (!file) return;
+            if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                timetableStatus.textContent = 'Choose a PNG, JPG or WebP image up to 5 MB.';
+                timetableInput.value = '';
+                return;
+            }
+
+            timetableInput.disabled = true;
+            timetableUploadLabel.textContent = 'Uploading…';
+            timetableStatus.textContent = 'Saving your timetable securely…';
+            const formData = new FormData();
+            formData.append('timetable', file);
+            try {
+                const response = await fetch('/api/user/timetable', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.message || 'Upload failed');
+                showTimetable(result.data);
+            } catch (error) {
+                timetableStatus.textContent = error.message || 'Unable to upload timetable';
+                timetableUploadLabel.textContent = timetableImage?.src ? 'Replace timetable' : 'Upload timetable';
+            } finally {
+                timetableInput.disabled = false;
+                timetableInput.value = '';
+            }
+        });
     }
 
     function renderRepoBreadcrumbs(items) {
@@ -1165,8 +1363,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <h5>${note.title}</h5>
                             </div>
                             <div class="modal-note-actions">
-                                <button class="icon-btn-outline preview-note" data-id="${note.id}"><i class='bx bx-show'></i></button>
-                                <button class="icon-btn-outline download-note" data-url="${getNoteFileUrl(note)}" data-id="${note.id}" data-title="${escapeHtml(note.title)}" data-subject="${escapeHtml(subject.name)}"><i class='bx bx-download'></i></button>
+                                <button class="icon-btn-outline preview-note" data-id="${note.id}" title="Preview Note"><i class='bx bx-show'></i></button>
+                                <button class="icon-btn-outline download-note" data-url="${getNoteFileUrl(note)}" data-id="${note.id}" data-title="${escapeHtml(note.title)}" data-subject="${escapeHtml(subject.name)}" title="Download Note"><i class='bx bx-download'></i></button>
+                                <button class="icon-btn-outline view-note-details" data-id="${note.id}" title="View Details & Ratings"><i class='bx bx-info-circle'></i></button>
+                                <button class="icon-btn-outline toggle-bookmark-btn" data-id="${note.id}" title="Bookmark note"><i class='bx ${bookmarkedNoteIds.includes(note.id) ? 'bxs-bookmark-star' : 'bx-bookmark'}'></i></button>
                             </div>
                         </div>
                     `).join('')}
@@ -1175,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(section);
         });
 
-        // Add preview and download functionality to modal notes
+        // Add preview, download, details and bookmark functionality to modal notes
         container.querySelectorAll('.modal-note-item').forEach(item => {
             item.onclick = (e) => {
                 if (e.target.closest('button')) return;
@@ -1212,6 +1412,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 logProgress('note', name, `Subject: ${sub}`);
                 if (url) window.open(url, '_blank');
                 else alert('File URL not available');
+            };
+        });
+
+        container.querySelectorAll('.view-note-details').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                localStorage.setItem('selectedNoteId', id);
+                window.location.href = 'note-detail.html';
+            };
+        });
+
+        container.querySelectorAll('.toggle-bookmark-btn').forEach(btn => {
+            const id = btn.getAttribute('data-id');
+            const icon = btn.querySelector('i');
+            
+            // Set initial style
+            if (bookmarkedNoteIds.includes(id)) {
+                icon.className = 'bx bxs-bookmark-star';
+                icon.style.color = '#fbbf24';
+            }
+            
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                await toggleBookmark(id);
+                if (bookmarkedNoteIds.includes(id)) {
+                    icon.className = 'bx bxs-bookmark-star';
+                    icon.style.color = '#fbbf24';
+                } else {
+                    icon.className = 'bx bx-bookmark';
+                    icon.style.color = '';
+                }
             };
         });
     }
@@ -1546,8 +1778,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <h5>${escapeHtml(getNoteFileName(file))}</h5>
                     </div>
                     <div class="modal-note-actions">
-                        <button class="icon-btn-outline preview-note"><i class='bx bx-show'></i></button>
-                        <button class="icon-btn-outline download-note"><i class='bx bx-link-external'></i></button>
+                        <button class="icon-btn-outline preview-note" title="Preview"><i class='bx bx-show'></i></button>
+                        <button class="icon-btn-outline download-note" title="Open"><i class='bx bx-link-external'></i></button>
+                        <button class="icon-btn-outline toggle-drive-bookmark-btn" title="Bookmark"><i class='bx bx-bookmark'></i></button>
                     </div>
                 `;
                 item.onclick = (event) => {
@@ -1563,6 +1796,55 @@ document.addEventListener('DOMContentLoaded', () => {
                     const fileUrl = getNoteFileUrl(file);
                     if (fileUrl) window.open(fileUrl, '_blank');
                 };
+
+                const bookmarkBtn = item.querySelector('.toggle-drive-bookmark-btn');
+                const bookmarkIcon = bookmarkBtn.querySelector('i');
+                const fileUrl = getNoteFileUrl(file);
+                
+                let isBookmarked = bookmarkedNoteUrls.includes(fileUrl);
+                if (isBookmarked) {
+                    bookmarkIcon.className = 'bx bxs-bookmark-star';
+                    bookmarkIcon.style.color = '#fbbf24';
+                }
+
+                bookmarkBtn.onclick = async (event) => {
+                    event.stopPropagation();
+                    const facultyName = activeFacultyModalStack[0]?.name || '';
+                    const subjectName = activeFacultyModalStack[1]?.name || '';
+                    const fileName = getNoteFileName(file);
+                    
+                    if (isBookmarked) {
+                        const bookmarkItem = bookmarkedNotesList.find(b => b.fileUrl === fileUrl);
+                        if (bookmarkItem) {
+                            const res = await apiFetch(`/bookmarks/${bookmarkItem.noteId}`, {
+                                method: 'DELETE'
+                            });
+                            if (res.success) {
+                                bookmarkIcon.className = 'bx bx-bookmark';
+                                bookmarkIcon.style.color = '';
+                                isBookmarked = false;
+                                await syncBookmarks();
+                            }
+                        }
+                    } else {
+                        const res = await apiFetch('/bookmarks', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                file_name: fileName,
+                                file_url: fileUrl,
+                                faculty_name: facultyName,
+                                subject_name: subjectName
+                            })
+                        });
+                        if (res.success) {
+                            bookmarkIcon.className = 'bx bxs-bookmark-star';
+                            bookmarkIcon.style.color = '#fbbf24';
+                            isBookmarked = true;
+                            await syncBookmarks();
+                        }
+                    }
+                };
+
                 fileList.appendChild(item);
             });
 
@@ -1636,36 +1918,56 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ==================== TOP RATED NOTES LOGIC ====================
+    // ==================== MOST BOOKMARKED NOTES LOGIC ====================
     async function renderTopRatedNotes() {
         const grid = document.getElementById('topRatedNotesGrid');
         if (!grid) return;
         grid.innerHTML = '<div style="grid-column:1/-1; text-align:center;"><i class="bx bx-loader-alt bx-spin"></i></div>';
         
-        const res = await apiFetch('/stars/top');
-        if (res.success && res.data) {
+        const res = await apiFetch('/bookmarks/top');
+        if (res.success && Array.isArray(res.data) && res.data.length) {
             grid.innerHTML = res.data.map(note => `
-                <div class="note-card glass-panel" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 16px; padding: 15px; transition: 0.3s;">
+                <div class="note-card glass-panel most-bookmarked-card" data-note-id="${escapeHtml(note.id)}" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 16px; padding: 15px; transition: 0.3s; cursor: pointer;">
                     <div class="note-card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <i class='bx bxs-file-pdf' style="font-size: 24px; color: var(--accent);"></i>
                         <div class="star-rating" style="display: flex; align-items: center; gap: 4px; color: #fbbf24; font-weight: 600;">
-                            <i class='bx bxs-star'></i>
-                            <span>${note.star_count}</span>
+                            <i class='bx bxs-bookmark-star'></i>
+                            <span>${note.bookmark_count}</span>
                         </div>
                     </div>
                     <div class="note-card-body" style="margin-bottom: 15px;">
-                        <h4 style="margin: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${note.title}</h4>
-                        <p style="margin: 4px 0 0; font-size: 12px; color: var(--text-muted);">${note.subject_name || 'Notezilla'}</p>
+                        <h4 style="margin: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(note.title)}</h4>
+                        <p style="margin: 4px 0 0; font-size: 12px; color: var(--text-muted);">${escapeHtml(note.subject_name || 'Notezilla')}</p>
                     </div>
-                    <div class="note-card-footer">
-                        <button class="btn-glass" onclick="openNoteAnalysis('${note.id}', '${note.title.replace(/'/g, "\\'")}', '${note.file_url}')" style="width: 100%; padding: 8px; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                            <i class='bx bx-brain'></i> Analyze
+                    <div class="note-card-footer" style="display:flex; gap:8px;">
+                        <button class="btn-glass open-bookmarked-note" style="flex:1; padding: 8px; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class='bx bx-show'></i> Open note
+                        </button>
+                        <button class="icon-btn-outline bookmark-top-note" title="${bookmarkedNoteIds.some(id => String(id) === String(note.id)) ? 'Remove bookmark' : 'Bookmark note'}">
+                            <i class='bx ${bookmarkedNoteIds.some(id => String(id) === String(note.id)) ? 'bxs-bookmark-star' : 'bx-bookmark'}'></i>
                         </button>
                     </div>
                 </div>
             `).join('');
+
+            grid.querySelectorAll('.most-bookmarked-card').forEach((card, index) => {
+                const note = res.data[index];
+                const openNote = () => window.openNoteAnalysis(note.id, note.title, getDrivePreviewUrl(note.file_url), 'db', note.file_name || note.title);
+                card.onclick = (event) => {
+                    if (event.target.closest('button')) return;
+                    openNote();
+                };
+                card.querySelector('.open-bookmarked-note').onclick = (event) => {
+                    event.stopPropagation();
+                    openNote();
+                };
+                card.querySelector('.bookmark-top-note').onclick = async (event) => {
+                    event.stopPropagation();
+                    await toggleBookmark(note.id);
+                };
+            });
         } else {
-            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center;">No high-rated notes found.</div>';
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:var(--text-muted);">No bookmarked notes yet.</div>';
         }
     }
 
@@ -1685,7 +1987,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.success) {
             if (dsaSetupPrompt) dsaSetupPrompt.style.display = 'none';
             if (dsaLoadingOverlay) dsaLoadingOverlay.style.display = 'none';
-            if (dsaContentArea) dsaContentArea.style.display = 'block';
+            if (dsaContentArea) dsaContentArea.style.display = 'flex';
             
             currentDsaDay = res.data.day;
             currentDsaLanguage = res.data.programming_language;
@@ -1965,19 +2267,151 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentNoteId = null;
     let currentNoteSource = 'db'; // 'db' or 'drive'
     let currentNoteFileName = '';
+    let currentNoteTitle = '';
+    let currentNoteUrl = '';
+    let currentNoteFacultyName = '';
+    let currentNoteSubjectName = '';
+    let selectedNoteText = '';
     const noteAnalysisModal = document.getElementById('noteAnalysisModal');
     const analysisNoteTitle = document.getElementById('analysisNoteTitle');
     const analysisFrame = document.getElementById('analysisFrame');
+    const pdfDocumentViewer = document.getElementById('pdfDocumentViewer');
+    const textSelectionActions = document.getElementById('textSelectionActions');
+    const analysisBookmarkBtn = document.getElementById('analysisBookmarkBtn');
     const startAnalysisBtn = document.getElementById('startAnalysisBtn');
     const closeAnalysisModal = document.getElementById('closeAnalysisModal');
 
-    window.openNoteAnalysis = (noteId, title, url, source = 'db', fileName = '') => {
+    if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    window.openNoteDetails = (id) => {
+        localStorage.setItem('selectedNoteId', id);
+        window.location.href = 'note-detail.html';
+    };
+
+    const isCurrentNoteBookmarked = () => {
+        if (currentNoteSource === 'db') {
+            return bookmarkedNoteIds.some(id => String(id) === String(currentNoteId));
+        }
+        return bookmarkedNoteUrls.includes(currentNoteUrl);
+    };
+
+    const updateAnalysisBookmarkButton = () => {
+        if (!analysisBookmarkBtn) return;
+        const isBookmarked = isCurrentNoteBookmarked();
+        analysisBookmarkBtn.classList.toggle('bookmarked', isBookmarked);
+        analysisBookmarkBtn.setAttribute('aria-pressed', String(isBookmarked));
+        analysisBookmarkBtn.querySelector('i').className = `bx ${isBookmarked ? 'bxs-bookmark-star' : 'bx-bookmark'}`;
+        analysisBookmarkBtn.querySelector('.note-save-copy strong').textContent = isBookmarked ? 'Saved' : 'Save note';
+        analysisBookmarkBtn.querySelector('.note-save-copy small').textContent = isBookmarked ? 'In your bookmarks' : 'Add to bookmarks';
+    };
+
+    const renderPdfTextLayer = async (page, viewport, pageElement) => {
+        const textContent = await page.getTextContent();
+        const layer = document.createElement('div');
+        layer.className = 'pdf-text-layer';
+        layer.style.width = `${viewport.width}px`;
+        layer.style.height = `${viewport.height}px`;
+        pageElement.appendChild(layer);
+
+        textContent.items.forEach((item) => {
+            const tx = window.pdfjsLib.Util.transform(viewport.transform, item.transform);
+            const angle = Math.atan2(tx[1], tx[0]);
+            const fontHeight = Math.hypot(tx[2], tx[3]);
+            const span = document.createElement('span');
+            span.textContent = item.str;
+            span.style.left = `${tx[4]}px`;
+            span.style.top = `${tx[5] - fontHeight}px`;
+            span.style.fontSize = `${fontHeight}px`;
+            span.style.fontFamily = textContent.styles[item.fontName]?.fontFamily || 'sans-serif';
+            layer.appendChild(span);
+            const expectedWidth = item.width * viewport.scale;
+            const measuredWidth = span.getBoundingClientRect().width;
+            const scaleX = measuredWidth > 0 && expectedWidth > 0 ? expectedWidth / measuredWidth : 1;
+            span.style.transform = `rotate(${angle}rad) scaleX(${scaleX})`;
+        });
+    };
+
+    const loadSelectablePdf = async () => {
+        if (!window.pdfjsLib || !pdfDocumentViewer) return false;
+        pdfDocumentViewer.innerHTML = '<div style="color:white;text-align:center;padding:40px"><i class="bx bx-loader-alt bx-spin"></i> Loading selectable PDF...</div>';
+        pdfDocumentViewer.classList.add('active');
+        analysisFrame.style.display = 'none';
+
+        try {
+            const endpoint = currentNoteSource === 'drive' ? '/api/drive/content' : `/api/notes/${encodeURIComponent(currentNoteId)}/content`;
+            const response = await fetch(endpoint, {
+                method: currentNoteSource === 'drive' ? 'POST' : 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    ...(currentNoteSource === 'drive' ? { 'Content-Type': 'application/json' } : {})
+                },
+                body: currentNoteSource === 'drive' ? JSON.stringify({ fileId: currentNoteId }) : undefined
+            });
+            if (!response.ok) throw new Error('Unable to fetch PDF');
+            const pdf = await window.pdfjsLib.getDocument({ data: await response.arrayBuffer() }).promise;
+            pdfDocumentViewer.innerHTML = '';
+
+            const availableWidth = Math.max(560, pdfDocumentViewer.clientWidth - 48);
+            for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+                const page = await pdf.getPage(pageNumber);
+                const baseViewport = page.getViewport({ scale: 1 });
+                const scale = Math.min(1.45, availableWidth / baseViewport.width);
+                const viewport = page.getViewport({ scale });
+                const pageElement = document.createElement('div');
+                pageElement.className = 'pdf-page';
+                pageElement.style.width = `${viewport.width}px`;
+                pageElement.style.height = `${viewport.height}px`;
+                const canvas = document.createElement('canvas');
+                const outputScale = window.devicePixelRatio || 1;
+                canvas.width = Math.floor(viewport.width * outputScale);
+                canvas.height = Math.floor(viewport.height * outputScale);
+                canvas.style.width = `${viewport.width}px`;
+                canvas.style.height = `${viewport.height}px`;
+                pageElement.appendChild(canvas);
+                pdfDocumentViewer.appendChild(pageElement);
+                await page.render({
+                    canvasContext: canvas.getContext('2d'),
+                    viewport,
+                    transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0]
+                }).promise;
+                await renderPdfTextLayer(page, viewport, pageElement);
+            }
+            return true;
+        } catch (error) {
+            console.error('Selectable PDF viewer error:', error);
+            pdfDocumentViewer.classList.remove('active');
+            pdfDocumentViewer.innerHTML = '';
+            analysisFrame.style.display = 'block';
+            return false;
+        }
+    };
+
+    window.openNoteAnalysis = (noteId, title, url, source = 'db', fileName = '', metadata = {}) => {
         currentNoteId = noteId;
         currentNoteSource = source;
         currentNoteFileName = fileName || title;
+        currentNoteTitle = title;
+        currentNoteUrl = metadata.fileUrl || url;
+        currentNoteFacultyName = metadata.facultyName || '';
+        currentNoteSubjectName = metadata.subjectName || '';
+        selectedNoteText = '';
         if (analysisNoteTitle) analysisNoteTitle.textContent = title;
-        if (analysisFrame) analysisFrame.src = url;
+        if (analysisFrame) {
+            analysisFrame.src = url;
+            analysisFrame.style.display = 'block';
+        }
+        if (pdfDocumentViewer) {
+            pdfDocumentViewer.classList.remove('active');
+            pdfDocumentViewer.innerHTML = '';
+        }
         if (noteAnalysisModal) noteAnalysisModal.classList.add('show');
+        if (textSelectionActions) textSelectionActions.classList.remove('show');
+        updateAnalysisBookmarkButton();
+
+        const looksLikePdf = /\.pdf(?:$|[?#])/i.test(currentNoteFileName) || /\.pdf(?:$|[?#])/i.test(url);
+        if (looksLikePdf) loadSelectablePdf();
         
         const resultContent = document.getElementById('analysisResultContent');
         const placeholder = document.querySelector('.placeholder-text');
@@ -1988,12 +2422,51 @@ document.addEventListener('DOMContentLoaded', () => {
         if (chatMessages) {
             chatMessages.innerHTML = '<div class="chat-msg bot">Hi! I\'m Aadhi. I can help you understand this document. What would you like to know?</div>';
         }
+
+        const flashcardsResult = document.getElementById('flashcardsResult');
+        const flashcardsEmpty = document.getElementById('flashcardsEmpty');
+        if (flashcardsResult) flashcardsResult.innerHTML = '';
+        if (flashcardsEmpty) flashcardsEmpty.style.display = 'block';
     };
+
+    if (analysisBookmarkBtn) {
+        analysisBookmarkBtn.onclick = async () => {
+            analysisBookmarkBtn.disabled = true;
+            analysisBookmarkBtn.classList.add('saving');
+            let result;
+            if (currentNoteSource === 'db') {
+                result = await toggleBookmark(currentNoteId);
+            } else {
+                const saved = bookmarkedNotesList.find(item => item.fileUrl === currentNoteUrl);
+                result = saved
+                    ? await apiFetch(`/bookmarks/${saved.noteId}`, { method: 'DELETE' })
+                    : await apiFetch('/bookmarks', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            file_name: currentNoteFileName || currentNoteTitle,
+                            file_url: currentNoteUrl,
+                            faculty_name: currentNoteFacultyName,
+                            subject_name: currentNoteSubjectName
+                        })
+                    });
+                if (result.success) {
+                    await syncBookmarks();
+                    renderTopRatedNotes();
+                }
+            }
+            if (!result?.success) alert(result?.message || 'Unable to update this bookmark. Please try again.');
+            analysisBookmarkBtn.disabled = false;
+            analysisBookmarkBtn.classList.remove('saving');
+            updateAnalysisBookmarkButton();
+        };
+    }
 
     if (closeAnalysisModal) {
         closeAnalysisModal.onclick = () => {
             noteAnalysisModal.classList.remove('show');
             analysisFrame.src = '';
+            if (pdfDocumentViewer) pdfDocumentViewer.innerHTML = '';
+            if (textSelectionActions) textSelectionActions.classList.remove('show');
         };
     }
 
@@ -2001,6 +2474,10 @@ document.addEventListener('DOMContentLoaded', () => {
         startAnalysisBtn.onclick = async () => {
             const loading = document.getElementById('analysisLoading');
             if (loading) loading.style.display = 'flex';
+            startAnalysisBtn.disabled = true;
+            startAnalysisBtn.classList.add('saving');
+            startAnalysisBtn.querySelector('.note-save-copy strong').textContent = 'Analyzing…';
+            startAnalysisBtn.querySelector('.note-save-copy small').textContent = 'Reading this note';
             
             let res;
             if (currentNoteSource === 'drive') {
@@ -2012,6 +2489,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 res = await apiFetch(`/notes/${currentNoteId}/analyze`, { method: 'POST' });
             }
             if (loading) loading.style.display = 'none';
+            startAnalysisBtn.disabled = false;
+            startAnalysisBtn.classList.remove('saving');
+            startAnalysisBtn.querySelector('.note-save-copy strong').textContent = 'AI analysis';
+            startAnalysisBtn.querySelector('.note-save-copy small').textContent = 'Summarize this note';
             
             if (res.success) {
                 document.querySelector('.placeholder-text').style.display = 'none';
@@ -2054,22 +2535,90 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Chat Tabs & Messages
+    // AI Sidebar Tabs, PDF Selection & Study Tools
+    const activateAnalysisTab = (target) => {
+        document.querySelectorAll('.ai-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.tab === target));
+        document.getElementById('analysisSummary').style.display = target === 'summary' ? 'block' : 'none';
+        document.getElementById('analysisChat').style.display = target === 'chat' ? 'flex' : 'none';
+        document.getElementById('analysisFlashcards').style.display = target === 'flashcards' ? 'flex' : 'none';
+        if (target === 'chat') {
+            const list = document.getElementById('analysisChatMessages');
+            if (list) list.scrollTop = list.scrollHeight;
+        }
+    };
+
     document.querySelectorAll('.ai-tab').forEach(tab => {
-        tab.onclick = () => {
-            document.querySelectorAll('.ai-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            const target = tab.dataset.tab;
-            document.getElementById('analysisSummary').style.display = target === 'summary' ? 'block' : 'none';
-            document.getElementById('analysisChat').style.display = target === 'chat' ? 'flex' : 'none';
-            
-            // Scroll chat to bottom if switching to chat
-            if (target === 'chat') {
-                const list = document.getElementById('analysisChatMessages');
-                if (list) list.scrollTop = list.scrollHeight;
-            }
-        };
+        tab.onclick = () => activateAnalysisTab(tab.dataset.tab);
     });
+
+    let selectionTimer = null;
+    const updatePdfSelectionActions = () => {
+        const selection = window.getSelection();
+        const text = selection?.toString().replace(/\s+/g, ' ').trim() || '';
+        const anchorElement = selection?.anchorNode?.nodeType === Node.TEXT_NODE
+            ? selection.anchorNode.parentElement
+            : selection?.anchorNode;
+        if (text.length < 3 || !anchorElement || !pdfDocumentViewer?.contains(anchorElement) || selection.rangeCount === 0) {
+            textSelectionActions?.classList.remove('show');
+            return;
+        }
+
+        selectedNoteText = text.slice(0, 8000);
+        const rect = selection.getRangeAt(0).getBoundingClientRect();
+        textSelectionActions.style.left = `${Math.max(12, Math.min(window.innerWidth - 310, rect.left))}px`;
+        textSelectionActions.style.top = `${Math.max(12, rect.top - 54)}px`;
+        textSelectionActions.classList.add('show');
+    };
+
+    if (pdfDocumentViewer) {
+        pdfDocumentViewer.addEventListener('mouseup', () => setTimeout(updatePdfSelectionActions, 0));
+        pdfDocumentViewer.addEventListener('keyup', updatePdfSelectionActions);
+        document.addEventListener('selectionchange', () => {
+            clearTimeout(selectionTimer);
+            selectionTimer = setTimeout(updatePdfSelectionActions, 140);
+        });
+    }
+
+    const requestSelectedTextStudyHelp = async (action) => {
+        if (!selectedNoteText) return;
+        activateAnalysisTab('flashcards');
+        textSelectionActions.classList.remove('show');
+
+        const emptyState = document.getElementById('flashcardsEmpty');
+        const result = document.getElementById('flashcardsResult');
+        emptyState.style.display = 'none';
+        const label = action === 'flashcards' ? 'Flashcards' : 'Explanation';
+        const icon = action === 'flashcards' ? 'bx-layer' : 'bx-bulb';
+        result.innerHTML = `
+            <div class="result-heading"><i class='bx ${icon}'></i><h4>${label}</h4></div>
+            <div class="selection-context">${escapeHtml(selectedNoteText.slice(0, 450))}${selectedNoteText.length > 450 ? '…' : ''}</div>
+            <div style="text-align:center; padding:26px; color:var(--text-muted);"><i class="bx bx-loader-alt bx-spin"></i> Aadhi is preparing ${label.toLowerCase()}...</div>
+        `;
+
+        const prompt = action === 'flashcards'
+            ? `Create concise study flashcards only from the selected passage below. Use markdown with one numbered heading per card, then **Question:** and **Answer:**. Include 4-8 cards depending on the material.\n\nSelected passage:\n${selectedNoteText}`
+            : `Explain the selected passage below in student-friendly language. Break down difficult terms, give a short example when useful, and finish with a one-sentence takeaway. Do not discuss unrelated parts of the document.\n\nSelected passage:\n${selectedNoteText}`;
+
+        const response = currentNoteSource === 'drive'
+            ? await apiFetch('/drive/chat', { method: 'POST', body: JSON.stringify({ fileId: currentNoteId, fileName: currentNoteFileName, message: prompt }) })
+            : await apiFetch(`/notes/${currentNoteId}/chat`, { method: 'POST', body: JSON.stringify({ message: prompt }) });
+
+        const content = response.success
+            ? (typeof marked !== 'undefined' ? marked.parse(response.response || '') : escapeHtml(response.response || ''))
+            : `<div style="color:#ef4444"><i class='bx bx-error-circle'></i> ${escapeHtml(response.message || 'Unable to generate this study aid right now.')}</div>`;
+        result.innerHTML = `
+            <div class="result-heading"><i class='bx ${icon}'></i><h4>${label}</h4></div>
+            <div class="selection-context">${escapeHtml(selectedNoteText.slice(0, 450))}${selectedNoteText.length > 450 ? '…' : ''}</div>
+            <div class="ai-md-body">${content}</div>
+        `;
+        if (window.renderMathInElement) renderMathInElement(result, { throwOnError: false });
+    };
+
+    if (textSelectionActions) {
+        textSelectionActions.querySelectorAll('[data-selection-action]').forEach(button => {
+            button.onclick = () => requestSelectedTextStudyHelp(button.dataset.selectionAction);
+        });
+    }
 
     const sendAadhiChatMessage = async (msg) => {
         const list = document.getElementById('analysisChatMessages');
@@ -2156,8 +2705,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTasks();
     renderPlanner();
     updateStudyProgress();
-    syncBookmarks();
-    renderTopRatedNotes();
+    renderProgress();
+    loadTimetable();
+    syncBookmarks().then(renderTopRatedNotes);
     renderAnnouncements();
     
     // Default view
