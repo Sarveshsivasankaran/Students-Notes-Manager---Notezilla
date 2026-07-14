@@ -1,331 +1,233 @@
-# 📝 Notezilla 2.0 - Academic Notes Management System
+# Notezilla 2.0
 
-**Notezilla** is a premium student notes management platform with full-stack capabilities. It features a beautiful modern UI, secure user authentication with role-based access control, and Supabase PostgreSQL database integration for reliable data persistence.
+Notezilla is a full-stack academic notes platform for Rajalakshmi Engineering College. It combines a structured Supabase-backed repository with Google Drive faculty folders, role-based dashboards, real-time activity, AI study tools, productivity tracking, and a Daily DSA learning module.
 
-## ✨ Features
+## Highlights
 
-### User Management
-- 🎭 **Three User Roles**: Students, Staff (Faculty), and Administrators
-- 🔐 **Secure Authentication**: JWT tokens with bcrypt password hashing
-- 📧 **Email Verification**: Students must use @rajalakshmi.edu.in email domain
-- ✅ **Admin Approval System**: Staff accounts require administrator approval
+### Student experience
 
-### For Students
-- 👨‍🏫 **Browse Faculty**: View faculty profiles and their ratings
-- 📚 **Explore Subjects**: Browse subjects by department and semester
-- 📄 **Access Notes**: Download verified course materials
-- ⭐ **Rate & Review**: Rate notes on clarity, completeness, and helpfulness
-- 🔖 **Bookmarks**: Save favorite notes for quick access
-- 🔍 **Search & Filter**: Find notes by title, type, department, or semester
+- Browse subjects, faculty folders, and verified study materials.
+- Preview PDFs inside the dashboard with a selectable text layer.
+- Ask Aadhi questions about a note or generate a complete AI summary.
+- Highlight PDF text to create flashcards or request a focused explanation.
+- Bookmark database and Google Drive notes, with a personal Bookmarks view.
+- Discover the most-bookmarked notes across the website.
+- Rate notes for clarity, completeness, and helpfulness.
+- Manage personal tasks and daily planner sessions.
+- View a productivity score derived from completed goals and recent study activity.
+- Upload and replace a private semester timetable image, then open it in a zoomable overlay.
+- Follow a personalized 14-day Daily DSA roadmap with code execution and progress tracking.
 
-### For Staff/Faculty
-- 📤 **Upload Notes**: Share course materials with students
-- 📊 **Track Downloads**: Monitor note download statistics
-- 📝 **Version Control**: Update notes while preserving version history
+### Staff and administration
 
-### For Administrators
-- 👥 **Staff Management**: Approve or reject faculty registrations
-- ✅ **Content Verification**: Review and verify uploaded notes
-- 📈 **Dashboard**: Monitor platform activity
+- Staff registration with administrator approval.
+- Faculty profiles, subject mapping, office-hour extraction, and repository management.
+- Shared Google Drive faculty-folder synchronization.
+- Note download tracking and note version updates.
+- Administrator workflows for approving staff and verifying or rejecting notes.
 
-## 🚀 Quick Start
+### Platform features
 
-### Prerequisites
-- **Node.js** (v14 or higher)
-- **Supabase Account** (Free tier works)
-- **npm** or **yarn**
+- JWT authentication and role-based authorization.
+- Supabase PostgreSQL persistence.
+- Real-time Socket.IO presence and dashboard synchronization.
+- Landing-page statistics sourced from Supabase and the live Google Drive repository.
+- Aadhi general support chat powered through the configured AI provider.
+- Responsive glassmorphism interface for desktop, tablet, and mobile.
 
-### Installation
+## Technology stack
 
-1. **Clone the repository**
-```
-bash
-git clone <repository-url>
-cd notezilla
-```
+- Frontend: HTML5, CSS3, Vanilla JavaScript
+- Backend: Node.js, Express 5
+- Database: Supabase PostgreSQL
+- Real-time events: Socket.IO
+- Authentication: JWT and bcryptjs
+- AI: Google Gemini and OpenRouter-compatible models
+- Documents: PDF.js in the browser, plus PDF and Office parsing on the server
+- Repository integration: Google Drive shared-folder tree
 
-2. **Install dependencies**
-```
-bash
-npm install
-```
+## Requirements
 
-3. **Setup Supabase**
-   - Create a new project at [supabase.com](https://supabase.com)
-   - Go to SQL Editor and run the contents of `SUPABASE_SCHEMA.sql`
-   - Get your project URL and anon key from Project Settings > API
+- Node.js 20 or newer
+- npm
+- A Supabase project
+- A publicly readable Google Drive repository folder, if Drive browsing is required
+- Gemini and/or OpenRouter credentials for AI features
 
-4. **Setup environment variables**
-Create a `.env` file:
-```
-env
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-JWT_SECRET=your_secret_key_here
-PORT=5000
-```
+## Installation
 
-5. **Start the server**
-```
-bash
-npm run dev
-```
+1. Clone the repository and enter the project directory.
 
-The server will run on `http://localhost:5000`
+   ```bash
+   git clone <repository-url>
+   cd Students-Notes-Manager---Notezilla
+   ```
 
-6. **Open the application**
-Open your browser and go to:
-```
-http://localhost:5000/public/login.html
-```
+2. Install dependencies.
 
-## 📋 Project Structure
+   ```bash
+   npm install
+   ```
 
-```
-notezilla/
-├── models/
-│   ├── db.js              # Supabase database configuration
-│   └── schemas.js         # Database schemas (reference)
-├── public/
-│   ├── images/            # Logo and images
-│   ├── login.html        # Login page
-│   ├── signup.html       # Sign up page
-│   ├── index.html        # Landing page
-│   ├── faculty-browse.html # Student dashboard
-│   ├── faculty-detail.html  # Faculty profile page
-│   ├── note-detail.html  # Note details with ratings
-│   ├── staff-upload.html # Staff note upload
-│   ├── admin.html        # Admin dashboard
-│   ├── app.js           # Legacy app logic
-│   ├── script.js        # Legacy scripts
-│   └── style.css        # Legacy styles
-├── server.js             # Express server with API routes
-├── SUPABASE_SCHEMA.sql   # Database schema
-├── SUPABASE_SETUP.md     # Supabase setup guide
-├── package.json          # Dependencies and scripts
-└── README.md            # This file
-```
+3. Create the Supabase tables.
 
-## 🔧 API Endpoints
+   Run `UPDATED_SCHEMA.sql` in the Supabase SQL Editor. See `SUPABASE_SETUP.md` for additional setup guidance.
 
-### Authentication
-- **POST** `/api/auth/signup` - Register new user (student/staff)
-- **POST** `/api/auth/login` - Login user
-- **GET** `/api/auth/verify` - Verify JWT token
+4. Create a `.env` file in the project root.
 
-### Faculty
-- **GET** `/api/faculty` - List all faculty with filters
-- **GET** `/api/faculty/:id` - Get faculty profile
-- **GET** `/api/faculty/:id/notes` - Get faculty's verified notes
+   ```env
+   SUPABASE_URL=your_supabase_project_url
+   SUPABASE_ANON_KEY=your_supabase_key
+   JWT_SECRET=replace_with_a_long_random_secret
+   PORT=5000
 
-### Subjects
-- **GET** `/api/subjects` - List subjects with filters
-- **GET** `/api/subjects/:id` - Get subject details with notes
+   GOOGLE_DRIVE_ROOT_FOLDER_ID=your_shared_drive_root_folder_id
 
-### Notes
-- **GET** `/api/notes` - Search/filter verified notes
-- **GET** `/api/notes/:id` - Get note details
-- **POST** `/api/notes` - Upload new note (staff only)
-- **PUT** `/api/notes/:id` - Update note (staff only)
-- **POST** `/api/notes/:id/download` - Track download
+   GEMINI_API_KEY=your_gemini_api_key
+   OPENROUTER_API_KEY=your_openrouter_api_key
+   OPENROUTER_MODEL=your_preferred_openrouter_model
+   ```
 
-### Ratings
-- **** `/api/rGETatings/note/:id` - Get note ratings
-- **POST** `/api/ratings` - Submit rating (student only)
+   AI features require the relevant provider key. Do not commit `.env`.
 
-### Bookmarks
-- **GET** `/api/bookmarks` - Get student's bookmarks
-- **POST** `/api/bookmarks` - Add bookmark
-- **DELETE** `/api/bookmarks/:noteId` - Remove bookmark
+5. Start the development server.
 
-### Admin
-- **GET** `/api/admin/pending-staff` - Get pending staff
-- **POST** `/api/admin/approve-staff/:id` - Approve staff
-- **GET** `/api/admin/pending-notes` - Get unverified notes
-- **POST** `/api/admin/verify-note/:id` - Verify note
+   ```bash
+   npm run dev
+   ```
 
-## 🔐 Authentication Flow
+6. Open the application.
 
-1. **Sign Up**: 
-   - User selects role (Student/Staff)
-   - Students must use @rajalakshmi.edu.in email
-   - Staff require admin approval before uploading
+   - Landing page: `http://localhost:5000/`
+   - Login: `http://localhost:5000/login.html`
+   - Student dashboard: `http://localhost:5000/student-dashboard.html`
 
-2. **Login**: 
-   - Credentials verified against database
-   - JWT token generated with 7-day expiration
-   - Token stored in localStorage
+For production-style startup, use:
 
-3. **Role-Based Access**:
-   - Students: Browse, download, rate, bookmark
-   - Staff: Upload, update notes
-   - Admin: Approve staff, verify content
-
-## 💾 Database Schema
-
-### Users Table
-```
-sql
-- id: UUID (primary key)
-- name: text
-- email: text (unique)
-- password: text (hashed)
-- role: text ('student', 'staff', 'admin')
-- department: text
-- semester: integer
-- is_approved: boolean
-- created_at: timestamp
-```
-
-### Faculty Table
-```
-sql
-- id: UUID (primary key)
-- user_id: UUID (references users)
-- bio: text
-- office_hours: text
-- availability: text
-- average_rating: decimal
-- total_downloads: integer
-```
-
-### Subjects Table
-```
-sql
-- id: UUID (primary key)
-- name: text
-- code: text (unique)
-- department: text
-- semester: integer
-- credits: integer
-```
-
-### Notes Table
-```
-sql
-- id: UUID (primary key)
-- subject_id: UUID (references subjects)
-- faculty_id: UUID (references faculty)
-- title: text
-- type: text ('notes', 'ppt', 'assignment', 'pyq', 'solution')
-- unit: integer
-- semester: integer
-- file_url: text
-- file_name: text
-- is_verified: boolean
-- version: integer
-- downloads: integer
-```
-
-### Ratings Table
-```
-sql
-- id: UUID (primary key)
-- note_id: UUID (references notes)
-- student_id: UUID (references users)
-- clarity_rating: integer (1-5)
-- completeness_rating: integer (1-5)
-- helpfulness_rating: integer (1-5)
-- review_text: text
-```
-
-### Student Bookmarks Table
-```
-sql
-- id: UUID (primary key)
-- student_id: UUID (references users)
-- note_id: UUID (references notes)
-- saved_at: timestamp
-```
-
-## 🎨 UI/UX Features
-
-- **Modern Glassmorphism Design**: Beautiful dark theme with purple accents
-- **Responsive Layout**: Works on desktop, tablet, and mobile
-- **Real-time Search**: Find faculty, subjects, and notes instantly
-- **Faculty Ratings**: See average ratings and download counts
-- **Star Rating System**: Rate notes on multiple criteria
-- **Tabbed Navigation**: Easy switching between views
-- **Loading States**: Smooth loading indicators
-- **Error Handling**: User-friendly error messages
-
-## 🛠 Development
-
-### Run in development mode:
-```
-bash
-npm run dev
-```
-
-### Run in production:
-```
-bash
+```bash
 npm start
 ```
 
-## 📦 Tech Stack
+## Project structure
 
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Backend**: Node.js, Express.js
-- **Database**: Supabase PostgreSQL
-- **Authentication**: JWT (jsonwebtoken), bcryptjs
+```text
+.
+|-- ai-service.js                 # AI analysis and Aadhi chat integration
+|-- models/
+|   |-- db.js                     # Supabase client
+|   `-- schemas.js                # Schema reference models
+|-- public/
+|   |-- index.html                # Public landing page
+|   |-- login.html                # Login
+|   |-- signup.html               # Registration
+|   |-- student-dashboard.html    # Student dashboard and PDF study tools
+|   |-- student-dashboard.js      # Student dashboard behavior
+|   |-- student-dashboard.css     # Student dashboard styling
+|   |-- note-detail.html          # Note details, ratings, and bookmarks
+|   |-- staff-upload.html         # Staff workspace
+|   |-- admin.html                # Administrator workspace
+|   `-- images/                   # Static images and branding
+|-- server.js                     # Express API and application server
+|-- socket-handler.js             # Real-time presence and notifications
+|-- UPDATED_SCHEMA.sql            # Current Supabase schema
+|-- SUPABASE_SCHEMA.sql           # Base schema reference
+|-- SUPABASE_SETUP.md             # Supabase setup guide
+`-- package.json                  # Scripts and dependencies
+```
 
-## 🔒 Security Features
+Uploaded timetable images are stored per user under `data/timetables/`. This directory is ignored by Git and should be placed on persistent storage when deploying the Express server.
 
-- ✅ Password hashing with bcryptjs
-- ✅ JWT token-based authentication
-- ✅ Role-based access control
-- ✅ CORS protection
-- ✅ Protected API endpoints
-- ✅ Automatic token expiration (7 days)
-- ✅ Input validation
-- ✅ Admin approval workflow
+## Main API groups
 
-## 📝 Usage Examples
+### Authentication
 
-### Student Workflow
-1. Sign up with @rajalakshmi.edu.in email
-2. Browse faculty and subjects
-3. Search for relevant notes
-4. Download notes
-5. Rate and review notes
-6. Bookmark favorites
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+- `GET /api/auth/verify`
 
-### Staff Workflow
-1. Sign up with institutional email
-2. Wait for admin approval
-3. Upload course materials
-4. Update notes as needed
+### Public data and repository
 
-### Admin Workflow
-1. Login with admin credentials
-2. Review pending staff registrations
-3. Approve or reject staff
-4. Verify uploaded notes
+- `GET /api/public/stats`
+- `GET /api/drive/faculty-repository`
+- `POST /api/drive/sync` — staff only
+- `GET /api/faculty`
+- `GET /api/faculty/:id`
+- `GET /api/subjects`
+- `GET /api/subjects/:id`
+- `GET /api/notes`
+- `GET /api/notes/:id`
 
-## 🚀 Deployment
+### Bookmarks and ratings
 
-### Deploy to Vercel/Render:
-1. Set environment variables in hosting dashboard
-2. Connect GitHub repository
-3. Deploy automatically
+- `GET /api/bookmarks`
+- `GET /api/bookmarks/top`
+- `POST /api/bookmarks`
+- `DELETE /api/bookmarks/:noteId`
+- `GET /api/ratings/note/:id`
+- `POST /api/ratings`
 
-### Custom Domain:
-Configure your domain in the hosting provider's dashboard
+### AI note tools
 
-## 🤝 Contributing
+- `POST /api/chat`
+- `GET /api/notes/:id/content`
+- `POST /api/notes/:id/analyze`
+- `POST /api/notes/:id/chat`
+- `POST /api/drive/content`
+- `POST /api/drive/analyze`
+- `POST /api/drive/chat`
 
-Feel free to submit issues and enhancement requests!
+### Productivity and timetable
 
-## 📄 License
+- `GET|POST /api/user/tasks`
+- `PUT|DELETE /api/user/tasks/:id`
+- `GET|POST /api/user/planner`
+- `PUT|DELETE /api/user/planner/:id`
+- `GET /api/user/progress`
+- `GET|POST /api/user/activity`
+- `GET|POST /api/user/timetable`
 
-MIT License - feel free to use this project for personal or commercial purposes.
+### Daily DSA
 
-## 👨‍💻 Author
+- `GET /api/dsa/daily`
+- `POST /api/dsa/preference`
+- `POST /api/dsa/run`
+- `POST /api/dsa/progress`
 
-Built with ❤️ by the Notezilla Team
-For Rajalakshmi Engineering College
+### Administration
 
----
+- `GET /api/admin/pending-staff`
+- `POST /api/admin/approve-staff/:userId`
+- `DELETE /api/admin/reject-staff/:userId`
+- `GET /api/admin/pending-notes`
+- `POST /api/admin/verify-note/:id`
+- `DELETE /api/admin/reject-note/:id`
 
-**Happy Note Taking!** 📚✨
+Protected routes require:
+
+```http
+Authorization: Bearer <jwt-token>
+```
+
+## Real-time behavior
+
+Socket.IO tracks connected website sessions and removes disconnected sessions from the online count. The landing page combines this presence stream with repository totals from Supabase and Google Drive. The real-time server also publishes progress synchronization, announcement, upload, and repository-update events for connected clients.
+
+## Security notes
+
+- Passwords are hashed with bcryptjs.
+- JWTs carry the authenticated user identity and role.
+- Server-side middleware protects role-specific routes.
+- Students must register with the configured institutional email domain.
+- Staff accounts require administrator approval.
+- Timetable uploads are authenticated, limited to 5 MB, and validated as PNG, JPG, or WebP files.
+- Secrets belong in `.env`; never expose provider or database keys in frontend code.
+
+For a public deployment, review CORS settings, use a strong JWT secret, configure HTTPS, and use persistent storage for `data/timetables/`.
+
+## License
+
+ISC, as declared in `package.json`.
+
+## Authors
+
+Built by the Notezilla team for Rajalakshmi Engineering College.
