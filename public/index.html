@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notezilla | Modern Student Notes Management</title>
-    <link rel="icon" type="image/png+xml" href="images/notezilla-logo.png">
+    <script src="/runtime-config.js"></script>
+    <link rel="icon" type="image/png" href="/images/notezilla-logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -854,7 +855,7 @@
 
     <nav>
         <a href="index.html" class="logo">
-            <img src="images/notezilla-logo.png" alt="Notezilla"
+            <img src="/images/notezilla-logo.png" alt="Notezilla"
                 style="width: 160px; height:100px; filter: brightness(0) invert(1);">
         </a>
         <div class="nav-links">
@@ -877,7 +878,7 @@
             </div>
         </div>
         <div class="hero-visual">
-            <img src="images/Hero_section_image.png" style="width:auto; height:350px;" alt="Notes" class="hero-image">
+            <img src="/images/Hero_section_image.png" style="width:auto; height:350px;" alt="Notes" class="hero-image">
         </div>
     </header>
 
@@ -1010,7 +1011,7 @@
     <div class="chatbot-container">
         <div class="chatbot-window" id="chatbotWindow">
             <div class="chat-header">
-                <img src="images/logo.avif" alt="Aadhi">
+                <img src="/images/logo.avif" alt="Aadhi">
                 <div class="chat-header-info">
                     <h4>Aadhi</h4>
                     <p>AI Support Assistant</p>
@@ -1036,11 +1037,11 @@
         <div class="chatbot-toggle" id="chatToggle">
             <div class="chatbot-toggle-bg"></div>
             <div class="chatbot-greeting">Hi, I'm Aadhi! 👋</div>
-            <img src="images/logo.avif" alt="Aadhi Chatbot">
+            <img src="/images/logo.avif" alt="Aadhi Chatbot">
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
     <script>
         // Live counters backed by the website database, Drive repository and Socket.IO presence.
         (function() {
@@ -1091,7 +1092,10 @@
             setInterval(refreshRepositoryStats, 60000);
 
             if (typeof io === 'function') {
-                const socket = io();
+                const socket = io(window.NotezillaRuntime.socketUrl, {
+                    transports: ['websocket', 'polling'],
+                    withCredentials: true
+                });
                 const liveLabel = statsSection.querySelector('.live-label');
                 let visitorId = localStorage.getItem('notezilla_presence_id');
                 if (!visitorId) {
@@ -1113,9 +1117,9 @@
         })();
     </script>
 
-    <audio id="hoverSound-1" src="bg_sound/One_Republic.mp3"></audio>
-    <audio id="hoverSound-2" src="bg_sound/End of begining.mp3"></audio>
-    <audio id="hoverSound-3" src="bg_sound/Funk Criminal-Downringtone.mp3"></audio>
+    <audio id="hoverSound-1" src="/bg_sound/One_Republic.mp3"></audio>
+    <audio id="hoverSound-2" src="/bg_sound/End of begining.mp3"></audio>
+    <audio id="hoverSound-3" src="/bg_sound/Funk Criminal-Downringtone.mp3"></audio>
 
     <script>
         // Check if user is already logged in

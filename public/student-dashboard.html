@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard - Notezilla</title>
-    <link rel="icon" type="image/png" href="images/notezilla-logo.PNG">
+    <script src="/runtime-config.js"></script>
+    <link rel="icon" type="image/png" href="/images/notezilla-logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Boxicons for icons -->
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-    <link rel="stylesheet" href="student-dashboard.css">
+    <link rel="stylesheet" href="/student-dashboard.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 </head>
@@ -23,7 +23,7 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <img src="images/notezilla-logo.PNG" alt="Notezilla Logo" class="logo-img">
+                <img src="/images/notezilla-logo.png" alt="Notezilla Logo" class="logo-img">
                 <div class="toggle-btn" id="toggle-sidebar">
                     <i class='bx bx-menu'></i>
                 </div>
@@ -950,7 +950,7 @@
     <div class="chatbot-container" id="chatbotWidget">
         <div class="chatbot-window" id="chatbotWindow">
             <div class="chat-header">
-                <img src="images/logo.avif" alt="Aadhi">
+                <img src="/images/logo.avif" alt="Aadhi">
                 <div class="chat-header-info">
                     <h4>Aadhi</h4>
                     <p>AI Support Assistant</p>
@@ -975,7 +975,7 @@
         <div class="chatbot-toggle" id="chatToggle">
             <div class="chatbot-toggle-bg"></div>
             <div class="chatbot-greeting">Hi, I'm Aadhi! 👋</div>
-            <img src="images/logo.avif" alt="Aadhi Chatbot">
+            <img src="/images/logo.avif" alt="Aadhi Chatbot">
         </div>
     </div>
 
@@ -1072,8 +1072,8 @@
         <img id="timetableLightboxImage" alt="Enlarged semester timetable">
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="document-formatter.js"></script>
-    <script src="student-dashboard.js"></script>
+    <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
+    <script src="/document-formatter.js"></script>
+    <script src="/student-dashboard.js"></script>
 </body>
 </html>

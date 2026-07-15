@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Notezilla</title>
-    <link rel="icon" type="image/png" href="images/notezilla-logo.PNG">
+    <script src="/runtime-config.js"></script>
+    <link rel="icon" type="image/png" href="/images/notezilla-logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -250,15 +251,15 @@
 <body>
     <!-- Background Slider -->
     <div class="bg-slider">
-        <div class="bg-slide" style="background-image: url('images/tran-1.jpg')"></div>
-        <div class="bg-slide" style="background-image: url('images/tran-2.jpg')"></div>
-        <div class="bg-slide" style="background-image: url('images/tran-3.jpg')"></div>
+        <div class="bg-slide" style="background-image: url('/images/tran-1.jpg')"></div>
+        <div class="bg-slide" style="background-image: url('/images/tran-2.jpg')"></div>
+        <div class="bg-slide" style="background-image: url('/images/tran-3.jpg')"></div>
     </div>
     <div class="container">
         <div class="header">
             <div class="logo-section">
                 <a href="index.html">
-                    <img src="images/notezilla-logo.PNG" alt="Notezilla" style="width:190px; filter: brightness(0) invert(1);">
+                    <img src="/images/notezilla-logo.png" alt="Notezilla" style="width:190px; filter: brightness(0) invert(1);">
                 </a>
             </div>
             <h1 class="title">Login</h1>
@@ -292,7 +293,7 @@
     </div>
 
     <script>
-        var API_URL = '/api';
+        var API_URL = window.NotezillaRuntime.apiBaseUrl;
 
         var loginForm = document.getElementById('loginForm');
         var emailInput = document.getElementById('email');

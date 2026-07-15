@@ -1,5 +1,8 @@
 // Initialize Socket.io
-const socket = io();
+const socket = io(window.NotezillaRuntime.socketUrl, {
+    transports: ['websocket', 'polling'],
+    withCredentials: true
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     let bookmarkedNoteIds = [];

@@ -25,9 +25,15 @@ const { initializeSocket, notifyRepositoryUpdate, getPresenceSnapshot } = requir
 const io = initializeSocket(server);
 const aiService = require('./ai-service');
 const compilerService = require('./compiler-service');
+const { corsOrigin } = require('./deployment-config');
 
 // Middleware
-app.use(cors());
+app.set('trust proxy', 1);
+app.use(cors({
+    origin: corsOrigin,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS']
+}));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
@@ -103,6 +109,15 @@ function stripHtmlTags(value = '') {
 }
 
 // ==================== PUBLIC ENDPOINTS ====================
+
+app.get('/api/health', (req, res) => {
+    res.status(200).json({
+        success: true,
+        service: 'notezilla-api',
+        status: 'healthy',
+        timestamp: new Date().toISOString()
+    });
+});
 
 /**
  * Get Public Stats for landing page
@@ -557,7 +572,9 @@ app.get('/api/auth/verify', authenticateToken, async (req, res) => {
 
 // ==================== USER PRODUCTIVITY & SYNC ROUTES ====================
 
-const TIMETABLE_DIR = path.join(__dirname, 'data', 'timetables');
+const TIMETABLE_DIR = process.env.TIMETABLE_DIR
+    ? path.resolve(process.env.TIMETABLE_DIR)
+    : path.join(__dirname, 'data', 'timetables');
 const TIMETABLE_TYPES = {
     png: 'image/png',
     jpg: 'image/jpeg',

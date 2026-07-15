@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - Notezilla</title>
-    <link rel="icon" type="image/png" href="images/notezilla-logo.png">
+    <script src="/runtime-config.js"></script>
+    <link rel="icon" type="image/png" href="/images/notezilla-logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -407,14 +408,14 @@
 <body>
     <!-- Background Slider -->
     <div class="bg-slider">
-        <div class="bg-slide" style="background-image: url('images/tran-1.jpg')"></div>
-        <div class="bg-slide" style="background-image: url('images/tran-2.jpg')"></div>
-        <div class="bg-slide" style="background-image: url('images/tran-3.jpg')"></div>
+        <div class="bg-slide" style="background-image: url('/images/tran-1.jpg')"></div>
+        <div class="bg-slide" style="background-image: url('/images/tran-2.jpg')"></div>
+        <div class="bg-slide" style="background-image: url('/images/tran-3.jpg')"></div>
     </div>
     <div class="container">
         <div class="left-panel">
             <a href="index.html">
-                <img src="images/notezilla-logo.PNG" alt="Notezilla" style="width:auto; height:auto;">
+                <img src="/images/notezilla-logo.png" alt="Notezilla" style="width:auto; height:auto;">
             </a>
         </div>
         <div class="right-panel">
@@ -514,7 +515,7 @@
     </div>
 
     <script>
-        const API_URL = '/api';
+        const API_URL = window.NotezillaRuntime.apiBaseUrl;
 
         const signupForm = document.getElementById('signupForm');
         const roleInputs = document.querySelectorAll('input[name="role"]');

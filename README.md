@@ -108,11 +108,28 @@ For production-style startup, use:
 npm start
 ```
 
+## Deployment
+
+The production deployment is split by responsibility:
+
+- **Vercel** builds and serves the static `public/` frontend from `.dist`.
+- **Railway** runs Express, Socket.IO, document processing, AI routes, and the Daily DSA compiler proxy.
+- **Supabase** remains the database, with a Railway volume preserving uploaded timetable images.
+
+The frontend build injects `RAILWAY_BACKEND_URL` into a runtime configuration file, so existing API requests and Socket.IO connections target Railway without exposing backend secrets. It also validates static asset paths and exact filename casing before deployment.
+
+Follow [DEPLOYMENT.md](DEPLOYMENT.md) for the Railway variables, persistent volume, Vercel settings, and production verification checklist.
+
 ## Project structure
 
 ```text
 .
 |-- ai-service.js                 # AI analysis and Aadhi chat integration
+|-- deployment-config.js          # Railway/Vercel CORS configuration
+|-- railway.json                  # Railway build, start, and health-check settings
+|-- vercel.json                   # Vercel static frontend settings
+|-- scripts/
+|   `-- build-frontend.js         # Runtime config injection and asset validation
 |-- models/
 |   |-- db.js                     # Supabase client
 |   `-- schemas.js                # Schema reference models
@@ -123,6 +140,7 @@ npm start
 |   |-- student-dashboard.html    # Student dashboard and PDF study tools
 |   |-- student-dashboard.js      # Student dashboard behavior
 |   |-- student-dashboard.css     # Student dashboard styling
+|   |-- runtime-config.js         # Local/API endpoint runtime configuration
 |   |-- note-detail.html          # Note details, ratings, and bookmarks
 |   |-- staff-upload.html         # Staff workspace
 |   |-- admin.html                # Administrator workspace
@@ -132,6 +150,7 @@ npm start
 |-- UPDATED_SCHEMA.sql            # Current Supabase schema
 |-- SUPABASE_SCHEMA.sql           # Base schema reference
 |-- SUPABASE_SETUP.md             # Supabase setup guide
+|-- DEPLOYMENT.md                 # Vercel + Railway deployment instructions
 `-- package.json                  # Scripts and dependencies
 ```
 

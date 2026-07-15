@@ -2,6 +2,7 @@
  * Notezilla Real-time Sync Handler
  */
 const socketIo = require('socket.io');
+const { corsOrigin } = require('./deployment-config');
 
 let io;
 const socketIdentities = new Map();
@@ -22,8 +23,9 @@ const setSocketIdentity = (socket, prefix, value) => {
 const initializeSocket = (server) => {
     io = socketIo(server, {
         cors: {
-            origin: "*",
-            methods: ["GET", "POST"]
+            origin: corsOrigin,
+            methods: ["GET", "POST"],
+            credentials: true
         }
     });
 

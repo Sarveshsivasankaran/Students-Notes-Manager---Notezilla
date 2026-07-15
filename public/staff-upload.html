@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drive Sync - Notezilla</title>
-    <link rel="icon" type="image/png" href="images/notezilla-logo.PNG">
+    <script src="/runtime-config.js"></script>
+    <link rel="icon" type="image/png" href="/images/notezilla-logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -505,7 +506,7 @@
     <div class="container">
         <!-- Navbar -->
         <div class="navbar">
-            <div class="logo"><img src="images/notezilla-logo.PNG" alt="Notezilla"
+            <div class="logo"><img src="/images/notezilla-logo.png" alt="Notezilla"
                     style="height:100px; filter: brightness(0) invert(1);"></div>
             <div class="user-menu">
                 <span id="userName" style="font-size: 13px; color: #64748b;"></span>
@@ -626,7 +627,7 @@
 
     <script>
         // Use relative API path for flexibility across environments
-        const API_URL = '/api';
+        const API_URL = window.NotezillaRuntime.apiBaseUrl;
         let selectedType = 'notes';
 
         // Initialize
