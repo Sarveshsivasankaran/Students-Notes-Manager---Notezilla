@@ -134,9 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const target = navItems[viewKey];
         if (target) {
-            if (target.view) target.view.style.display = (viewKey === 'dashboard' || viewKey === 'profile' || viewKey === 'subjects' || viewKey === 'progress' || viewKey === 'bookmarks' || viewKey === 'faculty' || viewKey === 'dsa') ? 'flex' : 'block';
-            // Announcements and Profile sometimes use different layouts, but let's stick to flex mostly
-            if (viewKey === 'announcements') target.view.style.display = 'block';
+            if (target.view) target.view.style.display = (viewKey === 'dashboard' || viewKey === 'profile' || viewKey === 'subjects' || viewKey === 'announcements' || viewKey === 'progress' || viewKey === 'bookmarks' || viewKey === 'faculty' || viewKey === 'dsa') ? 'flex' : 'block';
             if (target.nav) target.nav.classList.add('active');
 
             // Trigger specific renders
@@ -1976,9 +1974,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const dsaContentArea = document.getElementById('dsa-content-area');
     const dsaLoadingOverlay = document.getElementById('dsa-loading-overlay');
     const dsaOnboardingForm = document.getElementById('dsa-onboarding-form');
+    const dsaLanguageSelect = document.getElementById('dsaLanguageSelect');
     
     let currentDsaDay = 1;
     let currentDsaLanguage = 'python';
+    let currentDsaLearningGoal = '';
     
     async function fetchDSA() {
         if (dsaLoadingOverlay) dsaLoadingOverlay.style.display = 'none';
@@ -1990,7 +1990,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dsaContentArea) dsaContentArea.style.display = 'flex';
             
             currentDsaDay = res.data.day;
-            currentDsaLanguage = res.data.programming_language;
+            currentDsaLanguage = res.data.programming_language || 'python';
+            currentDsaLearningGoal = res.data.learning_goal || currentDsaLearningGoal;
             
             renderDSA(res.data);
         } else if (res.needsLanguage) {
@@ -2034,6 +2035,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const meta = data.language_meta || {};
             langPill.textContent = meta.label || data.programming_language.toUpperCase();
         }
+        if (dsaLanguageSelect) dsaLanguageSelect.value = data.programming_language || '';
         
         // Editor configuration
         const editorFile = document.getElementById('dsa-editor-file');
@@ -2108,6 +2110,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Preference configuration failed: ' + (res.message || 'Unknown error'));
                 if (dsaSetupPrompt) dsaSetupPrompt.style.display = 'block';
                 if (dsaLoadingOverlay) dsaLoadingOverlay.style.display = 'none';
+            }
+        };
+    }
+
+    if (dsaLanguageSelect) {
+        dsaLanguageSelect.onchange = async () => {
+            const language = dsaLanguageSelect.value;
+            if (!language || language === currentDsaLanguage || !currentDsaLearningGoal) return;
+
+            dsaLanguageSelect.disabled = true;
+            const res = await apiFetch('/dsa/preference', {
+                method: 'POST',
+                body: JSON.stringify({ language, learningGoal: currentDsaLearningGoal })
+            });
+            dsaLanguageSelect.disabled = false;
+
+            if (res.success) {
+                currentDsaLanguage = language;
+                await fetchDSA();
+            } else {
+                dsaLanguageSelect.value = currentDsaLanguage;
+                alert('Unable to change language: ' + (res.message || 'Unknown error'));
             }
         };
     }
@@ -2190,7 +2214,7 @@ document.addEventListener('DOMContentLoaded', () => {
             runCodeBtn.disabled = true;
             runCodeBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Running...";
             
-            runOutput.textContent = 'Compiling and running tests in sandbox env...\n';
+            runOutput.textContent = 'Compiling and running your code in the isolated sandbox...\n';
             runOutput.style.color = '#f59e0b';
             
             try {
@@ -2206,7 +2230,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 runCodeBtn.disabled = false;
                 runCodeBtn.innerHTML = 'Run Check';
                 
-                if (res.success && res.results) {
+                if (res.success && Array.isArray(res.results) && res.results.length > 0) {
                     runOutput.innerHTML = '';
                     let allPassed = true;
                     
@@ -2215,7 +2239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         tcRow.className = 'dsa-tc-row';
                         
                         const statusClass = tc.passed ? 'passed' : 'failed';
-                        const statusLabel = tc.status.toUpperCase();
+                        const statusLabel = String(tc.status || (tc.passed ? 'passed' : 'failed')).replace(/_/g, ' ').toUpperCase();
                         
                         let detailHtml = `
                             <div style="margin-bottom: 5px;">
@@ -2224,11 +2248,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         `;
                         
-                        if (tc.stdout) {
-                            detailHtml += `<div style="color: #cbd5e1; margin-left: 15px;">Output: ${tc.stdout.trim()}</div>`;
+                        if (tc.stdout || !tc.passed) {
+                            detailHtml += `<div class="dsa-tc-detail"><strong>Output</strong><pre>${escapeHtml(String(tc.stdout || '').trim() || '(no output)')}</pre></div>`;
+                        }
+                        if (!tc.passed && typeof tc.expectedOutput === 'string') {
+                            detailHtml += `<div class="dsa-tc-detail expected"><strong>Expected</strong><pre>${escapeHtml(tc.expectedOutput.trim() || '(no output)')}</pre></div>`;
                         }
                         if (tc.stderr) {
-                            detailHtml += `<div style="color: #ef4444; margin-left: 15px; font-weight: 600;">Error: ${tc.stderr}</div>`;
+                            detailHtml += `<div class="dsa-tc-detail error"><strong>Compiler error</strong><pre>${escapeHtml(tc.stderr)}</pre></div>`;
                         }
                         
                         tcRow.innerHTML = detailHtml;
@@ -2333,6 +2360,97 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const renderSelectableDocumentText = (text) => {
+        const documentText = document.createElement('article');
+        documentText.className = 'selectable-document-text';
+
+        const header = document.createElement('header');
+        header.className = 'selectable-document-header';
+        const badge = document.createElement('span');
+        badge.className = 'selectable-document-badge';
+        badge.innerHTML = "<i class='bx bx-text'></i> Selectable document";
+        const title = document.createElement('h2');
+        title.textContent = currentNoteTitle || currentNoteFileName || 'Document';
+        const hint = document.createElement('p');
+        hint.textContent = 'Highlight any passage to create flashcards or request an explanation.';
+        header.append(badge, title, hint);
+
+        const body = document.createElement('div');
+        body.className = 'selectable-document-body';
+        const formatter = window.NotezillaDocumentFormatter;
+        const blocks = formatter?.parse ? formatter.parse(text) : [{ type: 'paragraph', text }];
+
+        blocks.forEach(block => {
+            if (block.type === 'heading') {
+                const heading = document.createElement(block.level === 2 ? 'h2' : 'h3');
+                heading.textContent = block.text;
+                body.appendChild(heading);
+                return;
+            }
+            if (block.type === 'list') {
+                const list = document.createElement('ul');
+                block.items.forEach(item => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = item;
+                    list.appendChild(listItem);
+                });
+                body.appendChild(list);
+                return;
+            }
+            if (block.type === 'table') {
+                const table = document.createElement('div');
+                table.className = 'selectable-document-table';
+                block.rows.forEach((row, rowIndex) => {
+                    const tableRow = document.createElement('div');
+                    tableRow.className = `selectable-document-table-row${rowIndex === 0 ? ' is-header' : ''}`;
+                    row.forEach(value => {
+                        const cell = document.createElement('span');
+                        cell.textContent = value;
+                        tableRow.appendChild(cell);
+                    });
+                    table.appendChild(tableRow);
+                });
+                body.appendChild(table);
+                return;
+            }
+            if (block.type === 'pageBreak') {
+                const divider = document.createElement('div');
+                divider.className = 'selectable-document-page-break';
+                divider.setAttribute('aria-hidden', 'true');
+                body.appendChild(divider);
+                return;
+            }
+
+            const paragraph = document.createElement('p');
+            paragraph.textContent = block.text;
+            body.appendChild(paragraph);
+        });
+
+        documentText.append(header, body);
+        return documentText;
+    };
+
+    const loadExtractedDocumentText = async () => {
+        if (!pdfDocumentViewer) return false;
+        pdfDocumentViewer.innerHTML = '<div style="color:white;text-align:center;padding:40px"><i class="bx bx-loader-alt bx-spin"></i> Preparing selectable document text...</div>';
+        pdfDocumentViewer.classList.add('active');
+        analysisFrame.style.display = 'none';
+
+        const response = currentNoteSource === 'drive'
+            ? await apiFetch('/drive/text', {
+                method: 'POST',
+                body: JSON.stringify({ fileId: currentNoteId, fileName: currentNoteFileName })
+            })
+            : await apiFetch(`/notes/${encodeURIComponent(currentNoteId)}/text`);
+
+        if (!response.success || !response.text) throw new Error(response.message || 'No selectable text was found');
+
+        const documentText = renderSelectableDocumentText(response.text);
+        pdfDocumentViewer.innerHTML = '';
+        pdfDocumentViewer.appendChild(documentText);
+        return true;
+    };
+
     const loadSelectablePdf = async () => {
         if (!window.pdfjsLib || !pdfDocumentViewer) return false;
         pdfDocumentViewer.innerHTML = '<div style="color:white;text-align:center;padding:40px"><i class="bx bx-loader-alt bx-spin"></i> Loading selectable PDF...</div>';
@@ -2388,6 +2506,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const loadSelectableDocument = async (isPdf) => {
+        if (isPdf && await loadSelectablePdf()) return true;
+
+        try {
+            return await loadExtractedDocumentText();
+        } catch (error) {
+            console.error('Selectable document viewer error:', error);
+            pdfDocumentViewer.classList.remove('active');
+            pdfDocumentViewer.innerHTML = '';
+            analysisFrame.style.display = 'block';
+            return false;
+        }
+    };
+
     window.openNoteAnalysis = (noteId, title, url, source = 'db', fileName = '', metadata = {}) => {
         currentNoteId = noteId;
         currentNoteSource = source;
@@ -2411,7 +2543,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAnalysisBookmarkButton();
 
         const looksLikePdf = /\.pdf(?:$|[?#])/i.test(currentNoteFileName) || /\.pdf(?:$|[?#])/i.test(url);
-        if (looksLikePdf) loadSelectablePdf();
+        const supportsSelectableText = /\.(?:pdf|docx?|pptx?|txt|md|csv)(?:$|[?#])/i.test(currentNoteFileName)
+            || /\.(?:pdf|docx?|pptx?|txt|md|csv)(?:$|[?#])/i.test(url);
+        if (supportsSelectableText) loadSelectableDocument(looksLikePdf);
         
         const resultContent = document.getElementById('analysisResultContent');
         const placeholder = document.querySelector('.placeholder-text');
@@ -2558,12 +2692,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const anchorElement = selection?.anchorNode?.nodeType === Node.TEXT_NODE
             ? selection.anchorNode.parentElement
             : selection?.anchorNode;
-        if (text.length < 3 || !anchorElement || !pdfDocumentViewer?.contains(anchorElement) || selection.rangeCount === 0) {
+        const focusElement = selection?.focusNode?.nodeType === Node.TEXT_NODE
+            ? selection.focusNode.parentElement
+            : selection?.focusNode;
+        if (text.length < 3 || !anchorElement || !focusElement
+            || !pdfDocumentViewer?.contains(anchorElement)
+            || !pdfDocumentViewer.contains(focusElement)
+            || selection.rangeCount === 0) {
             textSelectionActions?.classList.remove('show');
             return;
         }
 
-        selectedNoteText = text.slice(0, 8000);
+        selectedNoteText = text.slice(0, 12000);
         const rect = selection.getRangeAt(0).getBoundingClientRect();
         textSelectionActions.style.left = `${Math.max(12, Math.min(window.innerWidth - 310, rect.left))}px`;
         textSelectionActions.style.top = `${Math.max(12, rect.top - 54)}px`;
@@ -2581,6 +2721,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const requestSelectedTextStudyHelp = async (action) => {
         if (!selectedNoteText) return;
+        const selectionText = selectedNoteText;
         activateAnalysisTab('flashcards');
         textSelectionActions.classList.remove('show');
 
@@ -2589,26 +2730,24 @@ document.addEventListener('DOMContentLoaded', () => {
         emptyState.style.display = 'none';
         const label = action === 'flashcards' ? 'Flashcards' : 'Explanation';
         const icon = action === 'flashcards' ? 'bx-layer' : 'bx-bulb';
+        const selectionPreview = `${escapeHtml(selectionText.slice(0, 450))}${selectionText.length > 450 ? '&hellip;' : ''}`;
         result.innerHTML = `
             <div class="result-heading"><i class='bx ${icon}'></i><h4>${label}</h4></div>
-            <div class="selection-context">${escapeHtml(selectedNoteText.slice(0, 450))}${selectedNoteText.length > 450 ? '…' : ''}</div>
+            <div class="selection-context">${selectionPreview}</div>
             <div style="text-align:center; padding:26px; color:var(--text-muted);"><i class="bx bx-loader-alt bx-spin"></i> Aadhi is preparing ${label.toLowerCase()}...</div>
         `;
 
-        const prompt = action === 'flashcards'
-            ? `Create concise study flashcards only from the selected passage below. Use markdown with one numbered heading per card, then **Question:** and **Answer:**. Include 4-8 cards depending on the material.\n\nSelected passage:\n${selectedNoteText}`
-            : `Explain the selected passage below in student-friendly language. Break down difficult terms, give a short example when useful, and finish with a one-sentence takeaway. Do not discuss unrelated parts of the document.\n\nSelected passage:\n${selectedNoteText}`;
-
-        const response = currentNoteSource === 'drive'
-            ? await apiFetch('/drive/chat', { method: 'POST', body: JSON.stringify({ fileId: currentNoteId, fileName: currentNoteFileName, message: prompt }) })
-            : await apiFetch(`/notes/${currentNoteId}/chat`, { method: 'POST', body: JSON.stringify({ message: prompt }) });
+        const response = await apiFetch('/study-tools/selection', {
+            method: 'POST',
+            body: JSON.stringify({ action, selectedText: selectionText })
+        });
 
         const content = response.success
             ? (typeof marked !== 'undefined' ? marked.parse(response.response || '') : escapeHtml(response.response || ''))
             : `<div style="color:#ef4444"><i class='bx bx-error-circle'></i> ${escapeHtml(response.message || 'Unable to generate this study aid right now.')}</div>`;
         result.innerHTML = `
             <div class="result-heading"><i class='bx ${icon}'></i><h4>${label}</h4></div>
-            <div class="selection-context">${escapeHtml(selectedNoteText.slice(0, 450))}${selectedNoteText.length > 450 ? '…' : ''}</div>
+            <div class="selection-context">${selectionPreview}</div>
             <div class="ai-md-body">${content}</div>
         `;
         if (window.renderMathInElement) renderMathInElement(result, { throwOnError: false });
@@ -2616,6 +2755,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (textSelectionActions) {
         textSelectionActions.querySelectorAll('[data-selection-action]').forEach(button => {
+            button.addEventListener('pointerdown', event => event.preventDefault());
             button.onclick = () => requestSelectedTextStudyHelp(button.dataset.selectionAction);
         });
     }

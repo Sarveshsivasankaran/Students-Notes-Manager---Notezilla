@@ -24,6 +24,7 @@ const server = http.createServer(app);
 const { initializeSocket, notifyRepositoryUpdate, getPresenceSnapshot } = require('./socket-handler');
 const io = initializeSocket(server);
 const aiService = require('./ai-service');
+const compilerService = require('./compiler-service');
 
 // Middleware
 app.use(cors());
@@ -2407,6 +2408,23 @@ async function fetchNoteFileBuffer(note) {
     return Buffer.from(await response.arrayBuffer());
 }
 
+function getDocumentExtension(fileName = '') {
+    const cleanName = String(fileName).split(/[?#]/, 1)[0];
+    const extension = path.extname(cleanName).slice(1).toLowerCase();
+    return extension || 'pdf';
+}
+
+async function extractSelectableDocumentText(fileBuffer, fileName) {
+    const mimeType = aiService.getMimeType(getDocumentExtension(fileName));
+    const text = await aiService.extractText(fileBuffer, mimeType);
+    if (!text || !text.trim()) {
+        const error = new Error('No selectable text was found in this document');
+        error.statusCode = 422;
+        throw error;
+    }
+    return text.trim().slice(0, 1_000_000);
+}
+
 /**
  * Stream note content to the authenticated, selectable PDF viewer.
  */
@@ -2444,6 +2462,43 @@ app.post('/api/drive/content', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Drive content error:', error);
         res.status(500).json({ success: false, message: 'Failed to load Drive content' });
+    }
+});
+
+/**
+ * Return extracted text for selectable Word, PowerPoint, PDF, and text previews.
+ */
+app.get('/api/notes/:id/text', authenticateToken, async (req, res) => {
+    try {
+        const { data: note, error } = await supabase
+            .from('notes')
+            .select('file_url, file_name')
+            .eq('id', req.params.id)
+            .single();
+        if (error || !note) return res.status(404).json({ success: false, message: 'Note not found' });
+
+        const fileBuffer = await fetchNoteFileBuffer(note);
+        const text = await extractSelectableDocumentText(fileBuffer, note.file_name || note.file_url);
+        res.json({ success: true, text });
+    } catch (error) {
+        console.error('Note text extraction error:', error);
+        res.status(error.statusCode || 500).json({ success: false, message: error.message || 'Failed to extract document text' });
+    }
+});
+
+app.post('/api/drive/text', authenticateToken, async (req, res) => {
+    try {
+        const { fileId, fileName } = req.body;
+        if (!fileId) return res.status(400).json({ success: false, message: 'fileId is required' });
+
+        const response = await fetch(`https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=t`);
+        if (!response.ok) throw new Error(`Drive download failed with status ${response.status}`);
+        const fileBuffer = Buffer.from(await response.arrayBuffer());
+        const text = await extractSelectableDocumentText(fileBuffer, fileName);
+        res.json({ success: true, text });
+    } catch (error) {
+        console.error('Drive text extraction error:', error);
+        res.status(error.statusCode || 500).json({ success: false, message: error.message || 'Failed to extract Drive document text' });
     }
 });
 
@@ -2559,6 +2614,32 @@ app.post('/api/drive/chat', authenticateToken, async (req, res) => {
     }
 });
 
+/**
+ * Generate a study aid directly from text selected in the document viewer.
+ */
+app.post('/api/study-tools/selection', authenticateToken, async (req, res) => {
+    try {
+        const action = String(req.body.action || '').toLowerCase();
+        const selectedText = String(req.body.selectedText || '').replace(/\s+/g, ' ').trim();
+
+        if (!['flashcards', 'explain'].includes(action)) {
+            return res.status(400).json({ success: false, message: 'Unsupported study action' });
+        }
+        if (selectedText.length < 3) {
+            return res.status(400).json({ success: false, message: 'Select a longer passage first' });
+        }
+        if (selectedText.length > 12000) {
+            return res.status(400).json({ success: false, message: 'The selected passage is too long. Select a smaller section.' });
+        }
+
+        const response = await aiService.generateSelectionStudyAid(selectedText, action);
+        res.json({ success: true, response });
+    } catch (error) {
+        console.error('Selected text study tool error:', error);
+        res.status(500).json({ success: false, message: 'Failed to create this study aid. Please try again later.' });
+    }
+});
+
 // ==================== DSA MODULE ROUTES ====================
 
 const DSA_MAX_DAY = 14;
@@ -2585,25 +2666,29 @@ const dsaLanguageMeta = {
         label: 'Python',
         extension: 'py',
         syntax: 'for i, value in enumerate(values):\n    print(i, value)',
-        example: 'numbers = [2, 4, 6, 8]\nfor index, value in enumerate(numbers):\n    print(index, value)'
+        example: 'numbers = [2, 4, 6, 8]\nfor value in numbers:\n    print(value)',
+        exampleOutput: '2\n4\n6\n8'
     },
     cpp: {
         label: 'C++',
         extension: 'cpp',
         syntax: 'for (int i = 0; i < values.size(); i++) {\n    cout << i << " " << values[i] << "\\n";\n}',
-        example: 'vector<int> values = {2, 4, 6, 8};\nfor (int i = 0; i < values.size(); i++) {\n    cout << values[i] << "\\n";\n}'
+        example: '#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> values = {2, 4, 6, 8};\n    for (int value : values) cout << value << "\\n";\n    return 0;\n}',
+        exampleOutput: '2\n4\n6\n8'
     },
     java: {
         label: 'Java',
         extension: 'java',
         syntax: 'for (int i = 0; i < values.length; i++) {\n    System.out.println(values[i]);\n}',
-        example: 'int[] values = {2, 4, 6, 8};\nfor (int value : values) {\n    System.out.println(value);\n}'
+        example: 'public class Main {\n    public static void main(String[] args) {\n        int[] values = {2, 4, 6, 8};\n        for (int value : values) System.out.println(value);\n    }\n}',
+        exampleOutput: '2\n4\n6\n8'
     },
     c: {
         label: 'C',
         extension: 'c',
         syntax: 'for (int i = 0; i < n; i++) {\n    printf("%d\\n", values[i]);\n}',
-        example: 'int values[] = {2, 4, 6, 8};\nint n = 4;\nfor (int i = 0; i < n; i++) {\n    printf("%d\\n", values[i]);\n}'
+        example: '#include <stdio.h>\n\nint main(void) {\n    int values[] = {2, 4, 6, 8};\n    int n = 4;\n    for (int i = 0; i < n; i++) printf("%d\\n", values[i]);\n    return 0;\n}',
+        exampleOutput: '2\n4\n6\n8'
     }
 };
 
@@ -2664,6 +2749,7 @@ function buildFallbackDsaContent(day, language) {
             'Check edge cases such as empty input, one element, duplicates, and large constraints.'
         ],
         practice_problem: `Solve one ${concept} problem in ${meta.label}. Write the brute force approach first, then improve the time or space complexity and note the reason for the improvement.`,
+        test_cases: [{ input: '', expected_output: meta.exampleOutput }],
         external_links: [],
         youtube_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${concept} DSA ${meta.label}`)}`
     };
@@ -2676,7 +2762,9 @@ function normalizeDsaContent(row, day, language) {
         ...fallback,
         ...content,
         day: content.day || day,
-        programming_language: content.programming_language || language,
+        // The saved preference is authoritative. Older AI responses did not
+        // include this field, which made Java/Python lessons run as C.
+        programming_language: language,
         example_code: content.example_code || content.example || fallback.example_code,
         logic_breakdown: normalizeDsaArray(content.logic_breakdown).length ? normalizeDsaArray(content.logic_breakdown) : fallback.logic_breakdown,
         external_links: normalizeDsaLinks(content.external_links),
@@ -2809,67 +2897,6 @@ function buildDsaStats(progress, day) {
     };
 }
 
-const fs = require('fs');
-const { exec } = require('child_process');
-
-/**
- * Helper to execute Python code locally with input redirection and a timeout
- */
-async function runPythonLocally(code, testCases, userId) {
-    const tempDir = path.join(__dirname, 'scratch', 'temp_compiler');
-    if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-    }
-    const fileName = `sol_${userId}_${Date.now()}.py`;
-    const filePath = path.join(tempDir, fileName);
-    fs.writeFileSync(filePath, code);
-
-    const results = [];
-    for (const tc of testCases) {
-        const result = await new Promise((resolve) => {
-            const process = exec(`python "${filePath}"`, { timeout: 3000 }, (error, stdout, stderr) => {
-                let status = 'passed';
-                let passed = true;
-                if (error) {
-                    if (error.killed) {
-                        status = 'runtime_error';
-                        stderr = 'Execution Timeout (3 seconds exceeded)';
-                        passed = false;
-                    } else {
-                        status = 'runtime_error';
-                        passed = false;
-                    }
-                }
-
-                const trimmedOut = (stdout || '').trim();
-                const trimmedExpected = (tc.expected_output || '').trim();
-                if (passed && trimmedOut !== trimmedExpected) {
-                    status = 'failed';
-                    passed = false;
-                }
-
-                resolve({
-                    passed,
-                    status,
-                    stdout: stdout || '',
-                    stderr: stderr || (error ? error.message : '')
-                });
-            });
-
-            if (tc.input) {
-                try {
-                    process.stdin.write(tc.input);
-                } catch (_) {}
-            }
-            process.stdin.end();
-        });
-        results.push(result);
-    }
-
-    try { fs.unlinkSync(filePath); } catch(_) {}
-    return results;
-}
-
 /**
  * GET Daily DSA Content
  */
@@ -2898,6 +2925,8 @@ app.get('/api/dsa/daily', authenticateToken, async (req, res) => {
                 content = buildFallbackDsaContent(day, preferredLanguage);
             }
 
+            content = normalizeDsaContent(content, day, preferredLanguage);
+
             // Update user progress to cache the generated lesson
             const topicStatus = progress.topic_status || {};
             topicStatus[String(day)] = {
@@ -2911,6 +2940,8 @@ app.get('/api/dsa/daily', authenticateToken, async (req, res) => {
                 .eq('id', progress.id);
         }
 
+        content = normalizeDsaContent(content, day, preferredLanguage);
+
         const scrapedLinks = await scrapeDsaLinks(content.concept);
         const externalLinks = [...(content.external_links || []), ...scrapedLinks]
             .filter((link, index, all) => link && link.url && all.findIndex(item => item.url === link.url) === index)
@@ -2923,6 +2954,7 @@ app.get('/api/dsa/daily', authenticateToken, async (req, res) => {
                 day,
                 external_links: externalLinks,
                 progress: buildDsaStats(progress, day),
+                learning_goal: learningGoal,
                 language_meta: dsaLanguageMeta[preferredLanguage] || dsaLanguageMeta.python
             }
         });
@@ -2952,11 +2984,20 @@ app.post('/api/dsa/preference', authenticateToken, async (req, res) => {
         }
         topicStatus._metadata.learning_goal = learningGoal;
 
+        const languageChanged = progress.preferred_language !== language;
+        if (languageChanged) {
+            Object.keys(topicStatus).forEach(key => {
+                if (key === '_metadata' || !topicStatus[key] || typeof topicStatus[key] !== 'object') return;
+                delete topicStatus[key].custom_content;
+            });
+        }
+
         await supabase
             .from('dsa_user_progress')
             .update({ 
                 preferred_language: language, 
                 topic_status: topicStatus, 
+                code_drafts: languageChanged ? {} : (progress.code_drafts || {}),
                 start_date: new Date().toISOString(), // Reset to today so day calculations start fresh
                 updated_at: new Date().toISOString() 
             })
@@ -2980,36 +3021,46 @@ app.post('/api/dsa/run', authenticateToken, async (req, res) => {
         if (!code) {
             return res.status(400).json({ success: false, message: 'Code cannot be empty' });
         }
+        if (String(code).length > 100000) {
+            return res.status(400).json({ success: false, message: 'Code is too long to run' });
+        }
+        if (!Number.isInteger(safeDay) || safeDay < 1 || safeDay > DSA_MAX_DAY) {
+            return res.status(400).json({ success: false, message: 'Invalid DSA day' });
+        }
 
         const progress = await getOrCreateDsaProgress(req.userId, language || 'python');
         const content = progress.topic_status?.[String(safeDay)]?.custom_content;
+        const effectiveLanguage = dsaLanguageMeta[progress.preferred_language]
+            ? progress.preferred_language
+            : 'python';
         
-        let testCases = content?.test_cases;
+        let testCases = normalizeDsaArray(content?.test_cases).filter(testCase =>
+            testCase && typeof testCase === 'object' && Object.prototype.hasOwnProperty.call(testCase, 'expected_output')
+        );
         if (!testCases || testCases.length === 0) {
-            testCases = [
-                { input: '', expected_output: '' }
-            ];
+            return res.status(422).json({
+                success: false,
+                message: 'This lesson has no valid test cases yet. Refresh the lesson before running your code.'
+            });
         }
 
-        let results;
-        if (language === 'python') {
-            try {
-                results = await runPythonLocally(code, testCases, req.userId);
-            } catch (err) {
-                console.warn('[Compiler] Local Python run failed, falling back to AI:', err);
-                results = await aiService.simulateCodeExecution(code, language, testCases);
-            }
-        } else {
-            results = await aiService.simulateCodeExecution(code, language, testCases);
-        }
+        const execution = await compilerService.executeCode(code, effectiveLanguage, testCases);
 
         res.json({
             success: true,
-            results
+            results: execution.results,
+            executionEngine: 'sandbox',
+            compiler: execution.compiler
         });
     } catch (error) {
         console.error('[DSA Run] Error:', error);
-        res.status(500).json({ success: false, message: 'Code execution failed. Please check your syntax and try again.' });
+        const isServiceError = error.code === 'COMPILER_SERVICE_UNAVAILABLE';
+        res.status(isServiceError ? 503 : 500).json({
+            success: false,
+            message: isServiceError
+                ? 'The compiler sandbox is temporarily unavailable. Please try again shortly.'
+                : 'Code execution failed. Please check your syntax and try again.'
+        });
     }
 });
 

@@ -396,6 +396,16 @@ body {
     gap: 24px;
 }
 
+.announcements-view {
+    gap: 20px;
+}
+
+.announcements-view > .welcome-banner,
+.announcements-view > .announcements-container {
+    width: 100%;
+    margin: 0;
+}
+
 /* Welcome Banner */
 .welcome-banner {
     display: flex;
@@ -1367,6 +1377,27 @@ body {
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     font-size: 12px;
 }
+
+.dsa-tc-detail {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr);
+    gap: 10px;
+    margin: 7px 0 0 15px;
+    color: #cbd5e1;
+}
+
+.dsa-tc-detail strong { color: #94a3b8; font-size: 10px; text-transform: uppercase; }
+
+.dsa-tc-detail pre {
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.dsa-tc-detail.expected { color: #a5b4fc; }
+.dsa-tc-detail.error { color: #f87171; }
 
 .dsa-actions {
     display: flex;
@@ -3424,6 +3455,135 @@ input:checked + .slider:before {
 }
 
 .pdf-page canvas { display: block; width: 100%; height: 100%; }
+
+.selectable-document-text {
+    width: min(860px, 100%);
+    min-height: calc(100% - 24px);
+    margin: 0 auto;
+    border-radius: 10px;
+    color: #172033;
+    background: #fff;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, .32);
+    font: 400 15px/1.7 'Outfit', sans-serif;
+    overflow-wrap: anywhere;
+    cursor: text;
+    user-select: text;
+}
+
+.selectable-document-text ::selection {
+    color: #111827;
+    background: rgba(129, 140, 248, .55);
+}
+
+.selectable-document-header {
+    padding: 34px 48px 28px;
+    border-bottom: 1px solid #e6eaf2;
+    background: linear-gradient(145deg, #f8f9ff, #fff);
+    user-select: none;
+}
+
+.selectable-document-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 5px 9px;
+    border: 1px solid #dfe3ff;
+    border-radius: 999px;
+    color: #4f46e5;
+    background: #eef0ff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.selectable-document-header h2 {
+    margin: 0;
+    color: #101828;
+    font-size: clamp(22px, 2.4vw, 30px);
+    line-height: 1.2;
+}
+
+.selectable-document-header p {
+    margin: 9px 0 0;
+    color: #667085;
+    font-size: 13px;
+}
+
+.selectable-document-body { padding: 38px 48px 54px; }
+
+.selectable-document-body h2,
+.selectable-document-body h3 {
+    color: #1d2939;
+    line-height: 1.3;
+}
+
+.selectable-document-body h2 {
+    margin: 38px 0 14px;
+    padding-bottom: 9px;
+    border-bottom: 2px solid #e7e9ff;
+    font-size: 22px;
+}
+
+.selectable-document-body h3 {
+    margin: 28px 0 10px;
+    font-size: 18px;
+}
+
+.selectable-document-body > :first-child { margin-top: 0; }
+
+.selectable-document-body p {
+    margin: 0 0 18px;
+    color: #344054;
+    text-align: left;
+}
+
+.selectable-document-body ul {
+    margin: 4px 0 22px;
+    padding: 16px 20px 16px 42px;
+    border-left: 3px solid #818cf8;
+    border-radius: 0 10px 10px 0;
+    background: #f7f7ff;
+}
+
+.selectable-document-body li { margin: 7px 0; padding-left: 3px; }
+
+.selectable-document-table {
+    margin: 20px 0 26px;
+    overflow-x: auto;
+    border: 1px solid #dfe3eb;
+    border-radius: 10px;
+}
+
+.selectable-document-table-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(150px, 1fr);
+    border-top: 1px solid #e8ebf0;
+}
+
+.selectable-document-table-row:first-child { border-top: 0; }
+.selectable-document-table-row.is-header { background: #f1f3f9; font-weight: 700; }
+
+.selectable-document-table-row span {
+    min-width: 0;
+    padding: 10px 12px;
+    border-left: 1px solid #e8ebf0;
+}
+
+.selectable-document-table-row span:first-child { border-left: 0; }
+
+.selectable-document-page-break {
+    height: 1px;
+    margin: 34px 0;
+    background: linear-gradient(90deg, transparent, #cfd4dc 14%, #cfd4dc 86%, transparent);
+}
+
+@media (max-width: 720px) {
+    .selectable-document-header { padding: 26px 24px 22px; }
+    .selectable-document-body { padding: 28px 24px 40px; }
+}
 
 .pdf-text-layer {
     position: absolute;
