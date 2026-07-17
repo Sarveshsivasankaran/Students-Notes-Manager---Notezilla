@@ -888,6 +888,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let driveFacultyRoot = null;
     let driveFacultyFolders = [];
+    let rawDriveFacultyFolders = [];
+    let facultyProfiles = [];
+    let facultyAvailabilityRefreshInFlight = false;
     let activeFacultyDriveFilter = 'all';
     let activeFacultyModalStack = [];
 
@@ -1484,6 +1487,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getFacultyCardSubtitle(folder) {
+        if (folder.department || folder.qualifications) {
+            return [folder.department, folder.qualifications].filter(Boolean).join(' · ') || 'Faculty member';
+        }
         const parts = [];
         if (folder.directFolderCount) parts.push(pluralize(folder.directFolderCount, 'subject folder'));
         if (folder.fileCount) parts.push(pluralize(folder.fileCount, 'file'));
@@ -1515,7 +1521,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function collectFacultySearchText(folder, values = []) {
-        values.push(folder.name || '');
+        values.push(
+            folder.name || '',
+            folder.department || '',
+            folder.qualifications || '',
+            folder.bio || ''
+        );
         (folder.children || []).forEach((child) => {
             values.push(child.name || '');
             if (child.type === 'folder') collectFacultySearchText(child, values);
@@ -1529,9 +1540,45 @@ document.addEventListener('DOMContentLoaded', () => {
             return false;
         }
 
-        if (filter === 'with-folders' && !folder.folderCount) return false;
-        if (filter === 'with-files' && !folder.fileCount) return false;
+        if (filter === 'available' && folder.availability !== 'available') return false;
+        if (filter === 'unavailable' && folder.availability !== 'unavailable') return false;
         return true;
+    }
+
+    function normalizeFacultyName(value = '') {
+        return String(value).toLowerCase().replace(/\b(?:dr|prof|mr|mrs|ms)\.?\b/g, '').replace(/[^a-z0-9]/g, '');
+    }
+
+    function mergeFacultyProfiles(profiles, folders) {
+        const unusedFolders = new Set(folders);
+        const mergedProfiles = profiles.map(profile => {
+            const profileName = normalizeFacultyName(profile.name);
+            const matchedFolder = folders.find(folder => {
+                const folderName = normalizeFacultyName(folder.name);
+                return folderName && profileName && (folderName === profileName || folderName.includes(profileName) || profileName.includes(folderName));
+            });
+            if (matchedFolder) unusedFolders.delete(matchedFolder);
+            return {
+                ...(matchedFolder || {}),
+                ...profile,
+                children: matchedFolder?.children || [],
+                fileCount: matchedFolder?.fileCount || 0,
+                folderCount: matchedFolder?.folderCount || 0,
+                directFolderCount: matchedFolder?.directFolderCount || 0,
+                directFileCount: matchedFolder?.directFileCount || 0,
+                driveFolderId: matchedFolder?.id || null
+            };
+        });
+        return [
+            ...mergedProfiles,
+            ...Array.from(unusedFolders).map(folder => ({ ...folder, availability: 'unavailable' }))
+        ];
+    }
+
+    function getFacultyColor(name = '') {
+        const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#0ea5e9', '#f59e0b'];
+        const hash = [...String(name)].reduce((total, char) => total + char.charCodeAt(0), 0);
+        return colors[hash % colors.length];
     }
 
     function closeFacultyPreviewPanel() {
@@ -1544,8 +1591,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         facultyDeptFilters.innerHTML = `
             <span class="subject-tag ${activeFacultyDriveFilter === 'all' ? 'active' : ''}" data-drive-filter="all">All</span>
-            <span class="subject-tag ${activeFacultyDriveFilter === 'with-folders' ? 'active' : ''}" data-drive-filter="with-folders">Has Subfolders</span>
-            <span class="subject-tag ${activeFacultyDriveFilter === 'with-files' ? 'active' : ''}" data-drive-filter="with-files">Has Files</span>
+            <span class="subject-tag ${activeFacultyDriveFilter === 'available' ? 'active' : ''}" data-drive-filter="available">Available</span>
+            <span class="subject-tag ${activeFacultyDriveFilter === 'unavailable' ? 'active' : ''}" data-drive-filter="unavailable">Unavailable</span>
         `;
 
         facultyDeptFilters.querySelectorAll('[data-drive-filter]').forEach((tag) => {
@@ -1564,14 +1611,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!res.success || !res.data || !res.data.root) {
             driveFacultyRoot = null;
             driveFacultyFolders = [];
+            rawDriveFacultyFolders = [];
             return false;
         }
 
         driveFacultyRoot = res.data.root;
-        driveFacultyFolders = Array.isArray(res.data.faculties)
+        rawDriveFacultyFolders = Array.isArray(res.data.faculties)
             ? res.data.faculties
             : (driveFacultyRoot.children || []).filter((child) => child.type === 'folder');
+        driveFacultyFolders = rawDriveFacultyFolders;
         return true;
+    }
+
+    async function loadFacultyProfiles() {
+        const res = await apiFetch('/faculty');
+        facultyProfiles = res.success && Array.isArray(res.data) ? res.data : [];
+        return res.success;
     }
 
     function renderDriveFolderContents(folder, path = [driveFacultyRoot]) {
@@ -1617,22 +1672,40 @@ document.addEventListener('DOMContentLoaded', () => {
         facultyResultsGrid.innerHTML = '';
 
         if (filteredFaculty.length === 0) {
-            facultyResultsGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">No faculty folders matched the current filters.</div>';
+            facultyResultsGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">No faculty profiles matched the current filters.</div>';
             return;
         }
 
         filteredFaculty.forEach((fac) => {
-            const color = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b'][Math.floor(Math.random() * 4)];
+            const color = getFacultyColor(fac.name);
             const card = document.createElement('div');
-            card.className = 'note-card';
+            card.className = 'faculty-profile-card';
+            card.style.setProperty('--dept-color', color);
             card.innerHTML = `
-                <div class="note-icon" style="background:${color}22; color:${color}; font-weight:bold;">${escapeHtml((fac.name || 'F').charAt(0).toUpperCase())}</div>
-                <div class="note-details">
-                    <h4>${escapeHtml(fac.name || 'Faculty Folder')}</h4>
-                    <p>${escapeHtml(getFacultyCardSubtitle(fac))}</p>
+                <div class="faculty-card-glow"></div>
+                <div class="faculty-card-body">
+                    <div class="faculty-avatar-large" style="background:${color}" data-faculty-avatar>${escapeHtml((fac.name || 'F').charAt(0).toUpperCase())}</div>
+                    <h3 class="faculty-card-name">${escapeHtml(fac.name || 'Faculty Folder')}</h3>
+                    <span class="faculty-dept-badge" style="background:${color}22;color:${color}">${escapeHtml(fac.department || 'Faculty')}</span>
+                    <span class="faculty-card-availability ${escapeHtml(String(fac.availability || 'unavailable').replace(/_/g, '-'))}"><i class='bx bx-radio-circle-marked'></i>${escapeHtml(String(fac.availability || 'unavailable').replace(/_/g, ' '))}</span>
+                    <div class="faculty-card-qualification">${escapeHtml(fac.qualifications || 'Qualifications not added')}</div>
+                    <p class="faculty-card-bio">${escapeHtml(fac.bio || 'Open this profile to browse shared subjects and faculty availability.')}</p>
+                    <div class="faculty-card-stats">
+                        <div class="faculty-stat"><span class="fac-stat-value">${Number(fac.fileCount || 0)}</span><span class="fac-stat-label">Materials</span></div>
+                        <div class="faculty-stat-divider"></div>
+                        <div class="faculty-stat"><span class="fac-stat-value">${Number(fac.totalDownloads || 0)}</span><span class="fac-stat-label">Downloads</span></div>
+                    </div>
+                    <button class="faculty-view-btn view-faculty-btn" type="button"><i class='bx bx-user'></i> View profile & materials</button>
                 </div>
-                <button class="icon-btn-outline view-faculty-btn"><i class='bx bx-user'></i></button>
             `;
+            if (fac.photoUrl) {
+                const avatar = card.querySelector('[data-faculty-avatar]');
+                avatar.textContent = '';
+                const image = document.createElement('img');
+                image.src = fac.photoUrl;
+                image.alt = `${fac.name || 'Faculty'} profile photo`;
+                avatar.appendChild(image);
+            }
             card.querySelector('.view-faculty-btn').onclick = () => openFacultyModal(fac);
             card.onclick = (event) => {
                 if (!event.target.closest('button')) openFacultyModal(fac);
@@ -1647,15 +1720,24 @@ document.addEventListener('DOMContentLoaded', () => {
         facultyResultsGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center;"><i class="bx bx-loader-alt bx-spin" style="font-size:32px;"></i></div>';
         facultyRepoGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:24px;"><i class="bx bx-loader-alt bx-spin" style="font-size:28px;"></i></div>';
 
-        const loaded = await loadDriveFacultyRepository();
-        if (!loaded || !driveFacultyRoot) {
-            facultyResultsGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#ef4444;">Failed to load the shared faculty Drive repository.</div>';
+        const [driveLoaded, profilesLoaded] = await Promise.all([
+            loadDriveFacultyRepository(),
+            loadFacultyProfiles()
+        ]);
+        driveFacultyFolders = mergeFacultyProfiles(facultyProfiles, rawDriveFacultyFolders);
+
+        if (!profilesLoaded && !driveLoaded) {
+            facultyResultsGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#ef4444;">Unable to load faculty profiles right now.</div>';
             facultyRepoGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#ef4444;">Unable to load Google Drive folders right now.</div>';
             return;
         }
 
         setupFacultyFilters();
-        renderDriveFolderContents(driveFacultyRoot, [driveFacultyRoot]);
+        if (driveLoaded && driveFacultyRoot) {
+            renderDriveFolderContents(driveFacultyRoot, [driveFacultyRoot]);
+        } else {
+            facultyRepoGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--text-muted);">Faculty profiles are available, but Drive materials could not be loaded.</div>';
+        }
         renderFacultyCards();
     }
 
@@ -1859,7 +1941,24 @@ document.addEventListener('DOMContentLoaded', () => {
         activeFacultyModalStack = [faculty];
         document.getElementById('modalFacultyName').textContent = faculty.name || 'Faculty Folder';
         document.getElementById('modalFacultyDept').textContent = getFacultyCardSubtitle(faculty);
-        document.getElementById('modalFacultyAvatar').textContent = (faculty.name || 'F').charAt(0).toUpperCase();
+        const modalAvatar = document.getElementById('modalFacultyAvatar');
+        modalAvatar.innerHTML = '';
+        if (faculty.photoUrl) {
+            const image = document.createElement('img');
+            image.src = faculty.photoUrl;
+            image.alt = `${faculty.name || 'Faculty'} profile photo`;
+            modalAvatar.appendChild(image);
+        } else {
+            modalAvatar.textContent = (faculty.name || 'F').charAt(0).toUpperCase();
+        }
+
+        const profileSummary = document.getElementById('modalFacultyProfileSummary');
+        const hasPublicProfile = Boolean(faculty.userId || faculty.email || faculty.bio || faculty.qualifications);
+        profileSummary.hidden = !hasPublicProfile;
+        if (hasPublicProfile) {
+            document.getElementById('modalFacultyQualification').textContent = faculty.qualifications || faculty.department || 'Faculty profile';
+            document.getElementById('modalFacultyBio').textContent = faculty.bio || 'This faculty member has not added a public biography yet.';
+        }
         facultyModal.classList.add('show');
         renderFacultyModalRoot(faculty);
     }
@@ -1908,6 +2007,23 @@ document.addEventListener('DOMContentLoaded', () => {
             renderFacultyCards();
         });
     }
+
+    // Availability is computed by the backend in the college timezone. Refresh
+    // it every minute while the directory is open so 08:00/17:00 and period
+    // boundaries update without exposing the underlying free-hour schedule.
+    window.setInterval(async () => {
+        const facultyView = document.getElementById('faculty-view');
+        if (!facultyView || getComputedStyle(facultyView).display === 'none' || facultyAvailabilityRefreshInFlight) return;
+        facultyAvailabilityRefreshInFlight = true;
+        try {
+            if (await loadFacultyProfiles()) {
+                driveFacultyFolders = mergeFacultyProfiles(facultyProfiles, rawDriveFacultyFolders);
+                renderFacultyCards();
+            }
+        } finally {
+            facultyAvailabilityRefreshInFlight = false;
+        }
+    }, 60 * 1000);
 
     // Close modal on outside click
     window.onclick = (event) => {
@@ -2010,22 +2126,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const mapping = {
             'dsa-concept-title': `Concept: ${data.concept}`,
             'dsa-day-badge': `Day ${data.day}`,
-            'dsa-concept-explanation': data.explanation,
             'dsa-syntax-code': data.syntax,
-            'dsa-example-code': data.example_code,
-            'dsa-practice-problem': data.practice_problem
+            'dsa-example-code': data.example_code
         };
         Object.entries(mapping).forEach(([id, val]) => {
             const el = document.getElementById(id);
             if (el) el.textContent = val;
         });
+
+        const richTextFormatter = window.NotezillaDsaContentFormatter;
+        const renderRichText = (id, value) => {
+            const element = document.getElementById(id);
+            if (!element) return;
+            element.innerHTML = richTextFormatter?.toSafeHtml
+                ? richTextFormatter.toSafeHtml(value)
+                : escapeHtml(String(value || ''));
+        };
+        renderRichText('dsa-concept-explanation', data.explanation);
+        renderRichText('dsa-practice-problem', data.practice_problem);
         
         // Render logic list
         const logicList = document.getElementById('dsa-logic-list');
         if (logicList) {
-            logicList.innerHTML = data.logic_breakdown 
-                ? data.logic_breakdown.map(item => `<li>${item}</li>`).join('') 
-                : '';
+            logicList.innerHTML = '';
+            (data.logic_breakdown || []).forEach(item => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = richTextFormatter?.toSafeHtml
+                    ? richTextFormatter.toSafeHtml(item)
+                    : escapeHtml(String(item || ''));
+                logicList.appendChild(listItem);
+            });
         }
         
         // Video tutorial url
@@ -2048,9 +2178,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const ext = data.programming_language === 'python' ? 'py' : (data.programming_language === 'cpp' ? 'cpp' : (data.programming_language === 'java' ? 'java' : 'c'));
                 editorFile.textContent = `solution.${ext}`;
             }
-            // Load saved draft, fallback to example code
+            // Start with an executable, test-matching reference solution. Keep
+            // genuine student drafts, but migrate the old demonstration and
+            // generic TODO placeholders that caused misleading sandbox failures.
             const draft = data.progress?.todayStatus?.codeDraft;
-            codeEditor.value = draft || data.example_code || '';
+            const draftIsOldExample = draft && data.example_code
+                && draft.trim() === data.example_code.trim();
+            const draftIsGenericPlaceholder = draft
+                && /TODO:\s*(?:parse raw_input|read stdin), solve the practice problem/i.test(draft);
+            const executableDefault = data.solution_code || data.starter_code || '';
+            codeEditor.value = (draftIsOldExample || draftIsGenericPlaceholder)
+                ? executableDefault
+                : (draft || executableDefault);
         }
         
         // Render stats and metrics
@@ -2236,6 +2375,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.success && Array.isArray(res.results) && res.results.length > 0) {
                     runOutput.innerHTML = '';
                     let allPassed = true;
+                    let executionFailed = false;
                     
                     res.results.forEach((tc, idx) => {
                         const tcRow = document.createElement('div');
@@ -2265,6 +2405,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         runOutput.appendChild(tcRow);
                         
                         if (!tc.passed) allPassed = false;
+                        if (tc.status === 'compile_error' || tc.status === 'runtime_error') executionFailed = true;
                     });
                     
                     const summary = document.createElement('div');
@@ -2274,8 +2415,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (allPassed) {
                         summary.textContent = '🎉 All test cases passed! Outstanding work!';
                         summary.style.color = '#10b981';
+                    } else if (executionFailed) {
+                        summary.textContent = 'The sandbox ran, but compilation or execution stopped with an error. Review the diagnostics above.';
+                        summary.style.color = '#ef4444';
                     } else {
-                        summary.textContent = '❌ Some test cases failed or code generated compiler errors. Check outputs above.';
+                        summary.textContent = 'The sandbox ran successfully, but your program output did not match the expected answers.';
                         summary.style.color = '#ef4444';
                     }
                     runOutput.appendChild(summary);
@@ -2546,8 +2690,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAnalysisBookmarkButton();
 
         const looksLikePdf = /\.pdf(?:$|[?#])/i.test(currentNoteFileName) || /\.pdf(?:$|[?#])/i.test(url);
-        const supportsSelectableText = /\.(?:pdf|docx?|pptx?|txt|md|csv)(?:$|[?#])/i.test(currentNoteFileName)
-            || /\.(?:pdf|docx?|pptx?|txt|md|csv)(?:$|[?#])/i.test(url);
+        const supportsSelectableText = /\.(?:pdf|docx?|pptx?|xlsx?|ods|txt|md|csv)(?:$|[?#])/i.test(currentNoteFileName)
+            || /\.(?:pdf|docx?|pptx?|xlsx?|ods|txt|md|csv)(?:$|[?#])/i.test(url);
         if (supportsSelectableText) loadSelectableDocument(looksLikePdf);
         
         const resultContent = document.getElementById('analysisResultContent');

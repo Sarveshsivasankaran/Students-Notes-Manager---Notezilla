@@ -30,6 +30,8 @@ create table if not exists faculty (
    photo_url       text,
    qualifications  text,
    office_hours    text,
+   free_hours      jsonb not null default '[]'::jsonb,
+   timetable_updated_at timestamp with time zone,
    availability    text default 'available' check ( availability in ( 'available',
                                                                    'on_leave',
                                                                    'unavailable' ) ),

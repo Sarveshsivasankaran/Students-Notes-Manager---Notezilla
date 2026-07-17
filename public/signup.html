@@ -494,6 +494,18 @@
 
             <div id="staffFields" class="role-fields">
                 <p>⏳ Verification Required</p>
+                <div class="form-group">
+                    <label for="staffDepartment">Faculty Department</label>
+                    <select id="staffDepartment" name="staffDepartment">
+                        <option value="">Select</option>
+                        <option value="CSE">CSE</option>
+                        <option value="ECE">ECE</option>
+                        <option value="EEE">EEE</option>
+                        <option value="MECH">MECH</option>
+                        <option value="CIVIL">CIVIL</option>
+                        <option value="BioMed">BioMed</option>
+                    </select>
+                </div>
                 <div style="font-size: 11px; color: rgba(255, 255, 255, 0.6); line-height: 1.5;">
                     Staff accounts must be verified by an administrator before you can upload notes.
                 </div>
@@ -524,6 +536,7 @@
         const passwordInput = document.getElementById('password');
         const departmentInput = document.getElementById('department');
         const semesterInput = document.getElementById('semester');
+        const staffDepartmentInput = document.getElementById('staffDepartment');
         const submitBtn = document.getElementById('submitBtn');
         const signupError = document.getElementById('signupError');
         const signupSuccess = document.getElementById('signupSuccess');
@@ -549,12 +562,14 @@
                     staffFields.classList.remove('show');
                     departmentInput.required = true;
                     semesterInput.required = true;
+                    staffDepartmentInput.required = false;
                     emailNoteField.textContent = '(@rajalakshmi.edu.in)';
                 } else if (role === 'staff') {
                     studentFields.classList.remove('show');
                     staffFields.classList.add('show');
                     departmentInput.required = false;
                     semesterInput.required = false;
+                    staffDepartmentInput.required = true;
                     emailNoteField.textContent = '';
                 }
             });
@@ -575,7 +590,7 @@
             var email = emailInput.value.trim();
             var password = passwordInput.value;
             var role = document.querySelector('input[name="role"]:checked').value;
-            var department = departmentInput.value;
+            var department = role === 'staff' ? staffDepartmentInput.value : departmentInput.value;
             var semester = semesterInput.value;
 
             if (!name) { showError('nameError', 'Please enter your name'); return; }
@@ -587,6 +602,7 @@
             if (password.length < 6) { showError('passwordError', 'Password must be at least 6 characters'); return; }
             if (role === 'student' && !department) { showError('signupError', 'Please select your department'); return; }
             if (role === 'student' && !semester) { showError('signupError', 'Please select your semester'); return; }
+            if (role === 'staff' && !department) { showError('signupError', 'Please select your faculty department'); return; }
 
             try {
                 submitBtn.disabled = true;
@@ -600,7 +616,7 @@
                         email: email,
                         password: password,
                         role: role,
-                        department: role === 'student' ? department : null,
+                        department: department,
                         semester: role === 'student' ? parseInt(semester) : null
                     })
                 });

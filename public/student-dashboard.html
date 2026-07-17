@@ -359,20 +359,26 @@
                 <div class="search-container glass-panel" style="padding: 24px; margin-bottom: 24px; margin-top: 24px;">
                     <div class="search-bar" style="width: 100%; border-radius: 12px; height: 50px;">
                         <i class='bx bx-search'></i>
-                        <input type="text" id="facultySearchInput" placeholder="Search faculty names or nested Drive folders...">
+                        <input type="text" id="facultySearchInput" placeholder="Search faculty, department or expertise...">
                     </div>
                     <div style="display: flex; gap: 12px; margin-top: 16px; align-items: center;">
-                        <span style="font-size: 13px; color: var(--text-muted); white-space: nowrap;">Drive Filters:</span>
+                        <span style="font-size: 13px; color: var(--text-muted); white-space: nowrap;">Profile Filters:</span>
                         <div class="tag-list" id="facultyDeptFilters" style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <span class="subject-tag active" data-drive-filter="all">All</span>
-                            <span class="subject-tag" data-drive-filter="with-folders">Has Subfolders</span>
-                            <span class="subject-tag" data-drive-filter="with-files">Has Files</span>
+                            <span class="subject-tag" data-drive-filter="available">Available</span>
+                            <span class="subject-tag" data-drive-filter="unavailable">Unavailable</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="bento-item glass-panel" style="padding: 24px;">
-                    <div id="facultyResultsGrid" class="notes-grid">
+                    <div class="panel-header faculty-profile-heading">
+                        <div>
+                            <span class="section-subtitle">Staff directory</span>
+                            <h3>Faculty Profiles & Availability</h3>
+                        </div>
+                    </div>
+                    <div id="facultyResultsGrid" class="faculty-cards-grid">
                         <!-- Faculty cards will be rendered here -->
                     </div>
                 </div>
@@ -914,6 +920,12 @@
             </div>
             
             <div class="modal-body">
+                <section class="faculty-modal-profile" id="modalFacultyProfileSummary" hidden>
+                    <div class="faculty-modal-profile-copy">
+                        <span class="faculty-modal-qualification" id="modalFacultyQualification"></span>
+                        <p id="modalFacultyBio"></p>
+                    </div>
+                </section>
                 <!-- Subjects View -->
                 <div id="modalSubjectsView">
                     <h3 class="section-subtitle">Subjects Handled</h3>
@@ -1074,6 +1086,7 @@
 
     <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
     <script src="/document-formatter.js"></script>
+    <script src="/dsa-content-formatter.js"></script>
     <script src="/student-dashboard.js"></script>
 </body>
 </html>

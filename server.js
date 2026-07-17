@@ -25,6 +25,11 @@ const { initializeSocket, notifyRepositoryUpdate, getPresenceSnapshot } = requir
 const io = initializeSocket(server);
 const aiService = require('./ai-service');
 const compilerService = require('./compiler-service');
+const {
+    formatFreeHours,
+    getFacultyAvailability,
+    parseTimetableAnalysis
+} = require('./faculty-timetable-utils');
 const { corsOrigin } = require('./deployment-config');
 
 // Middleware
@@ -372,6 +377,12 @@ app.post('/api/auth/signup', async (req, res) => {
                 message: 'Department and semester are required for students'
             });
         }
+        if (role === 'staff' && !department) {
+            return res.status(400).json({
+                success: false,
+                message: 'Department is required for faculty profiles'
+            });
+        }
 
         // Check if email already exists
         const { data: existingUser, error: checkError } = await supabase
@@ -404,7 +415,7 @@ app.post('/api/auth/signup', async (req, res) => {
                 email: email.toLowerCase(),
                 password: hashedPassword,
                 role,
-                department: role === 'student' ? department : null,
+                department,
                 semester: role === 'student' ? parseInt(semester) : null,
                 is_approved: role === 'staff' ? false : true
             })
@@ -445,6 +456,7 @@ app.post('/api/auth/signup', async (req, res) => {
                 name: newUser.name,
                 email: newUser.email,
                 role: newUser.role,
+                department: newUser.department,
                 isApproved: newUser.is_approved
             }
         });
@@ -528,6 +540,7 @@ app.post('/api/auth/login', async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                department: user.department,
                 isApproved: user.is_approved
             }
         });
@@ -987,6 +1000,22 @@ app.get('/api/stars/top', async (req, res) => {
 
 // ==================== FACULTY ROUTES ====================
 
+function isMissingFacultyProfileColumnError(error) {
+    const message = String(error?.message || '');
+    return /(photo_url|qualifications|free_hours|timetable_updated_at)/i.test(message)
+        && /(column|schema cache|does not exist|could not find)/i.test(message);
+}
+
+function getPublicFacultyAvailability(faculty) {
+    return getFacultyAvailability({
+        freeHours: faculty.free_hours,
+        manualAvailability: faculty.availability,
+        timeZone: process.env.FACULTY_TIMEZONE || 'Asia/Kolkata',
+        dayStart: '08:00',
+        dayEnd: '17:00'
+    });
+}
+
 /**
  * GET Current Faculty Profile
  * GET /api/faculty/me
@@ -997,7 +1026,7 @@ app.get('/api/faculty/me', authenticateToken, requireRole(['staff']), async (req
             .from('faculty')
             .select(`
                 *,
-                users:user_id(name, email)
+                users:user_id(name, email, department)
             `)
             .eq('user_id', req.userId)
             .single();
@@ -1025,6 +1054,15 @@ app.post('/api/faculty/scrape-timetable', authenticateToken, requireRole(['staff
         if (!req.file) {
             return res.status(400).json({ success: false, message: 'No image provided' });
         }
+        if (req.file.size > 5 * 1024 * 1024) {
+            return res.status(413).json({ success: false, message: 'Timetable image must be 5 MB or smaller' });
+        }
+
+        const { default: imageType } = await import('image-type');
+        const detected = await imageType(req.file.buffer);
+        if (!detected || !['image/png', 'image/jpeg', 'image/webp'].includes(detected.mime)) {
+            return res.status(415).json({ success: false, message: 'Upload a valid PNG, JPG or WebP timetable image' });
+        }
 
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
@@ -1032,30 +1070,77 @@ app.post('/api/faculty/scrape-timetable', authenticateToken, requireRole(['staff
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({
+            model: process.env.GEMINI_TIMETABLE_MODEL || 'gemini-2.5-flash',
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.1 }
+        });
 
         const imageParts = [
             {
                 inlineData: {
                     data: req.file.buffer.toString("base64"),
-                    mimeType: req.file.mimetype
+                    mimeType: detected.mime
                 }
             }
         ];
 
-        const prompt = "Analyze this timetable image and extract the free periods or break times that a faculty member could use for 'Office Hours'. Return ONLY a concise, sensible string indicating suggested Office Hours (e.g., 'Mon 10:00-11:00 AM, Wed 2:00-4:00 PM'). Keep it very brief.";
+        const prompt = `Read this faculty timetable carefully. Identify only genuine unassigned/free teaching periods during the visible working week. Do not mark a period free when a subject, lab, tutorial, meeting, or other duty is present. Ignore lunch and institutional breaks unless the timetable explicitly treats them as consultable free time.
+
+Return only JSON with this exact structure:
+{
+  "free_hours": [
+    { "day": "Monday", "slots": [{ "start": "10:00", "end": "11:00" }] }
+  ]
+}
+
+Use full English weekday names and 24-hour HH:MM times. If a cell or time label is unreadable, omit it instead of guessing.`;
 
         const result = await model.generateContent([prompt, ...imageParts]);
         const responseText = result.response.text().trim();
+        const freeHours = parseTimetableAnalysis(responseText);
+        if (freeHours.length === 0) {
+            return res.status(422).json({
+                success: false,
+                message: 'No reliable free periods could be read. Upload a clearer, straight timetable image with visible day and time labels.'
+            });
+        }
+
+        const officeHours = formatFreeHours(freeHours);
+        const timetableUpdatedAt = new Date().toISOString();
+        let { data: faculty, error: updateError } = await supabase
+            .from('faculty')
+            .update({
+                office_hours: officeHours,
+                free_hours: freeHours,
+                timetable_updated_at: timetableUpdatedAt
+            })
+            .eq('user_id', req.userId)
+            .select('*')
+            .single();
+
+        if (updateError && isMissingFacultyProfileColumnError(updateError)) {
+            const fallback = await supabase
+                .from('faculty')
+                .update({ office_hours: officeHours })
+                .eq('user_id', req.userId)
+                .select('*')
+                .single();
+            faculty = fallback.data;
+            updateError = fallback.error;
+        }
+        if (updateError) throw updateError;
 
         res.status(200).json({
             success: true,
-            office_hours: responseText,
-            message: "Extracted office hours from timetable"
+            office_hours: officeHours,
+            free_hours: freeHours,
+            timetable_updated_at: timetableUpdatedAt,
+            faculty,
+            message: 'Free hours extracted and saved for live availability tracking'
         });
     } catch (error) {
         console.error('OCR Error:', error);
-        res.status(500).json({ success: false, message: 'Failed to extract office hours from image' });
+        res.status(500).json({ success: false, message: 'Failed to extract free hours from the timetable image' });
     }
 });
 
@@ -1065,12 +1150,32 @@ app.post('/api/faculty/scrape-timetable', authenticateToken, requireRole(['staff
  */
 app.put('/api/faculty/me', authenticateToken, requireRole(['staff']), upload.single('photo'), async (req, res) => {
     try {
-        const { bio, office_hours, qualifications } = req.body;
-        let photo_url = req.body.photo_url || ''; // Keep old URL if explicitly passed
+        const { bio, office_hours, qualifications, availability, department } = req.body;
+        const safeAvailability = ['available', 'on_leave', 'unavailable'].includes(availability)
+            ? availability
+            : 'available';
+        let photo_url = String(req.body.photo_url || '').trim();
 
-        // If a new file is uploaded, simulate Drive upload
         if (req.file) {
-            photo_url = `https://api.dicebear.com/6.x/initials/svg?seed=P${Date.now()}`; // Simulated generated avatar URL based on success
+            if (req.file.size > 2 * 1024 * 1024) {
+                return res.status(413).json({ success: false, message: 'Profile photo must be 2 MB or smaller' });
+            }
+            const { default: imageType } = await import('image-type');
+            const detected = await imageType(req.file.buffer);
+            if (!detected || !['image/png', 'image/jpeg', 'image/webp'].includes(detected.mime)) {
+                return res.status(415).json({ success: false, message: 'Upload a valid PNG, JPG or WebP profile photo' });
+            }
+            photo_url = `data:${detected.mime};base64,${req.file.buffer.toString('base64')}`;
+        } else if (photo_url && !/^(?:https:\/\/|data:image\/(?:png|jpeg|webp);base64,)/i.test(photo_url)) {
+            photo_url = '';
+        }
+
+        if (department) {
+            const { error: userError } = await supabase
+                .from('users')
+                .update({ department, updated_at: new Date().toISOString() })
+                .eq('id', req.userId);
+            if (userError) throw userError;
         }
 
         const { data, error } = await supabase
@@ -1079,19 +1184,21 @@ app.put('/api/faculty/me', authenticateToken, requireRole(['staff']), upload.sin
                 photo_url,
                 qualifications,
                 bio,
-                office_hours
+                office_hours,
+                availability: safeAvailability,
+                updated_at: new Date().toISOString()
             })
             .eq('user_id', req.userId)
             .select()
             .single();
 
         if (error) {
-            if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
+            if (isMissingFacultyProfileColumnError(error)) {
                 // Fallback if photo_url/qualifications columns were not added to DB yet
                 const { data: fbData, error: fbError } = await supabase
                     .from('faculty')
-                    .update({ bio, office_hours })
-                    .eq('user_id', req.user.userId)
+                    .update({ bio, office_hours, availability: safeAvailability, updated_at: new Date().toISOString() })
+                    .eq('user_id', req.userId)
                     .select()
                     .single();
 
@@ -1119,43 +1226,41 @@ app.put('/api/faculty/me', authenticateToken, requireRole(['staff']), upload.sin
  */
 app.get('/api/faculty', async (req, res) => {
     try {
+        res.set('Cache-Control', 'no-store, max-age=0');
         const { department, availability } = req.query;
 
         let query = supabase
             .from('faculty')
             .select(`
-                id,
-                user_id,
-                users(name, email, department),
-                bio,
-                office_hours,
-                availability,
-                average_rating,
-                total_downloads
+                *,
+                users:user_id(name, email, department, is_approved)
             `);
-
-        if (availability) {
-            query = query.eq('availability', availability);
-        }
-
-        if (department) {
-            query = query.eq('users.department', department);
-        }
 
         const { data, error } = await query;
 
         if (error) throw error;
 
-        const formattedData = data.map(faculty => ({
-            id: faculty.id,
-            name: faculty.users?.name || 'Unknown',
-            email: faculty.users?.email || '',
-            bio: faculty.bio,
-            availability: faculty.availability,
-            averageRating: faculty.average_rating,
-            totalDownloads: faculty.total_downloads,
-            officeHours: faculty.office_hours
-        }));
+        const formattedData = data.filter(faculty => faculty.users?.is_approved !== false)
+            .filter(faculty => !department || faculty.users?.department === department)
+            .map(faculty => {
+                const liveAvailability = getPublicFacultyAvailability(faculty);
+                return {
+                    id: faculty.id,
+                    userId: faculty.user_id,
+                    name: faculty.users?.name || 'Unknown',
+                    email: faculty.users?.email || '',
+                    department: faculty.users?.department || '',
+                    bio: faculty.bio,
+                    qualifications: faculty.qualifications || '',
+                    photoUrl: faculty.photo_url || '',
+                    availability: liveAvailability.status,
+                    availabilityReason: liveAvailability.reason,
+                    averageRating: faculty.average_rating,
+                    totalDownloads: faculty.total_downloads,
+                    timetableUpdatedAt: faculty.timetable_updated_at || null
+                };
+            })
+            .filter(faculty => !availability || faculty.availability === availability);
 
         res.status(200).json({
             success: true,
@@ -1176,17 +1281,12 @@ app.get('/api/faculty', async (req, res) => {
  */
 app.get('/api/faculty/:id', async (req, res) => {
     try {
+        res.set('Cache-Control', 'no-store, max-age=0');
         const { data, error } = await supabase
             .from('faculty')
             .select(`
-                id,
-                user_id,
-                users(name, email, department),
-                bio,
-                office_hours,
-                availability,
-                average_rating,
-                total_downloads
+                *,
+                users:user_id(name, email, department, is_approved)
             `)
             .eq('id', req.params.id)
             .single();
@@ -1198,17 +1298,23 @@ app.get('/api/faculty/:id', async (req, res) => {
             });
         }
 
+        const liveAvailability = getPublicFacultyAvailability(data);
         res.status(200).json({
             success: true,
             data: {
                 id: data.id,
+                userId: data.user_id,
                 name: data.users?.name || 'Unknown',
                 email: data.users?.email || '',
+                department: data.users?.department || '',
                 bio: data.bio,
-                availability: data.availability,
+                qualifications: data.qualifications || '',
+                photoUrl: data.photo_url || '',
+                availability: liveAvailability.status,
+                availabilityReason: liveAvailability.reason,
                 averageRating: data.average_rating,
                 totalDownloads: data.total_downloads,
-                officeHours: data.office_hours
+                timetableUpdatedAt: data.timetable_updated_at || null
             }
         });
     } catch (error) {
@@ -2748,6 +2854,111 @@ function normalizeDsaLinks(value) {
     return [];
 }
 
+function buildDsaStarterCode(language) {
+    const templates = {
+        python: `import sys
+
+def solve():
+    raw_input = sys.stdin.read().strip()
+    # TODO: parse raw_input, solve the practice problem, and print the answer.
+
+if __name__ == "__main__":
+    solve()
+`,
+        c: `#include <stdio.h>
+
+int main(void) {
+    /* TODO: read stdin, solve the practice problem, and print the answer. */
+    return 0;
+}
+`,
+        cpp: `#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    // TODO: read stdin, solve the practice problem, and print the answer.
+    return 0;
+}
+`,
+        java: `import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        // TODO: read stdin, solve the practice problem, and print the answer.
+    }
+}
+`
+    };
+    return templates[language] || templates.python;
+}
+
+function buildDsaFallbackSolution(language) {
+    const solutions = {
+        python: `import sys
+
+values = sys.stdin.read().strip().split()
+print(" ".join(reversed(values)))
+`,
+        c: `#include <stdio.h>
+
+int main(void) {
+    int values[1000];
+    int count = 0;
+    while (count < 1000 && scanf("%d", &values[count]) == 1) count++;
+    for (int i = count - 1; i >= 0; i--) {
+        if (i < count - 1) printf(" ");
+        printf("%d", values[i]);
+    }
+    printf("\\n");
+    return 0;
+}
+`,
+        cpp: `#include <algorithm>
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    vector<long long> values;
+    long long value;
+    while (cin >> value) values.push_back(value);
+    reverse(values.begin(), values.end());
+    for (size_t i = 0; i < values.size(); i++) {
+        if (i) cout << ' ';
+        cout << values[i];
+    }
+    cout << '\\n';
+    return 0;
+}
+`,
+        java: `import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        List<String> values = new ArrayList<>();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            for (String value : line.trim().split("\\\\s+")) {
+                if (!value.isEmpty()) values.add(value);
+            }
+        }
+        Collections.reverse(values);
+        System.out.println(String.join(" ", values));
+    }
+}
+`
+    };
+    return solutions[language] || solutions.python;
+}
+
 function buildFallbackDsaContent(day, language) {
     const concept = dsaConceptPlan[(day - 1) % dsaConceptPlan.length];
     const meta = dsaLanguageMeta[language] || dsaLanguageMeta.python;
@@ -2765,8 +2976,14 @@ function buildFallbackDsaContent(day, language) {
             'Track only the minimum state needed to prove correctness.',
             'Check edge cases such as empty input, one element, duplicates, and large constraints.'
         ],
-        practice_problem: `Solve one ${concept} problem in ${meta.label}. Write the brute force approach first, then improve the time or space complexity and note the reason for the improvement.`,
-        test_cases: [{ input: '', expected_output: meta.exampleOutput }],
+        practice_problem: `Read one line of space-separated integers and print the integers in reverse order. For example, input "1 2 3" must produce "3 2 1". Use this exercise to practise ${concept} in ${meta.label}.`,
+        starter_code: buildDsaStarterCode(language),
+        solution_code: buildDsaFallbackSolution(language),
+        test_cases: [
+            { input: '1 2 3', expected_output: '3 2 1' },
+            { input: '10', expected_output: '10' },
+            { input: '5 -2 8 0', expected_output: '0 8 -2 5' }
+        ],
         external_links: [],
         youtube_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${concept} DSA ${meta.label}`)}`
     };
@@ -2782,7 +2999,10 @@ function normalizeDsaContent(row, day, language) {
         // The saved preference is authoritative. Older AI responses did not
         // include this field, which made Java/Python lessons run as C.
         programming_language: language,
+        schema_version: 2,
         example_code: content.example_code || content.example || fallback.example_code,
+        starter_code: content.starter_code || fallback.starter_code,
+        solution_code: content.solution_code || fallback.solution_code,
         logic_breakdown: normalizeDsaArray(content.logic_breakdown).length ? normalizeDsaArray(content.logic_breakdown) : fallback.logic_breakdown,
         external_links: normalizeDsaLinks(content.external_links),
         youtube_url: content.youtube_url || fallback.youtube_url
@@ -2930,13 +3150,22 @@ app.get('/api/dsa/daily', authenticateToken, async (req, res) => {
         const day = Math.min(DSA_MAX_DAY, Math.max(1, progress.current_day || 1));
         
         let content = progress.topic_status?.[String(day)]?.custom_content;
+        const legacyContent = content;
+        const needsLessonRefresh = !content
+            || Number(content.schema_version || 0) < 2
+            || !String(content.solution_code || '').trim();
         
-        if (!content) {
+        if (needsLessonRefresh) {
             const concept = dsaConceptPlan[(day - 1) % dsaConceptPlan.length];
             console.log(`[DSA Module] Generating Day ${day} (${concept}) for User ${req.userId} with goal ${learningGoal} in ${preferredLanguage}...`);
             
             try {
-                content = await aiService.generateDailyDSA(day, concept, preferredLanguage, learningGoal);
+                const generatedContent = await aiService.generateDailyDSA(day, concept, preferredLanguage, learningGoal);
+                if (!String(generatedContent?.solution_code || '').trim()
+                    || normalizeDsaArray(generatedContent?.test_cases).length === 0) {
+                    throw new Error('Generated DSA lesson is missing its executable solution contract');
+                }
+                content = generatedContent;
             } catch (err) {
                 console.error('[DSA Module] Gemini generation failed, using fallback:', err);
                 content = buildFallbackDsaContent(day, preferredLanguage);
@@ -2951,9 +3180,23 @@ app.get('/api/dsa/daily', authenticateToken, async (req, res) => {
                 custom_content: content
             };
 
+            const codeDrafts = { ...(progress.code_drafts || {}) };
+            const existingDraft = String(codeDrafts[String(day)] || '').trim();
+            const legacyExample = String(legacyContent?.example_code || legacyContent?.example || '').trim();
+            const isLegacyGeneratedDraft = existingDraft && (
+                existingDraft === legacyExample
+                || /TODO:\s*(?:parse raw_input|read stdin), solve the practice problem/i.test(existingDraft)
+            );
+            if (isLegacyGeneratedDraft) delete codeDrafts[String(day)];
+            progress.code_drafts = codeDrafts;
+
             await supabase
                 .from('dsa_user_progress')
-                .update({ topic_status: topicStatus, updated_at: new Date().toISOString() })
+                .update({
+                    topic_status: topicStatus,
+                    code_drafts: codeDrafts,
+                    updated_at: new Date().toISOString()
+                })
                 .eq('id', progress.id);
         }
 
@@ -3075,7 +3318,7 @@ app.post('/api/dsa/run', authenticateToken, async (req, res) => {
         res.status(isServiceError ? 503 : 500).json({
             success: false,
             message: isServiceError
-                ? 'The compiler sandbox is temporarily unavailable. Please try again shortly.'
+                ? error.message
                 : 'Code execution failed. Please check your syntax and try again.'
         });
     }

@@ -1,6 +1,12 @@
 const mammoth = require('mammoth');
 const officeParser = require('officeparser');
 const pdfParse = require('pdf-parse');
+const {
+    extractPowerPointText,
+    extractSpreadsheetText,
+    hasUsableText,
+    normalizeExtractedText
+} = require('./document-text-utils');
 
 /**
  * Helper to extract text from a PDF file buffer
@@ -8,7 +14,17 @@ const pdfParse = require('pdf-parse');
 async function extractPdfText(buffer) {
     try {
         const data = await pdfParse(buffer);
-        return data.text || '';
+        const primaryText = normalizeExtractedText(data.text || '');
+        if (hasUsableText(primaryText)) return primaryText;
+
+        console.log('[AI Service] PDF has no usable embedded text; trying image OCR.');
+        const ast = await officeParser.parseOffice(buffer, {
+            extractAttachments: true,
+            ocr: true,
+            ocrConfig: { language: 'eng', autoTerminateTimeout: 5000 },
+            newlineDelimiter: '\n'
+        });
+        return normalizeExtractedText(ast?.toText?.() || '');
     } catch (err) {
         console.error('[AI Service] PDF parse error:', err);
         return '';
@@ -25,6 +41,9 @@ function getMimeType(extension) {
         ppt:  'application/vnd.ms-powerpoint',
         docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         doc:  'application/msword',
+        xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        xls:  'application/vnd.ms-excel',
+        ods:  'application/vnd.oasis.opendocument.spreadsheet',
         png:  'image/png',
         jpg:  'image/jpeg',
         jpeg: 'image/jpeg',
@@ -57,28 +76,60 @@ async function extractTextFromFile(fileBuffer, mimeType) {
     // PDF → extract text via pdf-parse
     if (mimeType === 'application/pdf') {
         const text = await extractPdfText(fileBuffer);
-        return text.trim();
+        return normalizeExtractedText(text);
     }
 
     // DOCX → extract raw text via mammoth
     if (mimeType.includes('wordprocessingml') || mimeType === 'application/msword') {
         const result = await mammoth.extractRawText({ buffer: fileBuffer });
-        return (result.value || '').trim();
+        return normalizeExtractedText(result.value || '');
     }
 
     // PPTX → extract text via officeparser
     if (mimeType.includes('presentationml') || mimeType.includes('ms-powerpoint')) {
         try {
-            const ast = await officeParser.parseOffice(fileBuffer);
-            return (ast && typeof ast.toText === 'function') ? ast.toText().trim() : '';
+            const parserConfig = {
+                ignoreNotes: true,
+                extractAttachments: true,
+                newlineDelimiter: '\n'
+            };
+            let ast = await officeParser.parseOffice(fileBuffer, parserConfig);
+            let text = extractPowerPointText(ast);
+
+            if (!hasUsableText(text)) {
+                console.log('[AI Service] Presentation has no usable embedded text; trying image OCR.');
+                ast = await officeParser.parseOffice(fileBuffer, {
+                    ...parserConfig,
+                    ocr: true,
+                    ocrConfig: { language: 'eng', autoTerminateTimeout: 5000 }
+                });
+                text = extractPowerPointText(ast);
+            }
+
+            return normalizeExtractedText(text);
         } catch (err) {
             console.error('[AI Service] PowerPoint parse error:', err);
             throw new Error('Failed to parse PowerPoint presentation.');
         }
     }
 
+    // Preserve spreadsheet rows and numerical columns as tab-separated text
+    // so the selectable document viewer can render them as tables.
+    if (mimeType.includes('spreadsheet') || mimeType === 'application/vnd.ms-excel') {
+        try {
+            const ast = await officeParser.parseOffice(fileBuffer, {
+                ignoreNotes: true,
+                newlineDelimiter: '\n'
+            });
+            return normalizeExtractedText(extractSpreadsheetText(ast));
+        } catch (err) {
+            console.error('[AI Service] Spreadsheet parse error:', err);
+            throw new Error('Failed to parse spreadsheet document. Save legacy .xls files as .xlsx and try again.');
+        }
+    }
+
     // Fallback: plain text
-    return fileBuffer.toString('utf-8').trim();
+    return normalizeExtractedText(fileBuffer.toString('utf-8'));
 }
 
 /**
@@ -328,6 +379,8 @@ Respond with a JSON object. Ensure that the JSON is valid and conforms to the fo
     "example_code": "A complete, correct, and executable code example in ${languageLabel} demonstrating this concept.",
     "logic_breakdown": ["Step 1 explanation", "Step 2 explanation", ...],
     "practice_problem": "A challenge problem description for the student to solve using ${concept} in ${languageLabel}.",
+    "starter_code": "Compilable ${languageLabel} starter code for practice_problem. It must read the documented test input from standard input and contain a clear TODO for the student.",
+    "solution_code": "A complete executable ${languageLabel} reference solution for practice_problem that passes every supplied test case.",
     "test_cases": [
         { "input": "input representation as a string, e.g. for standard input", "expected_output": "expected standard output representation" },
         { "input": "...", "expected_output": "..." },
@@ -343,10 +396,12 @@ Respond with a JSON object. Ensure that the JSON is valid and conforms to the fo
 Rules:
 1. Return ONLY the raw JSON object. Do not include markdown code fences (like \`\`\`json).
 2. The code in 'example_code' must compile and execute successfully.
-3. Provide exactly 3 test cases. The test cases will be run by an automated system where the 'input' is sent via standard input (stdin) and 'expected_output' is matched against standard output (stdout).
-4. Use ${languageLabel} exclusively in syntax and example_code. Do not mix in syntax from another programming language.
-5. Set programming_language to the exact value "${language}".
-6. Tailor the tone and problems to the goal: '${learningGoal}'.`;
+3. practice_problem, starter_code, solution_code, and all 3 test_cases MUST describe the same problem and the same input/output format. Test input is sent verbatim to standard input and expected_output is matched against standard output.
+4. starter_code must compile, read standard input, and leave the algorithm as a TODO. Do not hardcode test outputs. Clearly document the input format in practice_problem.
+5. solution_code must compile, solve practice_problem for general valid input, print exactly one answer, and pass all 3 test_cases. Do not hardcode individual test cases.
+6. Use ${languageLabel} exclusively in syntax, example_code, starter_code, and solution_code. Do not mix in syntax from another programming language.
+7. Set programming_language to the exact value "${language}".
+8. Tailor the tone and problems to the goal: '${learningGoal}'.`;
 
     const responseText = await queryOpenRouter([
         { role: 'user', content: prompt }

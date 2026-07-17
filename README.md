@@ -21,7 +21,7 @@ Notezilla is a full-stack academic notes platform for Rajalakshmi Engineering Co
 ### Staff and administration
 
 - Staff registration with administrator approval.
-- Faculty profiles, subject mapping, office-hour extraction, and repository management.
+- Faculty profiles, timetable-based live availability tags, subject mapping, and repository management.
 - Shared Google Drive faculty-folder synchronization.
 - Note download tracking and note version updates.
 - Administrator workflows for approving staff and verifying or rejecting notes.
@@ -43,7 +43,7 @@ Notezilla is a full-stack academic notes platform for Rajalakshmi Engineering Co
 - Real-time events: Socket.IO
 - Authentication: JWT and bcryptjs
 - AI: Google Gemini and OpenRouter-compatible models
-- Documents: PDF.js in the browser, plus PDF and Office parsing on the server
+- Documents: PDF.js in the browser, plus PDF/Office parsing, spreadsheet tables, chart extraction, and OCR fallback on the server
 - Repository integration: Google Drive shared-folder tree
 
 ## Requirements
@@ -71,7 +71,7 @@ Notezilla is a full-stack academic notes platform for Rajalakshmi Engineering Co
 
 3. Create the Supabase tables.
 
-   Run `UPDATED_SCHEMA.sql` in the Supabase SQL Editor. See `SUPABASE_SETUP.md` for additional setup guidance.
+   Run `UPDATED_SCHEMA.sql` in the Supabase SQL Editor. Existing installations should also run `FACULTY_PROFILE_MIGRATION.sql` to add faculty photos, qualifications, structured free hours, and timetable timestamps. See `SUPABASE_SETUP.md` for additional setup guidance.
 
 4. Create a `.env` file in the project root.
 
@@ -84,6 +84,7 @@ Notezilla is a full-stack academic notes platform for Rajalakshmi Engineering Co
    GOOGLE_DRIVE_ROOT_FOLDER_ID=your_shared_drive_root_folder_id
 
    GEMINI_API_KEY=your_gemini_api_key
+   GEMINI_TIMETABLE_MODEL=gemini-2.5-flash
    OPENROUTER_API_KEY=your_openrouter_api_key
    OPENROUTER_MODEL=your_preferred_openrouter_model
    ```
@@ -149,6 +150,7 @@ Follow [DEPLOYMENT.md](DEPLOYMENT.md) for the Railway variables, persistent volu
 |-- socket-handler.js             # Real-time presence and notifications
 |-- UPDATED_SCHEMA.sql            # Current Supabase schema
 |-- SUPABASE_SCHEMA.sql           # Base schema reference
+|-- FACULTY_PROFILE_MIGRATION.sql # Existing database faculty-profile upgrade
 |-- SUPABASE_SETUP.md             # Supabase setup guide
 |-- DEPLOYMENT.md                 # Vercel + Railway deployment instructions
 `-- package.json                  # Scripts and dependencies

@@ -8,7 +8,9 @@
     "dev": "nodemon server.js",
     "build": "node scripts/build-frontend.js",
     "check:frontend": "node scripts/build-frontend.js",
-    "preview": "node scripts/preview-frontend.js"
+    "preview": "node scripts/preview-frontend.js",
+    "test": "node tests/document-text-utils.test.js && node tests/dsa-content-formatter.test.js && node tests/faculty-timetable-utils.test.js && node tests/compiler-service.test.js",
+    "check:compiler": "node scripts/check-wandbox.js"
   },
   "keywords": [
     "notes",
