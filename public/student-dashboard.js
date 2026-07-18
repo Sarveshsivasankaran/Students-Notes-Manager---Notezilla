@@ -1540,8 +1540,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return false;
         }
 
-        if (filter === 'available' && folder.availability !== 'available') return false;
-        if (filter === 'unavailable' && folder.availability !== 'unavailable') return false;
+        const liveAvailability = getFacultyAvailabilityBadge(folder).status;
+        if (filter === 'available' && liveAvailability !== 'available') return false;
+        if (filter === 'unavailable' && liveAvailability !== 'unavailable') return false;
         return true;
     }
 
@@ -1579,6 +1580,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#0ea5e9', '#f59e0b'];
         const hash = [...String(name)].reduce((total, char) => total + char.charCodeAt(0), 0);
         return colors[hash % colors.length];
+    }
+
+    function getFacultyAvailabilityBadge(faculty = {}) {
+        const reason = String(faculty.availabilityReason || '');
+        const isInExtractedFreePeriod = faculty.availability === 'available'
+            && reason === 'free_period';
+
+        if (isInExtractedFreePeriod) {
+            return {
+                status: 'available',
+                label: 'Available now',
+                description: 'Currently within an extracted free period'
+            };
+        }
+
+        if (reason === 'on_leave') {
+            return {
+                status: 'unavailable',
+                label: 'On leave',
+                description: 'Marked on leave by the faculty member'
+            };
+        }
+
+        return {
+            status: 'unavailable',
+            label: 'Unavailable now',
+            description: reason === 'outside_working_hours'
+                ? 'Outside working hours'
+                : 'Not within an extracted free period'
+        };
     }
 
     function closeFacultyPreviewPanel() {
@@ -1678,6 +1709,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         filteredFaculty.forEach((fac) => {
             const color = getFacultyColor(fac.name);
+            const availabilityBadge = getFacultyAvailabilityBadge(fac);
             const card = document.createElement('div');
             card.className = 'faculty-profile-card';
             card.style.setProperty('--dept-color', color);
@@ -1687,13 +1719,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="faculty-avatar-large" style="background:${color}" data-faculty-avatar>${escapeHtml((fac.name || 'F').charAt(0).toUpperCase())}</div>
                     <h3 class="faculty-card-name">${escapeHtml(fac.name || 'Faculty Folder')}</h3>
                     <span class="faculty-dept-badge" style="background:${color}22;color:${color}">${escapeHtml(fac.department || 'Faculty')}</span>
-                    <span class="faculty-card-availability ${escapeHtml(String(fac.availability || 'unavailable').replace(/_/g, '-'))}"><i class='bx bx-radio-circle-marked'></i>${escapeHtml(String(fac.availability || 'unavailable').replace(/_/g, ' '))}</span>
+                    <span class="faculty-card-availability ${availabilityBadge.status}" title="${escapeHtml(availabilityBadge.description)}"><i class='bx bx-radio-circle-marked'></i>${escapeHtml(availabilityBadge.label)}</span>
                     <div class="faculty-card-qualification">${escapeHtml(fac.qualifications || 'Qualifications not added')}</div>
                     <p class="faculty-card-bio">${escapeHtml(fac.bio || 'Open this profile to browse shared subjects and faculty availability.')}</p>
                     <div class="faculty-card-stats">
                         <div class="faculty-stat"><span class="fac-stat-value">${Number(fac.fileCount || 0)}</span><span class="fac-stat-label">Materials</span></div>
-                        <div class="faculty-stat-divider"></div>
-                        <div class="faculty-stat"><span class="fac-stat-value">${Number(fac.totalDownloads || 0)}</span><span class="fac-stat-label">Downloads</span></div>
                     </div>
                     <button class="faculty-view-btn view-faculty-btn" type="button"><i class='bx bx-user'></i> View profile & materials</button>
                 </div>

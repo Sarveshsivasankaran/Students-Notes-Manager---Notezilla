@@ -2838,12 +2838,6 @@ input:checked + .slider:before {
     color: var(--text-muted);
 }
 
-.faculty-stat-divider {
-    width: 1px;
-    height: 30px;
-    background: var(--border-light);
-}
-
 .faculty-view-btn {
     width: 100%;
     padding: 11px 0;

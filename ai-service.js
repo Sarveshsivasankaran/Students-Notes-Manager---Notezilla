@@ -281,7 +281,7 @@ Format the output EXACTLY as a JSON object with these keys:
                           2. **Key Concepts Covered** (a structured bulleted list explaining the primary concepts in the text)
                           3. **Important Definitions** (definitions of critical terms and jargon found in the text)
                           4. **Formulas with Explanation** (any formulas, equations, or mathematical models present. Explain the variables. Use LaTeX format: $ for inline, $$ for centered blocks. If no formulas exist, state "No formulas present in this material.")
-                          5. **Important Questions for Exams** (5-6 likely exam questions, including both descriptive and analytical queries based on the material)
+                          5. **Important Questions for Exams** (5-6 likely exam questio ns, including both descriptive and analytical queries based on the material)
                           6. **Viva Questions and Answers** (5-6 short, direct questions and answers ideal for oral exams/vivas)
                           7. **Quick Revision Notes** (concise, bulleted points summarizing the key takeaways for last-minute cramming)
                           8. **Real-World Applications** (how the concepts taught in this material are applied in actual engineering, software development, or industry)
