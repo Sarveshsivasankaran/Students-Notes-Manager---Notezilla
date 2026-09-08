@@ -1787,6 +1787,78 @@ body {
     visibility: visible;
 }
 
+/* Chatbot Backdrop when Maximized */
+.chatbot-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(3, 7, 18, 0.78);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1999;
+}
+
+/* Maximized Aadhi AI Tutor Studio (Voice + Text Typing) */
+.chatbot-window.maximized {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+    width: 980px !important;
+    max-width: calc(100vw - 32px) !important;
+    height: 86vh !important;
+    max-height: 880px !important;
+    border-radius: 24px !important;
+    z-index: 2005 !important;
+    box-shadow: 0 30px 100px rgba(0, 0, 0, 0.9), 0 0 60px rgba(99, 102, 241, 0.3) !important;
+    border: 1px solid rgba(99, 102, 241, 0.45) !important;
+    margin-bottom: 0 !important;
+}
+
+.chatbot-window.maximized .chat-header {
+    padding: 16px 24px;
+}
+
+.chatbot-window.maximized .chat-header-info h4 {
+    font-size: 17px;
+}
+
+.chatbot-window.maximized .chat-body {
+    padding: 24px 30px;
+    font-size: 15px;
+    gap: 18px;
+}
+
+.chatbot-window.maximized .chat-msg {
+    max-width: 82%;
+    font-size: 14.5px;
+}
+
+.chatbot-window.maximized .chat-input-area {
+    padding: 18px 24px;
+    gap: 14px;
+}
+
+.chatbot-window.maximized .chat-input-area input {
+    font-size: 15px;
+    padding: 14px 20px;
+}
+
+.chatbot-window.maximized .chat-mic-btn {
+    width: 46px;
+    height: 46px;
+    font-size: 20px;
+}
+
+.chatbot-window.maximized #chatSend {
+    width: 46px;
+    height: 46px;
+}
+
 /* Chat Header */
 .chat-header {
     padding: 14px 18px;
@@ -2520,27 +2592,51 @@ body {
     animation: statusPulseRed 1.2s infinite;
 }
 
-.vf-quick-prompts {
+.vf-typing-bar {
+    width: 100%;
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
 }
 
-.vf-prompt-btn {
-    padding: 5px 12px;
-    border-radius: 12px;
-    font-size: 11px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #cbd5e1;
+.vf-typing-bar input {
+    flex: 1;
+    padding: 13px 18px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.vf-typing-bar input:focus {
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 16px rgba(99, 102, 241, 0.35);
+}
+
+.vf-typing-bar button {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: var(--primary);
+    border: none;
+    color: #ffffff;
+    font-size: 18px;
     cursor: pointer;
-    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
-.vf-prompt-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: white;
+.vf-typing-bar button:hover {
+    background: var(--primary-dark);
+    transform: scale(1.05);
 }
 
 .msg-time {
@@ -6390,6 +6486,13 @@ input:checked + .slider:before {
     margin-top: 2px;
 }
 
+.u-unit-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .u-aadhi-btn {
     padding: 7px 14px;
     border-radius: 8px;
@@ -6401,6 +6504,36 @@ input:checked + .slider:before {
     cursor: pointer;
     border: none;
     color: #ffffff;
+    background: linear-gradient(135deg, var(--primary), var(--accent-1));
+    transition: all 0.2s ease;
+}
+
+.u-aadhi-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.u-download-btn {
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+    transition: all 0.2s ease;
+}
+
+.u-download-btn:hover {
+    background: rgba(16, 185, 129, 0.25);
+    border-color: #10b981;
+    color: #a7f3d0;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
 }
 
 .c-unit-topics-box {

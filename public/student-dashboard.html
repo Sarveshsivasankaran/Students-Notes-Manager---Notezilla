@@ -908,58 +908,15 @@
                     </div>
 
                     <div class="curriculum-modal-scrollable-body" id="curriculumModalBody">
-                        <!-- Header Title & Regulation -->
-                        <div class="c-modal-header-section">
-                            <h2 id="cModalTitle">Course Title</h2>
-                            <p class="c-modal-reg-text" id="cModalRegulation">Autonomous Reg 2023 | Choice Based Credit System</p>
-                            <p class="c-modal-desc" id="cModalDescription">Course description...</p>
-                            <div class="c-modal-meta-row" id="cModalCreditsBreakdown">
-                                <span><i class='bx bx-time-five'></i> Lecture: 3 | Tutorial: 1 | Practical: 0</span>
-                                <span id="cModalTotalHours"><i class='bx bx-book-bookmark'></i> 45 Total Lecture Hours</span>
-                            </div>
+                        <!-- Clean Course Title Header -->
+                        <div class="c-modal-header-section" style="margin-bottom: 6px;">
+                            <h2 id="cModalTitle" style="font-size: 22px; font-weight: 800; color: #fff; margin: 0 0 4px 0;">Course Title</h2>
+                            <p id="cModalSubtitle" style="font-size: 13px; color: var(--text-muted); margin: 0;">5-Unit Curriculum Roadmap & Verified Study Materials</p>
                         </div>
 
-                        <!-- Faculty Mini Dossier -->
-                        <div class="c-modal-faculty-card glass-panel" id="cModalFacultySection">
-                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80" id="cModalFacultyImg" class="c-fac-avatar" alt="Faculty">
-                            <div class="c-fac-info">
-                                <div class="c-fac-title-row">
-                                    <h4 id="cModalFacultyName">Faculty Name</h4>
-                                    <span class="c-fac-rating" id="cModalFacultyRating"><i class='bx bxs-star'></i> 4.85</span>
-                                </div>
-                                <p class="c-fac-qual" id="cModalFacultyQual">Ph.D. in Computer Science</p>
-                                <p class="c-fac-hours" id="cModalFacultyHours"><i class='bx bx-time'></i> Office Hours: Mon, Wed 10:00 AM - 12:30 PM</p>
-                            </div>
-                            <div class="c-fac-actions">
-                                <a id="cModalFacultyEmailLink" href="#" class="btn-glass fac-email-btn"><i class='bx bx-envelope'></i> Email</a>
-                            </div>
-                        </div>
-
-                        <!-- 5-Unit Interactive Syllabus Roadmap -->
-                        <div class="c-modal-syllabus-section">
-                            <div class="section-title-row">
-                                <h3><i class='bx bx-map-alt'></i> 5-Unit Curriculum Roadmap & Verified Notes</h3>
-                                <span class="syllabus-progress-tag">Anna University Standardized</span>
-                            </div>
-                            <div class="curriculum-units-list" id="cModalUnitsContainer">
-                                <!-- Dynamic units with mapped notes and Aadhi buttons rendered here -->
-                            </div>
-                        </div>
-
-                        <!-- Course Outcomes & Reference Textbooks Card -->
-                        <div class="c-modal-outcomes-section glass-panel">
-                            <div class="c-outcomes-col">
-                                <h4><i class='bx bx-target-lock'></i> Course Learning Outcomes (COs)</h4>
-                                <ul class="c-outcomes-list" id="cModalOutcomesList">
-                                    <!-- COs rendered dynamically -->
-                                </ul>
-                            </div>
-                            <div class="c-textbooks-col">
-                                <h4><i class='bx bx-book-reader'></i> Prescribed Reference Textbooks</h4>
-                                <div class="c-textbooks-list" id="cModalTextbooksList">
-                                    <!-- Books rendered dynamically -->
-                                </div>
-                            </div>
+                        <!-- Unit-Wise Blocks List (Units 1 to 5) with Ask Aadhi & Download Buttons -->
+                        <div class="curriculum-units-list" id="cModalUnitsContainer">
+                            <!-- Dynamic unit cards rendered here -->
                         </div>
                     </div>
                 </div>
@@ -1343,10 +1300,13 @@
         </div>
     </div>
 
-    <!-- Aadhi AI Academic Tutor - Text + Voice (Phase 2 Upgrade) -->
+    <!-- Chatbot Backdrop (for maximized mode) -->
+    <div id="chatbotBackdrop" class="chatbot-backdrop" style="display: none;"></div>
+
+    <!-- Aadhi AI Academic Tutor - Text + Voice -->
     <div class="chatbot-container" id="chatbotWidget">
         <div class="chatbot-window glass-panel" id="chatbotWindow">
-            <!-- Header with Tutor Info, Mode Pills & Voice Controls -->
+            <!-- Header with Tutor Info & Controls -->
             <div class="chat-header">
                 <div class="chat-avatar-wrapper">
                     <img src="/images/logo.avif" alt="Aadhi AI Tutor" class="aadhi-avatar-img">
@@ -1355,35 +1315,18 @@
                 <div class="chat-header-info">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <h4>Aadhi AI Tutor</h4>
-                        <span class="aadhi-badge-live" id="aadhiModeBadge"><i class='bx bx-brain'></i> Explainer</span>
                     </div>
-                    <p id="aadhiSubStatus">Ready to teach &bull; Voice Enabled</p>
+                    <p id="aadhiSubStatus">Ready to teach &bull; Voice & Text</p>
                 </div>
                 <div class="chat-header-actions">
-                    <button class="chat-action-btn" id="chatVoiceFocusBtn" title="Launch Hands-Free Voice Focus Mode">
-                        <i class='bx bx-expand-alt'></i>
+                    <button class="chat-action-btn" id="chatVoiceFocusBtn" title="Maximize / Restore Aadhi Tutor">
+                        <i class='bx bx-expand-alt' id="chatMaximizeIcon"></i>
                     </button>
                     <button class="chat-action-btn active" id="chatAudioToggleBtn" title="Toggle Voice Speech Output (TTS)">
                         <i class='bx bx-volume-full' id="chatAudioIcon"></i>
                     </button>
                     <button class="chat-close" id="chatClose" title="Minimize">&times;</button>
                 </div>
-            </div>
-
-            <!-- Tutor Mode Selector Bar -->
-            <div class="tutor-modes-bar" id="tutorModesBar">
-                <button class="tutor-mode-pill active" data-mode="explain">
-                    <i class='bx bx-bulb'></i> Concept Explainer
-                </button>
-                <button class="tutor-mode-pill" data-mode="socratic">
-                    <i class='bx bx-compass'></i> Socratic Guide
-                </button>
-                <button class="tutor-mode-pill" data-mode="exam_drill">
-                    <i class='bx bx-target-lock'></i> Viva Drill
-                </button>
-                <button class="tutor-mode-pill" data-mode="general">
-                    <i class='bx bx-support'></i> Support
-                </button>
             </div>
 
             <!-- Live Voice Waveform Visualizer (Shown when Listening or Speaking) -->
@@ -1407,17 +1350,12 @@
             <div class="chat-body" id="chatBody">
                 <div class="chat-msg bot" data-speech="Hello! I'm Aadhi, your AI Academic Tutor. How can I help you master your curriculum today?">
                     <div class="bot-msg-content">
-                        Hello! 👋 I'm <strong>Aadhi</strong>, your AI Academic Tutor. Ask me any engineering concept, request an intuitive analogy, or click the mic to start a voice study session!
+                        Hello! 👋 I'm <strong>Aadhi</strong>, your AI Academic Tutor. Ask me any engineering concept or academic doubt, or click the mic to talk with me!
                     </div>
                     <div class="msg-voice-action">
                         <button class="msg-listen-btn" title="Listen to Aadhi speaking this"><i class='bx bx-volume-full'></i> Listen</button>
                     </div>
                 </div>
-            </div>
-
-            <!-- Suggested Smart Chips -->
-            <div class="chat-smart-chips" id="chatSmartChips">
-                <!-- Dynamically filled with personalized follow-up prompts -->
             </div>
 
             <!-- Chat Input Area with Text & Glowing Microphone -->
@@ -1444,15 +1382,15 @@
         </div>
     </div>
 
-    <!-- Full-Screen / Focus Hands-Free Voice Tutor Modal -->
+    <!-- Full-Screen / Focus Voice & Text Tutor Modal -->
     <div class="modal-overlay" id="aadhiVoiceFocusModal" style="display: none;">
         <div class="voice-focus-container glass-panel">
             <div class="voice-focus-header">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <img src="/images/logo.avif" alt="Aadhi Voice Tutor" style="width: 36px; height: 36px; border-radius: 50%;">
                     <div>
-                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;">Aadhi Voice Tutor &bull; Hands-Free Focus</h3>
-                        <p style="margin: 0; font-size: 12px; color: #94a3b8;" id="voiceFocusContextLabel">Interactive Verbal Academic Session</p>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;">Aadhi Voice & Text Tutor &bull; Focus Mode</h3>
+                        <p style="margin: 0; font-size: 12px; color: #94a3b8;" id="voiceFocusContextLabel">Interactive Voice & Typing Academic Session</p>
                     </div>
                 </div>
                 <button class="close-preview-panel" id="closeVoiceFocusModal"><i class='bx bx-x'></i></button>
@@ -1468,41 +1406,35 @@
                     <div class="voice-orb-ring ring-3"></div>
                 </div>
                 <div class="voice-focus-state-badge" id="voiceFocusStateBadge">
-                    <span class="pulse-dot"></span> Ready to Listen
+                    <span class="pulse-dot"></span> Ready to Listen & Chat
                 </div>
             </div>
 
-            <!-- Live Speech Transcripts -->
+            <!-- Live Speech & Chat Transcripts -->
             <div class="voice-focus-transcript-box">
                 <div class="vf-transcript-user" id="vfUserTranscript">
                     <span class="vf-label"><i class='bx bx-user'></i> You said:</span>
-                    <p id="vfUserText">Tap the microphone below to ask any doubt verbally...</p>
+                    <p id="vfUserText">Speak or type your question below...</p>
                 </div>
                 <div class="vf-transcript-aadhi" id="vfAadhiTranscript">
                     <span class="vf-label"><i class='bx bx-bot'></i> Aadhi:</span>
-                    <div id="vfAadhiText">"Hello! Ask me about any concept from your notes, request a viva question, or discuss an engineering problem."</div>
+                    <div id="vfAadhiText">"Hello! Ask me about any concept from your notes, discuss an engineering problem, or click the mic to talk."</div>
                 </div>
             </div>
 
-            <!-- Voice Focus Quick Actions & Mic Control -->
+            <!-- Voice Focus Mic & Typing Controls -->
             <div class="voice-focus-controls">
-                <div class="vf-mode-pills">
-                    <button class="vf-mode-pill active" data-vfmode="explain"><i class='bx bx-bulb'></i> Explain</button>
-                    <button class="vf-mode-pill" data-vfmode="socratic"><i class='bx bx-compass'></i> Socratic</button>
-                    <button class="vf-mode-pill" data-vfmode="exam_drill"><i class='bx bx-target-lock'></i> Viva Drill</button>
-                </div>
-
                 <div class="vf-mic-stage">
                     <button class="vf-main-mic-btn" id="vfMainMicBtn" title="Start talking">
                         <i class='bx bx-microphone'></i>
                     </button>
-                    <span style="font-size: 13px; color: #94a3b8; margin-top: 8px;" id="vfMicHintText">Click microphone to speak</span>
+                    <span style="font-size: 13px; color: #94a3b8; margin-top: 8px;" id="vfMicHintText">Click microphone to speak or type below</span>
                 </div>
 
-                <div class="vf-quick-prompts" id="vfQuickPrompts">
-                    <button class="vf-prompt-btn">Quiz me on my weak topics</button>
-                    <button class="vf-prompt-btn">Explain Page Replacement algorithms</button>
-                    <button class="vf-prompt-btn">Ask an Anna University 2-mark question</button>
+                <!-- Integrated Text Typing Bar in Maximized Focus Modal -->
+                <div class="vf-typing-bar">
+                    <input type="text" id="vfTextInput" placeholder="Type your academic question here...">
+                    <button id="vfTextSend" title="Send question"><i class='bx bx-send'></i></button>
                 </div>
             </div>
         </div>

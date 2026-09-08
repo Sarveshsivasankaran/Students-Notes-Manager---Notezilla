@@ -3351,9 +3351,7 @@ app.post('/api/chat', async (req, res) => {
             return res.status(200).json({
                 success: true,
                 response: "Hello! I'm Aadhi, your AI Academic Tutor. How can I help you master your curriculum today?",
-                speechText: "Hello! I am Aadhi, your AI Academic Tutor. How can I help you master your curriculum today?",
-                suggestedChips: ["Explain a concept", "Start a viva drill", "Check my weak topics"],
-                tutorMode: tutorMode || 'explain'
+                speechText: "Hello! I am Aadhi, your AI Academic Tutor. How can I help you master your curriculum today?"
             });
         }
 
@@ -3406,9 +3404,7 @@ app.post('/api/chat', async (req, res) => {
             provider: 'google-gemini',
             model: 'gemini-2.5-flash',
             response: (tutorResult.response || '').trim() || "I'm having trouble analyzing that topic right now. Please try again.",
-            speechText: (tutorResult.speechText || '').trim(),
-            suggestedChips: tutorResult.suggestedChips || [],
-            tutorMode: tutorResult.tutorMode || tutorMode || 'explain'
+            speechText: (tutorResult.speechText || '').trim()
         });
     } catch (error) {
         console.error('Aadhi AI Tutor error:', error);

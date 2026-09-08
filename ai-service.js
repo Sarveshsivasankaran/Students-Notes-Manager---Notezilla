@@ -557,59 +557,21 @@ async function chatWithAadhi(message, userContext = {}, tutorMode = 'explain', a
 
     let greetingRestriction = '';
     if (isGreeting) {
-        greetingRestriction = '\n\nCRITICAL GREETING RULE:\n- The user has sent a greeting or introduction. Do NOT explicitly mention, introduce, or volunteer details about the creator of Notezilla (Sarvesh Sivasankaran / Solo-P-Leveller). Only introduce yourself as Aadhi, Notezilla\'s AI Academic Tutor, mention your active mode (' + mode + '), and invite the student to explore any engineering subject or note.';
+        greetingRestriction = '\n\nCRITICAL GREETING RULE:\n- The user has sent a greeting or introduction. Do NOT explicitly mention, introduce, or volunteer details about the creator of Notezilla (Sarvesh Sivasankaran / Solo-P-Leveller). Only introduce yourself as Aadhi, Notezilla\'s AI Academic Tutor, and invite the student to ask any engineering concept or academic doubt.';
     }
 
-    // 3. System prompt tailored to Tutor Mode
-    let modeInstruction = '';
-    if (mode === 'explain') {
-        modeInstruction = `
-TUTOR MODE: CONCEPT EXPLAINER (Intuitive Mental Models & Step-by-Step Clarity)
-- Your goal is to make complex engineering topics unforgettable and crystal clear.
-- Use intuitive, relatable real-world analogies (e.g., compare OS paging to a desk workspace, or B-trees to a library index).
-- Break down technical concepts step-by-step with clear numbered intuition.
-- Use clean Markdown with bold keywords, formatted lists, and LaTeX formulas ($formula$ or $$block$$) where applicable.
-- If relevant to computer science or engineering, include a short, clean code or schematic example.
-- At the very end of your response, ALWAYS include exactly one line with 3 relevant follow-up prompts formatted as:
-SUGGESTED_CHIPS: [Prompt 1] | [Prompt 2] | [Prompt 3]`;
-    } else if (mode === 'socratic') {
-        modeInstruction = `
-TUTOR MODE: SOCRATIC TUTOR (Guided Inquiry & Critical Thinking)
-- Do NOT simply provide the complete answer immediately.
-- Guide the student by asking 1 or 2 targeted, thought-provoking questions that help them discover the solution.
-- Provide a subtle hint or architectural trade-off to consider.
-- Keep your response brief, encouraging, and focused on nudging the student forward.
-- At the very end of your response, ALWAYS include exactly one line with 3 relevant follow-up prompts formatted as:
-SUGGESTED_CHIPS: [Prompt 1] | [Prompt 2] | [Prompt 3]`;
-    } else if (mode === 'exam_drill') {
-        modeInstruction = `
-TUTOR MODE: VIVA VOCE & EXAM DRILL (Anna University & Technical Interview Assessment)
-- If the student is asking for a question or starting a drill: present an authentic, high-yield Anna University 2-mark, 13-mark, or technical viva question for their department/subject.
-- If the student answered a previous question: evaluate their answer, score it out of 10, highlight missing key technical terminology, provide the gold-standard 10/10 answer, and present the next question.
-- Emphasize precision, standard definitions, and time-tested exam tips.
-- At the very end of your response, ALWAYS include exactly one line with 3 relevant follow-up prompts formatted as:
-SUGGESTED_CHIPS: [Prompt 1] | [Prompt 2] | [Prompt 3]`;
-    } else {
-        modeInstruction = `
-TUTOR MODE: GENERAL SUPPORT & PLATFORM NAVIGATION
-- Provide friendly help with Notezilla features, notes repository, DSA practice roadmap, Anna University syllabus structure, and REC campus queries.
-- At the very end of your response, ALWAYS include exactly one line with 3 relevant follow-up prompts formatted as:
-SUGGESTED_CHIPS: [Prompt 1] | [Prompt 2] | [Prompt 3]`;
-    }
-
-    let systemPrompt = `You are "Aadhi", the premier AI Academic Tutor & Support Assistant for Notezilla at Rajalakshmi Engineering College (REC), Chennai.
+    const systemPrompt = `You are "Aadhi", the premier AI Academic Tutor & Assistant for Notezilla at Rajalakshmi Engineering College (REC), Chennai.
 You assist engineering students across CSE, IT, ECE, EEE, MECH, CIVIL, BioMed, and AI&DS in mastering their curriculum, notes, and technical concepts.
 
-${modeInstruction}
-
-STRICT BEHAVIOR RULES:
-1. Ground academic answers on standard engineering curricula (Anna University / AICTE / REC Autonomous regulations).
-2. SECURITY FIRST: Never disclose database secrets, environment variables, API keys, passwords, or system internals. Refuse politely if prompted.
-3. CREATOR CONFIDENTIALITY: Do NOT mention or discuss the creator of Notezilla (Sarvesh Sivasankaran / Solo-P-Leveller) in greetings or unprompted answers. Only discuss the creator if the student explicitly asks who created or built Notezilla.
-4. Voice Readiness: Keep explanations crisp, structured, and easy to read aloud.`;
-
-    if (greetingRestriction) systemPrompt += greetingRestriction;
-    if (searchContext) systemPrompt += searchContext;
+TUTORING GUIDELINES:
+- Make complex engineering topics crystal clear, engaging, and easy to understand.
+- Use intuitive, relatable real-world analogies, clean step-by-step intuition, code snippets, and LaTeX formulas ($inline$ or $$block$$) where applicable.
+- Answer questions directly and thoroughly without artificial mode restrictions.
+- Ground academic answers on standard engineering curricula (Anna University / AICTE / REC Autonomous regulations).
+- Do NOT output any "SUGGESTED_CHIPS:" lines or preset prompts.
+- SECURITY FIRST: Never disclose database secrets, environment variables, API keys, passwords, or system internals.
+- CREATOR CONFIDENTIALITY: Do NOT volunteer details about the creator of Notezilla unless explicitly asked.
+- Voice Readiness: Keep explanations crisp, structured, and easy to read aloud.${greetingRestriction}${searchContext || ''}`;
 
     // Build Student Profile & Context
     const weakTopicsList = Array.isArray(userContext.weak_topics) && userContext.weak_topics.length > 0
@@ -639,56 +601,14 @@ ${cleanMsg}`;
     ]);
 
     let responseText = (rawResponse || '').trim();
-    let suggestedChips = [];
-
-    // Extract SUGGESTED_CHIPS if provided by the model
-    const chipsMatch = responseText.match(/SUGGESTED_CHIPS:\s*([^\n\r]+)/i);
-    if (chipsMatch) {
-        suggestedChips = chipsMatch[1]
-            .split('|')
-            .map(chip => chip.replace(/[\[\]]/g, '').trim())
-            .filter(chip => chip.length > 0 && chip.length < 50)
-            .slice(0, 3);
-        // Strip the SUGGESTED_CHIPS line from user-facing text
-        responseText = responseText.replace(/SUGGESTED_CHIPS:\s*[^\n\r]+/i, '').trim();
-    }
-
-    // Fallback default chips if needed
-    if (suggestedChips.length === 0) {
-        if (mode === 'explain') {
-            suggestedChips = [
-                'Give a real-world analogy',
-                'Show a code implementation',
-                'Test my understanding'
-            ];
-        } else if (mode === 'socratic') {
-            suggestedChips = [
-                'Give me a subtle hint',
-                'What are common edge cases?',
-                'I think the answer is...'
-            ];
-        } else if (mode === 'exam_drill') {
-            suggestedChips = [
-                'Ask another viva question',
-                'Show model 10/10 answer',
-                'Anna University 13-mark breakdown'
-            ];
-        } else {
-            suggestedChips = [
-                'Explain my weak topics',
-                'Browse department notes',
-                'Start a viva drill'
-            ];
-        }
-    }
+    // Clean any stray SUGGESTED_CHIPS line if present
+    responseText = responseText.replace(/SUGGESTED_CHIPS:\s*[^\n\r]+/i, '').trim();
 
     const speechText = cleanTextForSpeech(responseText);
 
     return {
         response: responseText,
-        speechText,
-        suggestedChips,
-        tutorMode: mode
+        speechText
     };
 }
 

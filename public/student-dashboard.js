@@ -494,41 +494,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Titles
             const cTitle = document.getElementById('cModalTitle');
-            const cReg = document.getElementById('cModalRegulation');
-            const cDesc = document.getElementById('cModalDescription');
-            const cBreakdown = document.getElementById('cModalCreditsBreakdown');
-
+            const cSub = document.getElementById('cModalSubtitle');
             if (cTitle) cTitle.textContent = c.name;
-            if (cReg) cReg.textContent = `${c.regulation || 'Autonomous Regulation 2023'} • ${c.department} Department`;
-            if (cDesc) cDesc.textContent = c.description || 'Comprehensive curriculum aligned with AICTE outcome-based education.';
-            if (cBreakdown) {
-                cBreakdown.innerHTML = `
-                    <span><i class='bx bx-time-five'></i> ${escapeHtml(c.credits_breakdown || 'Lecture: 3 | Tutorial: 0 | Practical: 0')}</span>
-                    <span><i class='bx bx-book-bookmark'></i> 45 Standard Lecture Hours</span>
-                    <span><i class='bx bx-file'></i> ${c.notes_count || 0} Verified Materials</span>
-                `;
-            }
+            if (cSub) cSub.textContent = `${c.code} • 5 Units • ${c.department} Department`;
 
-            // Faculty
-            const fSec = document.getElementById('cModalFacultySection');
-            const fName = document.getElementById('cModalFacultyName');
-            const fQual = document.getElementById('cModalFacultyQual');
-            const fHours = document.getElementById('cModalFacultyHours');
-            const fImg = document.getElementById('cModalFacultyImg');
-            const fEmail = document.getElementById('cModalFacultyEmailLink');
-
-            if (c.faculty) {
-                if (fSec) fSec.style.display = 'flex';
-                if (fName) fName.textContent = c.faculty.name;
-                if (fQual) fQual.textContent = c.faculty.qualifications || 'Professor of Engineering';
-                if (fHours) fHours.innerHTML = `<i class='bx bx-time'></i> ${escapeHtml(c.faculty.office_hours || 'Mon, Wed 10:00 AM - 12:30 PM')}`;
-                if (fImg) fImg.src = c.faculty.photo_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80';
-                if (fEmail) fEmail.href = `mailto:${c.faculty.email || 'faculty@rajalakshmi.edu.in'}`;
-            } else {
-                if (fSec) fSec.style.display = 'none';
-            }
-
-            // 5 Units Roadmap
+            // 5 Units Roadmap - Clean Unit-Wise Blocks
             const unitsContainer = document.getElementById('cModalUnitsContainer');
             if (unitsContainer) {
                 unitsContainer.innerHTML = '';
@@ -538,32 +508,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const topicPillsHtml = (unit.topics || []).map(t => `<span class="unit-topic-pill">${escapeHtml(t)}</span>`).join('');
 
-                    let notesHtml = '';
+                    // Check for verified notes for this unit
+                    let downloadBtnsHtml = '';
                     if (unit.notes && unit.notes.length > 0) {
-                        notesHtml = `
-                            <div class="unit-notes-row">
-                                <span class="unit-notes-header"><i class='bx bx-file'></i> Verified Faculty Notes:</span>
-                                <div class="unit-notes-cards-list">
-                                    ${unit.notes.map(n => `
-                                        <div class="u-note-card">
-                                            <div class="u-note-info">
-                                                <span class="u-note-title" title="${escapeHtml(n.title)}">${escapeHtml(n.title)}</span>
-                                                <span class="u-note-meta">${n.file_size ? `${(n.file_size / (1024*1024)).toFixed(1)} MB` : 'PDF'} • ${n.downloads || 0} Downloads</span>
-                                            </div>
-                                            <button class="btn-glass u-note-view-btn" onclick="window.open('${escapeHtml(n.file_url)}', '_blank')">
-                                                <i class='bx bx-download'></i> Download
-                                            </button>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        `;
-                    } else {
-                        notesHtml = `
-                            <div class="unit-notes-empty">
-                                <span>No verified PDF uploaded yet for Unit ${unit.unit_number}. Notes are in verification queue.</span>
-                            </div>
-                        `;
+                        downloadBtnsHtml = unit.notes.map(n => `
+                            <button class="btn-glass u-download-btn" onclick="window.open('${escapeHtml(n.file_url)}', '_blank')" title="Download verified unit note">
+                                <i class='bx bx-download'></i> Download Note
+                            </button>
+                        `).join('');
                     }
 
                     uCard.innerHTML = `
@@ -571,39 +523,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="u-number-box">Unit ${unit.unit_number}</div>
                             <div class="u-title-box">
                                 <h4>${escapeHtml(unit.title)}</h4>
-                                <span class="u-hours-badge"><i class='bx bx-time'></i> ${unit.hours || 9} Lecture Hours</span>
                             </div>
-                            <button class="btn-gradient u-aadhi-btn" onclick="window.launchAadhiOnUnit('${escapeHtml(c.code)}', '${escapeHtml(c.name)}', ${unit.unit_number}, '${escapeHtml(unit.title)}')">
-                                <i class='bx bx-bot'></i> Ask Aadhi on Unit ${unit.unit_number}
-                            </button>
+                            <div class="u-unit-actions">
+                                <button class="btn-gradient u-aadhi-btn" onclick="window.launchAadhiOnUnit('${escapeHtml(c.code)}', '${escapeHtml(c.name)}', ${unit.unit_number}, '${escapeHtml(unit.title)}')">
+                                    <i class='bx bx-bot'></i> Ask Aadhi
+                                </button>
+                                ${downloadBtnsHtml}
+                            </div>
                         </div>
                         <div class="c-unit-topics-box">
-                            <span class="topics-label">Syllabus Concepts:</span>
                             <div class="topics-pills-wrap">${topicPillsHtml}</div>
                         </div>
-                        ${notesHtml}
                     `;
                     unitsContainer.appendChild(uCard);
                 });
-            }
-
-            // Outcomes & Books
-            const outcomesList = document.getElementById('cModalOutcomesList');
-            if (outcomesList) {
-                outcomesList.innerHTML = (c.course_outcomes || []).map(co => `<li><i class='bx bx-check-circle'></i> <span>${escapeHtml(co)}</span></li>`).join('');
-            }
-
-            const booksList = document.getElementById('cModalTextbooksList');
-            if (booksList) {
-                booksList.innerHTML = (c.textbooks || []).map(b => `
-                    <div class="c-book-item">
-                        <i class='bx bx-book'></i>
-                        <div>
-                            <strong>${escapeHtml(b.title)}</strong>
-                            <p>${escapeHtml(b.author)} • ${escapeHtml(b.edition)} (${escapeHtml(b.publisher)})</p>
-                        </div>
-                    </div>
-                `).join('');
             }
 
             if (modalBody) modalBody.style.opacity = '1';
@@ -1842,12 +1775,47 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Voice Focus Modal Open/Close
-    if (chatVoiceFocusBtn && aadhiVoiceFocusModal) {
-        chatVoiceFocusBtn.onclick = () => {
-            aadhiVoiceFocusModal.style.display = 'flex';
+    // Maximize / Restore Aadhi Tutor (Voice + Text Typing)
+    const toggleMaximizeAadhi = () => {
+        if (!chatbotWindow) return;
+        if (!chatbotWindow.classList.contains('active')) {
+            chatbotWindow.classList.add('active');
+        }
+        const isMax = chatbotWindow.classList.toggle('maximized');
+        const icon = document.getElementById('chatMaximizeIcon');
+        const backdrop = document.getElementById('chatbotBackdrop');
+        if (icon) {
+            icon.className = isMax ? 'bx bx-collapse-alt' : 'bx bx-expand-alt';
+        }
+        if (backdrop) {
+            backdrop.style.display = isMax ? 'block' : 'none';
+        }
+        document.body.classList.toggle('aadhi-maximized-open', isMax);
+        if (isMax && chatInput) {
+            setTimeout(() => chatInput.focus(), 100);
+        }
+    };
+
+    if (chatVoiceFocusBtn) {
+        chatVoiceFocusBtn.onclick = toggleMaximizeAadhi;
+    }
+
+    const chatbotBackdrop = document.getElementById('chatbotBackdrop');
+    if (chatbotBackdrop) {
+        chatbotBackdrop.onclick = () => {
+            if (chatbotWindow && chatbotWindow.classList.contains('maximized')) {
+                toggleMaximizeAadhi();
+            }
         };
     }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (chatbotWindow && chatbotWindow.classList.contains('maximized')) {
+                toggleMaximizeAadhi();
+            }
+        }
+    });
 
     if (closeVoiceFocusModal && aadhiVoiceFocusModal) {
         closeVoiceFocusModal.onclick = () => {
@@ -1857,20 +1825,42 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // Integrated Typing Input inside Focus Modal
+    const vfTextInput = document.getElementById('vfTextInput');
+    const vfTextSend = document.getElementById('vfTextSend');
+    if (vfTextSend && vfTextInput) {
+        vfTextSend.onclick = () => {
+            const val = vfTextInput.value.trim();
+            if (val) {
+                handleSendMessage(val);
+                vfTextInput.value = '';
+            }
+        };
+        vfTextInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const val = vfTextInput.value.trim();
+                if (val) {
+                    handleSendMessage(val);
+                    vfTextInput.value = '';
+                }
+            }
+        });
+    }
+
     // Status Helper
     const setTutorStatus = (status, text) => {
         if (aadhiStatusDot) {
             aadhiStatusDot.className = `aadhi-status-dot ${status}`;
         }
         if (aadhiSubStatus) {
-            aadhiSubStatus.textContent = text || (status === 'listening' ? 'Listening to voice...' : status === 'thinking' ? 'Synthesizing lesson...' : status === 'speaking' ? 'Explaining verbally...' : 'Ready to teach • Voice Enabled');
+            aadhiSubStatus.textContent = text || (status === 'listening' ? 'Listening to voice...' : status === 'thinking' ? 'Synthesizing lesson...' : status === 'speaking' ? 'Explaining verbally...' : 'Ready to teach • Voice & Text');
         }
         if (voiceOrbWrapper) {
             voiceOrbWrapper.className = `voice-orb-wrapper ${status}`;
         }
         if (voiceFocusStateBadge) {
             const labelMap = {
-                idle: '<span class="pulse-dot"></span> Ready to Listen',
+                idle: '<span class="pulse-dot"></span> Ready to Listen & Chat',
                 listening: '<span class="pulse-dot" style="background:#ef4444;"></span> Listening to your voice...',
                 thinking: '<span class="pulse-dot" style="background:#f59e0b;"></span> Formulating explanation...',
                 speaking: '<span class="pulse-dot" style="background:#10b981;"></span> Aadhi Speaking...'
@@ -1878,92 +1868,6 @@ document.addEventListener('DOMContentLoaded', () => {
             voiceFocusStateBadge.innerHTML = labelMap[status] || labelMap.idle;
         }
     };
-
-    // Tutor Mode Switcher Logic
-    const modeBadgeMap = {
-        explain: { icon: 'bx-bulb', text: 'Explainer' },
-        socratic: { icon: 'bx-compass', text: 'Socratic' },
-        exam_drill: { icon: 'bx-target-lock', text: 'Viva Drill' },
-        general: { icon: 'bx-support', text: 'Support' }
-    };
-
-    const updateTutorMode = (newMode) => {
-        activeTutorMode = newMode;
-        document.querySelectorAll('.tutor-mode-pill').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.mode === newMode);
-        });
-        document.querySelectorAll('.vf-mode-pill').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.vfmode === newMode);
-        });
-
-        if (aadhiModeBadge && modeBadgeMap[newMode]) {
-            aadhiModeBadge.innerHTML = `<i class='bx ${modeBadgeMap[newMode].icon}'></i> ${modeBadgeMap[newMode].text}`;
-        }
-
-        renderDefaultSmartChips();
-    };
-
-    if (tutorModesBar) {
-        tutorModesBar.addEventListener('click', (e) => {
-            const btn = e.target.closest('.tutor-mode-pill');
-            if (btn && btn.dataset.mode) updateTutorMode(btn.dataset.mode);
-        });
-    }
-
-    if (aadhiVoiceFocusModal) {
-        aadhiVoiceFocusModal.addEventListener('click', (e) => {
-            const btn = e.target.closest('.vf-mode-pill');
-            if (btn && btn.dataset.vfmode) updateTutorMode(btn.dataset.vfmode);
-        });
-    }
-
-    // Smart Chips Renderer
-    const renderSmartChips = (chips = []) => {
-        if (!chatSmartChips) return;
-        if (!chips || chips.length === 0) {
-            renderDefaultSmartChips();
-            return;
-        }
-        chatSmartChips.innerHTML = chips.map(chip => `
-            <button class="smart-chip-btn" data-chip="${escapeHtml(chip)}">
-                <i class='bx bx-right-arrow-alt'></i> ${escapeHtml(chip)}
-            </button>
-        `).join('');
-    };
-
-    const renderDefaultSmartChips = () => {
-        if (!chatSmartChips) return;
-        const defaultsByMode = {
-            explain: ['Explain B-Trees in DBMS', 'Virtual Memory analogy', 'Show code example'],
-            socratic: ['Give me a subtle hint', 'What are common edge cases?', 'Why does this trade-off exist?'],
-            exam_drill: ['Start Viva Drill on Algorithms', 'Anna Univ 2-mark question', 'How will this be evaluated?'],
-            general: ['Check my weak concepts', 'Show notes for my department', 'Help navigate Notezilla']
-        };
-        const chips = defaultsByMode[activeTutorMode] || defaultsByMode.explain;
-        chatSmartChips.innerHTML = chips.map(chip => `
-            <button class="smart-chip-btn" data-chip="${escapeHtml(chip)}">
-                <i class='bx bx-right-arrow-alt'></i> ${escapeHtml(chip)}
-            </button>
-        `).join('');
-    };
-
-    if (chatSmartChips) {
-        chatSmartChips.addEventListener('click', (e) => {
-            const btn = e.target.closest('.smart-chip-btn');
-            if (btn && btn.dataset.chip) {
-                handleSendMessage(btn.dataset.chip);
-            }
-        });
-    }
-
-    if (vfQuickPrompts) {
-        vfQuickPrompts.addEventListener('click', (e) => {
-            const btn = e.target.closest('.vf-prompt-btn');
-            if (btn) {
-                handleSendMessage(btn.textContent.trim());
-            }
-        });
-    }
 
     // ==================== SPEECH SYNTHESIS (TTS) ====================
     let selectedVoice = null;
@@ -2252,9 +2156,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add code copy button if function exists
             if (typeof addCopyButton === 'function') addCopyButton(botMsgEl);
 
-            // Render suggested smart chips
-            renderSmartChips(res.suggestedChips || []);
-
             // Update Voice Focus Modal Transcript
             if (vfAadhiText) {
                 vfAadhiText.innerHTML = (window.marked && typeof marked.parse === 'function') ? marked.parse(botMsg) : escapeHtml(botMsg);
@@ -2278,9 +2179,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (chatSend) chatSend.onclick = () => handleSendMessage();
     if (chatInput) chatInput.onkeypress = (e) => { if (e.key === 'Enter') handleSendMessage(); };
-
-    // Initial default smart chips render
-    renderDefaultSmartChips();
 
     // Global Window Access API for Contextual Tutoring from Notes & Diagnostics
     window.openAadhiTutor = (options = {}) => {
