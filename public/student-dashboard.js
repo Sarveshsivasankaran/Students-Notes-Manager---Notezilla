@@ -452,27 +452,667 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // ── AI Learning Analytics & Progress Dashboard (Notezilla 2.0 Upgrade) ──
+    let currentLearningAnalytics = null;
+
     const renderProgress = async () => {
         const historyList = document.getElementById('progress-history-list');
         if (!historyList) return;
-        
-        const [activityResponse, statsResponse] = await Promise.all([
-            apiFetch('/user/activity'),
-            apiFetch('/user/progress')
-        ]);
-        if (activityResponse.success) completedWork = activityResponse.data || [];
-        if (statsResponse.success) applyProductivityStats(statsResponse.data);
-        updateStudyProgress();
 
-        historyList.innerHTML = completedWork.length === 0 
-            ? '<div style="text-align:center; padding: 40px; color:var(--text-muted);">No study activity in the last 30 days.</div>'
-            : completedWork.map(item => `
-                <div class="notif-item" style="padding: 16px 24px; border-bottom: 1px solid var(--border-light);">
-                    <div class="notif-icon"><i class='bx ${item.action_type === 'task' ? 'bx-check-double' : item.action_type === 'planner' ? 'bx-calendar-heart' : 'bx-book-reader'}'></i></div>
-                    <div class="notif-text"><h4>${escapeHtml(item.title)}</h4><p>${escapeHtml(item.description || (item.action_type === 'task' ? 'Completed task' : item.action_type === 'planner' ? 'Study session finished' : 'Studied a note'))}</p><span>${new Date(item.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span></div>
-                </div>
-            `).join('');
+        try {
+            // Parallel fetch: AI Learning Analytics graph, recent activity, and progress stats
+            const [analyticsRes, activityResponse, statsResponse] = await Promise.all([
+                apiFetch('/user/analytics/learning-graph'),
+                apiFetch('/user/activity'),
+                apiFetch('/user/progress')
+            ]);
+
+            if (activityResponse.success) completedWork = activityResponse.data || [];
+            if (statsResponse.success) applyProductivityStats(statsResponse.data);
+            updateStudyProgress();
+
+            if (analyticsRes && analyticsRes.success && analyticsRes.data) {
+                currentLearningAnalytics = analyticsRes.data;
+                applyLearningAnalytics(analyticsRes.data);
+            }
+
+            // Preserved chronological activity feed
+            historyList.innerHTML = completedWork.length === 0 
+                ? '<div style="text-align:center; padding: 40px; color:var(--text-muted);">No study activity in the last 30 days.</div>'
+                : completedWork.map(item => `
+                    <div class="notif-item" style="padding: 16px 24px; border-bottom: 1px solid var(--border-light);">
+                        <div class="notif-icon"><i class='bx ${item.action_type === 'task' ? 'bx-check-double' : item.action_type === 'planner' ? 'bx-calendar-heart' : item.action_type === 'mastery' ? 'bx-pulse' : 'bx-book-reader'}'></i></div>
+                        <div class="notif-text">
+                            <h4>${escapeHtml(item.title)}</h4>
+                            <p>${escapeHtml(item.description || (item.action_type === 'task' ? 'Completed task' : item.action_type === 'planner' ? 'Study session finished' : 'Studied a note'))}</p>
+                            <span>${new Date(item.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        </div>
+                    </div>
+                `).join('');
+        } catch (err) {
+            console.error('Learning analytics render error:', err);
+        }
     };
+
+    /**
+     * Bind all Analytics Data to UI (Radar, Heatmap, Weak Concepts, Watchlist, KPIs)
+     */
+    const applyLearningAnalytics = (data) => {
+        const stats = data.stats || {};
+        const profile = data.profile || {};
+
+        // 1. KPI Cards
+        const overallMastery = data.overall_mastery || 0;
+        const overallValEl = document.getElementById('overallMasteryValue');
+        const overallBarEl = document.getElementById('overallMasteryBar');
+        const tierTagEl = document.getElementById('masteryTierTag');
+        const masteryCountEl = document.getElementById('masteryCountMeta');
+
+        if (overallValEl) overallValEl.textContent = `${overallMastery}%`;
+        if (overallBarEl) overallBarEl.style.width = `${overallMastery}%`;
+        if (tierTagEl) {
+            if (overallMastery >= 80) {
+                tierTagEl.textContent = 'Proficient';
+                tierTagEl.style.background = 'rgba(16, 185, 129, 0.2)';
+                tierTagEl.style.color = '#34d399';
+            } else if (overallMastery >= 60) {
+                tierTagEl.textContent = 'Developing';
+                tierTagEl.style.background = 'rgba(99, 102, 241, 0.2)';
+                tierTagEl.style.color = '#818cf8';
+            } else {
+                tierTagEl.textContent = 'Foundational';
+                tierTagEl.style.background = 'rgba(239, 68, 68, 0.2)';
+                tierTagEl.style.color = '#f87171';
+            }
+        }
+        if (masteryCountEl) {
+            masteryCountEl.textContent = `${stats.mastered_count || 0} of ${stats.total_topics || 0} topics mastered`;
+        }
+
+        // Profile KPI
+        const targetCgpaEl = document.getElementById('targetCgpaDisplay');
+        const paceTagEl = document.getElementById('studyPaceTag');
+        const weeklyHoursEl = document.getElementById('weeklyHoursMeta');
+        const learningStyleEl = document.getElementById('learningStyleMeta');
+
+        if (targetCgpaEl) targetCgpaEl.textContent = parseFloat(profile.target_cgpa || 8.5).toFixed(2);
+        if (paceTagEl) paceTagEl.textContent = (profile.study_pace || 'Balanced').charAt(0).toUpperCase() + (profile.study_pace || 'Balanced').slice(1);
+        if (weeklyHoursEl) weeklyHoursEl.textContent = `${profile.weekly_study_hours || 12} hrs/week goal`;
+        if (learningStyleEl) learningStyleEl.textContent = `${(profile.learning_style || 'Visual').charAt(0).toUpperCase() + (profile.learning_style || 'Visual').slice(1)} Learner`;
+
+        // Activity KPI
+        const activeDaysEl = document.getElementById('activeDaysCountDisplay');
+        const activityActionsEl = document.getElementById('activityActionsMeta');
+        if (activeDaysEl) activeDaysEl.textContent = stats.active_days_30 || 0;
+        if (activityActionsEl) activityActionsEl.textContent = `${stats.total_study_actions || 0} total study actions`;
+
+        // Weak Concepts KPI
+        const weakCountEl = document.getElementById('weakTopicsCountDisplay');
+        const decayMetaEl = document.getElementById('retentionDecayMeta');
+        if (weakCountEl) weakCountEl.textContent = stats.weak_count || 0;
+        if (decayMetaEl) decayMetaEl.textContent = `${(data.retention_alerts || []).length} retention decay alerts`;
+
+        // 2. Render Knowledge Radar Chart (SVG)
+        drawRadarChart(data.radar_data || []);
+
+        // 3. Render 30-Day Activity Heatmap
+        drawActivityHeatmap(data.activity_matrix || []);
+
+        // 4. Render Weak Concept Recovery Cards
+        renderWeakConcepts(data.weak_concepts || [], stats.total_topics || 0);
+
+        // 5. Render Spaced Repetition Retention Watchlist
+        renderRetentionWatchlist(data.retention_alerts || [], stats.total_topics || 0);
+    };
+
+    /**
+     * Draw Interactive Dynamic SVG Knowledge Radar Chart
+     */
+    const drawRadarChart = (radarData) => {
+        const svg = document.getElementById('radarSvg');
+        const tooltip = document.getElementById('radarTooltip');
+        const chipsContainer = document.getElementById('radarSubjectChips');
+        if (!svg || !radarData || radarData.length === 0) return;
+
+        svg.innerHTML = '';
+        const cx = 220;
+        const cy = 190;
+        const R = 125;
+        const numAxes = radarData.length;
+        const angleStep = (2 * Math.PI) / numAxes;
+
+        // SVG Defs: Gradients & Glow Filters
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        defs.innerHTML = `
+            <linearGradient id="radarPolyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.45" />
+                <stop offset="60%" stop-color="#a855f7" stop-opacity="0.30" />
+                <stop offset="100%" stop-color="#ec4899" stop-opacity="0.15" />
+            </linearGradient>
+            <filter id="radarDotGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+        `;
+        svg.appendChild(defs);
+
+        // Concentric Web Grid (5 levels: 20%, 40%, 60%, 80%, 100%)
+        const levels = [0.2, 0.4, 0.6, 0.8, 1.0];
+        levels.forEach(lvl => {
+            const webPoints = [];
+            for (let i = 0; i < numAxes; i++) {
+                const angle = i * angleStep - Math.PI / 2;
+                const wx = cx + R * lvl * Math.cos(angle);
+                const wy = cy + R * lvl * Math.sin(angle);
+                webPoints.push(`${wx.toFixed(1)},${wy.toFixed(1)}`);
+            }
+            const webPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            webPoly.setAttribute('points', webPoints.join(' '));
+            webPoly.setAttribute('fill', lvl === 1.0 ? 'rgba(255,255,255,0.015)' : 'none');
+            webPoly.setAttribute('stroke', lvl === 1.0 ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.08)');
+            webPoly.setAttribute('stroke-width', lvl === 1.0 ? '1.5' : '1');
+            if (lvl < 1.0) webPoly.setAttribute('stroke-dasharray', '3,3');
+            svg.appendChild(webPoly);
+        });
+
+        // Radiating Axis Lines & Axis Labels
+        radarData.forEach((item, i) => {
+            const angle = i * angleStep - Math.PI / 2;
+            const ax = cx + R * Math.cos(angle);
+            const ay = cy + R * Math.sin(angle);
+
+            // Axis line
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', cx);
+            line.setAttribute('y1', cy);
+            line.setAttribute('x2', ax.toFixed(1));
+            line.setAttribute('y2', ay.toFixed(1));
+            line.setAttribute('stroke', 'rgba(255, 255, 255, 0.12)');
+            line.setAttribute('stroke-width', '1');
+            svg.appendChild(line);
+
+            // Label
+            const labelDist = R + 26;
+            const lx = cx + labelDist * Math.cos(angle);
+            const ly = cy + labelDist * Math.sin(angle);
+
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', lx.toFixed(1));
+            text.setAttribute('y', (ly + 4).toFixed(1));
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('fill', '#94a3b8');
+            text.setAttribute('font-size', '11');
+            text.setAttribute('font-weight', '500');
+
+            // Format subject label for neat wrap
+            const shortName = item.subject.length > 16 ? item.subject.slice(0, 14) + '..' : item.subject;
+            text.textContent = shortName;
+            svg.appendChild(text);
+        });
+
+        // Student Competency Polygon Points
+        const polyPoints = [];
+        const nodeCoordinates = [];
+        radarData.forEach((item, i) => {
+            const angle = i * angleStep - Math.PI / 2;
+            const rawMastery = typeof item.mastery === 'number' ? item.mastery : 0;
+            // When mastery is 0, sit at minimal baseline circle (4% of radius) so unstudied state is visually honest
+            const normalized = rawMastery <= 0 ? 0.04 : Math.max(10, Math.min(100, rawMastery)) / 100;
+            const px = cx + R * normalized * Math.cos(angle);
+            const py = cy + R * normalized * Math.sin(angle);
+            polyPoints.push(`${px.toFixed(1)},${py.toFixed(1)}`);
+            nodeCoordinates.push({ px, py, item, rawMastery });
+        });
+
+        // Fill Polygon
+        const studentPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        studentPoly.setAttribute('points', polyPoints.join(' '));
+        studentPoly.setAttribute('fill', 'url(#radarPolyGrad)');
+        studentPoly.setAttribute('stroke', '#818cf8');
+        studentPoly.setAttribute('stroke-width', '2.5');
+        studentPoly.setAttribute('stroke-linejoin', 'round');
+        svg.appendChild(studentPoly);
+
+        // Interactive Node Dots
+        nodeCoordinates.forEach(({ px, py, item, rawMastery }) => {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', px.toFixed(1));
+            circle.setAttribute('cy', py.toFixed(1));
+            circle.setAttribute('r', '6');
+            circle.setAttribute('fill', rawMastery === 0 ? '#64748b' : rawMastery >= 75 ? '#10b981' : rawMastery < 60 ? '#ef4444' : '#6366f1');
+            circle.setAttribute('stroke', '#ffffff');
+            circle.setAttribute('stroke-width', '2');
+            circle.setAttribute('filter', 'url(#radarDotGlow)');
+            circle.style.cursor = 'pointer';
+            circle.style.transition = 'transform 0.2s ease';
+
+            circle.addEventListener('mouseenter', (e) => {
+                circle.setAttribute('r', '8');
+                if (tooltip) {
+                    tooltip.innerHTML = `
+                        <strong>${escapeHtml(item.subject)}</strong><br>
+                        <span>Mastery: <strong>${rawMastery}%</strong></span><br>
+                        <small style="color:#94a3b8;">${item.topic_count || 0} evaluated topic(s)</small>
+                    `;
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = `${px}px`;
+                    tooltip.style.top = `${py}px`;
+                }
+            });
+
+            circle.addEventListener('mouseleave', () => {
+                circle.setAttribute('r', '6');
+                if (tooltip) tooltip.style.display = 'none';
+            });
+
+            svg.appendChild(circle);
+        });
+
+        // Chips Breakdown
+        if (chipsContainer) {
+            chipsContainer.innerHTML = radarData.map(item => {
+                const rawMastery = typeof item.mastery === 'number' ? item.mastery : 0;
+                const tierClass = rawMastery === 0 ? 'zero' : rawMastery >= 75 ? 'high' : rawMastery >= 60 ? 'mid' : 'low';
+                return `
+                    <div class="radar-chip">
+                        <strong>${escapeHtml(item.subject)}</strong>
+                        <span class="chip-pct ${tierClass}">${rawMastery}%</span>
+                    </div>
+                `;
+            }).join('');
+        }
+    };
+
+    /**
+     * Draw 30-Day Activity Heatmap Grid
+     */
+    const drawActivityHeatmap = (matrix) => {
+        const grid = document.getElementById('heatmapDaysGrid');
+        const tooltip = document.getElementById('heatmapTooltip');
+        if (!grid || !matrix || matrix.length === 0) return;
+
+        grid.innerHTML = '';
+        let totalSessions = 0;
+        let peakDay = { date: '', count: -1 };
+        let currentStreak = 0;
+        let countingStreak = true;
+
+        matrix.forEach(dayItem => {
+            totalSessions += (dayItem.count || 0);
+            if (dayItem.count > peakDay.count) {
+                peakDay = { date: dayItem.date, count: dayItem.count };
+            }
+
+            const cell = document.createElement('div');
+            cell.className = `heatmap-day-cell level-${dayItem.level}`;
+            cell.innerHTML = `
+                <span class="cell-date-text">${dayItem.date.slice(8)}</span>
+                <span class="cell-count-text">${dayItem.count > 0 ? dayItem.count : ''}</span>
+            `;
+
+            cell.addEventListener('mouseenter', (e) => {
+                if (tooltip) {
+                    const rect = cell.getBoundingClientRect();
+                    const parentRect = grid.parentElement.getBoundingClientRect();
+                    tooltip.innerHTML = `
+                        <strong>${dayItem.day_name}, ${dayItem.date}</strong><br>
+                        <span>${dayItem.count} study action(s) logged</span>
+                    `;
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = `${rect.left - parentRect.left + rect.width / 2}px`;
+                    tooltip.style.top = `${rect.top - parentRect.top}px`;
+                }
+            });
+
+            cell.addEventListener('mouseleave', () => {
+                if (tooltip) tooltip.style.display = 'none';
+            });
+
+            grid.appendChild(cell);
+        });
+
+        // Compute streak from latest days backwards
+        for (let j = matrix.length - 1; j >= 0; j--) {
+            if (matrix[j].count > 0 && countingStreak) {
+                currentStreak++;
+            } else if (countingStreak && j !== matrix.length - 1) {
+                // If today is empty, don't break immediately if yesterday was active
+                countingStreak = false;
+            }
+        }
+
+        // Populate summary stats
+        const streakNumEl = document.getElementById('hmStreakNum');
+        const peakDayEl = document.getElementById('hmPeakDayNum');
+        const totalSessionsEl = document.getElementById('hmTotalSessionsNum');
+
+        if (streakNumEl) streakNumEl.textContent = currentStreak;
+        if (peakDayEl) peakDayEl.textContent = peakDay.count > 0 ? `${peakDay.date.slice(5)} (${peakDay.count})` : 'None';
+        if (totalSessionsEl) totalSessionsEl.textContent = totalSessions;
+    };
+
+    /**
+     * Render AI Weak Concept Diagnostics & Remedial Action Plans
+     */
+    const renderWeakConcepts = (weakList, totalAssessedTopics = 0) => {
+        const container = document.getElementById('weakConceptsList');
+        if (!container) return;
+
+        if (totalAssessedTopics === 0) {
+            container.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 28px; background: rgba(99, 102, 241, 0.08); border: 1px dashed rgba(99, 102, 241, 0.25); border-radius: 14px; color: #a5b4fc;">
+                    <i class='bx bx-compass' style='font-size: 32px;'></i>
+                    <h4 style="margin-top: 8px; font-weight: 700; color: #e0e7ff;">Ready for Your First Study Session</h4>
+                    <p style="font-size: 13px; color: #cbd5e1; margin-top: 4px; max-width: 500px; margin-left: auto; margin-right: auto;">
+                        Your knowledge graph builds organically as you study notes, complete self-assessments, and review concepts. Select any curriculum subject to begin!
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        if (weakList.length === 0) {
+            container.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 28px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); border-radius: 14px; color: #34d399;">
+                    <i class='bx bx-check-shield' style='font-size: 32px;'></i>
+                    <h4 style="margin-top: 8px; font-weight: 700;">Outstanding Academic Performance!</h4>
+                    <p style="font-size: 13px; color: #a7f3d0; margin-top: 4px;">All assessed topics are above 60% proficiency. Keep up your daily streak!</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = weakList.map(item => {
+            const isCritical = item.mastery_level < 45;
+            const badgeClass = isCritical ? 'critical' : 'review';
+            const badgeLabel = isCritical ? 'Critical Attention' : 'Needs Review';
+            const fillClass = isCritical ? 'low' : 'med';
+
+            return `
+                <div class="weak-concept-card">
+                    <div>
+                        <div class="w-card-header">
+                            <div>
+                                <span class="w-card-subject">${escapeHtml(item.subject_name)}</span>
+                                <h4 class="w-card-title">${escapeHtml(item.topic_name)}</h4>
+                            </div>
+                            <span class="w-status-badge ${badgeClass}">${badgeLabel}</span>
+                        </div>
+
+                        <div class="w-mastery-row" style="margin-top: 12px;">
+                            <div class="w-mastery-track">
+                                <div class="w-mastery-fill ${fillClass}" style="width: ${item.mastery_level}%;"></div>
+                            </div>
+                            <span class="w-mastery-text">${item.mastery_level}%</span>
+                        </div>
+
+                        <div class="w-recommendation" style="margin-top: 10px;">
+                            <i class='bx bx-bulb' style="color: #fbbf24; margin-right: 4px;"></i>
+                            ${escapeHtml(item.recommended_action)}
+                        </div>
+                    </div>
+
+                    <div class="w-card-actions">
+                        <button class="w-btn-plan" onclick="window.openAIRecoveryModal('${escapeHtml(item.topic_name)}', '${escapeHtml(item.subject_name)}', ${item.mastery_level})">
+                            <i class='bx bx-sparkles'></i> AI Plan
+                        </button>
+                        <button class="w-btn-tutor" style="padding: 7px 12px; border-radius: 8px; background: rgba(99,102,241,0.22); border: 1px solid rgba(99,102,241,0.4); color: #c7d2fe; cursor: pointer; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" onclick="window.openAadhiTutor({ mode: 'explain', subject: '${escapeHtml(item.subject_name)}', topic: '${escapeHtml(item.topic_name)}', initialPrompt: 'Explain ${escapeHtml(item.topic_name)} in ${escapeHtml(item.subject_name)} with an intuitive analogy.' })">
+                            <i class='bx bx-microphone'></i> Voice Tutor
+                        </button>
+                        <button class="w-btn-test" onclick="window.openTopicTestModal('${item.id}', '${escapeHtml(item.topic_name)}', '${escapeHtml(item.subject_name)}', ${item.mastery_level})">
+                            <i class='bx bx-check'></i> Test
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    };
+
+    /**
+     * Render Spaced Repetition Retention Decay Watchlist
+     */
+    const renderRetentionWatchlist = (alerts, totalAssessedTopics = 0) => {
+        const container = document.getElementById('retentionAlertsList');
+        if (!container) return;
+
+        if (totalAssessedTopics === 0) {
+            container.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
+                    <i class='bx bx-time-five' style="color: #818cf8; font-size: 18px; vertical-align: middle; margin-right: 6px;"></i>
+                    Spaced repetition decay tracking activates as you review curriculum topics.
+                </div>
+            `;
+            return;
+        }
+
+        if (alerts.length === 0) {
+            container.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
+                    <i class='bx bx-check-double' style="color: #10b981; font-size: 18px; vertical-align: middle; margin-right: 6px;"></i>
+                    All reviewed topics are within healthy retention intervals (under 12 days since last session).
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = alerts.map(alert => `
+            <div class="retention-card">
+                <div class="retention-info">
+                    <h4>${escapeHtml(alert.topic_name)}</h4>
+                    <p><i class='bx bx-time-five'></i> Last reviewed ${alert.days_since_review} days ago (${alert.urgency} Decay Risk)</p>
+                </div>
+                <button class="retention-btn" onclick="window.openTopicTestModal('${alert.id}', '${escapeHtml(alert.topic_name)}', '${escapeHtml(alert.subject_name || 'Core')}', 60)">
+                    <i class='bx bx-refresh'></i> Refresh
+                </button>
+            </div>
+        `).join('');
+    };
+
+    /**
+     * Global Window Modal Handlers
+     */
+    window.openAIRecoveryModal = async (topicName, subjectName, masteryLevel) => {
+        const modal = document.getElementById('aiRecoveryModal');
+        const content = document.getElementById('recoveryModalContent');
+        if (!modal || !content) return;
+
+        modal.style.display = 'flex';
+        content.innerHTML = `
+            <div class="loading-spinner-box">
+                <div class="spinner"></div>
+                <p>Generating personalized recovery plan with Gemini AI...</p>
+                <small style="color:var(--text-muted);">Formulating intuitive mental models & micro practice drills</small>
+            </div>
+        `;
+
+        try {
+            const res = await apiFetch('/user/analytics/recovery-plan', {
+                method: 'POST',
+                body: JSON.stringify({
+                    topic_name: topicName,
+                    subject_name: subjectName,
+                    mastery_level: masteryLevel
+                })
+            });
+
+            if (res.success && res.data) {
+                const plan = res.data;
+                content.innerHTML = `
+                    <div class="ai-plan-container">
+                        <div class="ai-plan-topic-banner">
+                            <h3><i class='bx bx-book-open'></i> ${escapeHtml(plan.topic)}</h3>
+                            <p class="ai-plan-diagnostic">${escapeHtml(plan.diagnostic_reason || '')}</p>
+                        </div>
+
+                        ${(plan.recovery_steps || []).map(s => `
+                            <div class="ai-step-card">
+                                <div class="ai-step-num">${s.step}</div>
+                                <div class="ai-step-body">
+                                    <h4>${escapeHtml(s.title)}</h4>
+                                    <p>${escapeHtml(s.action)}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+
+                        ${plan.retention_tip ? `
+                            <div class="ai-retention-tip">
+                                <strong><i class='bx bxs-bulb'></i> Memory Retention Rule:</strong> ${escapeHtml(plan.retention_tip)}
+                            </div>
+                        ` : ''}
+
+                        <div class="modal-actions-row" style="margin-top: 14px; display: flex; gap: 10px; justify-content: flex-end;">
+                            <button type="button" class="btn-gradient" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);" onclick="document.getElementById('aiRecoveryModal').style.display='none'; window.openAadhiTutor({ mode: 'explain', subject: '${escapeHtml(subjectName)}', topic: '${escapeHtml(topicName)}', initialPrompt: 'Explain ${escapeHtml(topicName)} in ${escapeHtml(subjectName)} step by step.' })">
+                                <i class='bx bx-microphone'></i> Study with Voice Tutor
+                            </button>
+                            <button type="button" class="btn-gradient" onclick="document.getElementById('aiRecoveryModal').style.display='none'">
+                                <i class='bx bx-check'></i> Got It
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `<div style="color:#f87171; padding: 20px; text-align:center;">Failed to generate recovery plan: ${escapeHtml(res.message || 'Unknown error')}</div>`;
+            }
+        } catch (e) {
+            content.innerHTML = `<div style="color:#f87171; padding: 20px; text-align:center;">Error calling AI engine: ${escapeHtml(e.message)}</div>`;
+        }
+    };
+
+    window.openTopicTestModal = (topicId, topicName, subjectName, currentMastery) => {
+        const modal = document.getElementById('topicTestModal');
+        if (!modal) return;
+
+        document.getElementById('testTopicId').value = topicId || '';
+        document.getElementById('testTopicNameHeading').textContent = topicName || 'Academic Concept';
+        document.getElementById('testTopicSubjectHeading').textContent = subjectName || 'Curriculum Subject';
+        const slider = document.getElementById('testMasteryScoreSlider');
+        const scoreVal = document.getElementById('sliderScoreVal');
+        const statusSelect = document.getElementById('testTopicStatusSelect');
+
+        if (slider) slider.value = currentMastery || 70;
+        if (scoreVal) scoreVal.textContent = `${currentMastery || 70}%`;
+        if (statusSelect) {
+            statusSelect.value = (currentMastery >= 80) ? 'mastered' : (currentMastery < 60) ? 'review_needed' : 'learning';
+        }
+
+        modal.style.display = 'flex';
+    };
+
+    // Modal Close & Form Event Bindings
+    const closeRecoveryBtn = document.getElementById('closeRecoveryModalBtn');
+    if (closeRecoveryBtn) {
+        closeRecoveryBtn.addEventListener('click', () => {
+            document.getElementById('aiRecoveryModal').style.display = 'none';
+        });
+    }
+
+    const closeProfileBtn = document.getElementById('closeProfileModalBtn');
+    const cancelProfileBtn = document.getElementById('cancelProfileModalBtn');
+    if (closeProfileBtn) closeProfileBtn.addEventListener('click', () => document.getElementById('learningProfileModal').style.display = 'none');
+    if (cancelProfileBtn) cancelProfileBtn.addEventListener('click', () => document.getElementById('learningProfileModal').style.display = 'none');
+
+    const editProfileBtn = document.getElementById('editLearningProfileBtn');
+    if (editProfileBtn) {
+        editProfileBtn.addEventListener('click', () => {
+            const modal = document.getElementById('learningProfileModal');
+            if (!modal) return;
+            const profile = currentLearningAnalytics?.profile || {};
+            const cgpaInput = document.getElementById('profileTargetCgpa');
+            const paceSelect = document.getElementById('profileStudyPace');
+            const hoursInput = document.getElementById('profileWeeklyHours');
+            const styleSelect = document.getElementById('profileLearningStyle');
+
+            if (cgpaInput) cgpaInput.value = profile.target_cgpa || 8.50;
+            if (paceSelect) paceSelect.value = profile.study_pace || 'balanced';
+            if (hoursInput) hoursInput.value = profile.weekly_study_hours || 12;
+            if (styleSelect) styleSelect.value = profile.learning_style || 'visual';
+
+            modal.style.display = 'flex';
+        });
+    }
+
+    const learningProfileForm = document.getElementById('learningProfileForm');
+    if (learningProfileForm) {
+        learningProfileForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const target_cgpa = document.getElementById('profileTargetCgpa').value;
+            const study_pace = document.getElementById('profileStudyPace').value;
+            const weekly_study_hours = document.getElementById('profileWeeklyHours').value;
+            const learning_style = document.getElementById('profileLearningStyle').value;
+
+            const res = await apiFetch('/user/analytics/profile', {
+                method: 'PUT',
+                body: JSON.stringify({ target_cgpa, study_pace, weekly_study_hours, learning_style })
+            });
+
+            if (res.success) {
+                document.getElementById('learningProfileModal').style.display = 'none';
+                await renderProgress();
+            } else {
+                alert('Failed to save profile: ' + (res.message || 'Unknown error'));
+            }
+        });
+    }
+
+    const testSlider = document.getElementById('testMasteryScoreSlider');
+    const sliderValDisplay = document.getElementById('sliderScoreVal');
+    if (testSlider && sliderValDisplay) {
+        testSlider.addEventListener('input', (e) => {
+            sliderValDisplay.textContent = `${e.target.value}%`;
+            const statusSelect = document.getElementById('testTopicStatusSelect');
+            if (statusSelect) {
+                const val = parseInt(e.target.value);
+                statusSelect.value = val >= 80 ? 'mastered' : val < 60 ? 'review_needed' : 'learning';
+            }
+        });
+    }
+
+    const closeTestBtn = document.getElementById('closeTestModalBtn');
+    const cancelTestBtn = document.getElementById('cancelTestModalBtn');
+    if (closeTestBtn) closeTestBtn.addEventListener('click', () => document.getElementById('topicTestModal').style.display = 'none');
+    if (cancelTestBtn) cancelTestBtn.addEventListener('click', () => document.getElementById('topicTestModal').style.display = 'none');
+
+    const topicTestForm = document.getElementById('topicTestForm');
+    if (topicTestForm) {
+        topicTestForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const topic_id = document.getElementById('testTopicId').value;
+            const mastery_level = document.getElementById('testMasteryScoreSlider').value;
+            const status = document.getElementById('testTopicStatusSelect').value;
+
+            const res = await apiFetch('/user/analytics/mastery-update', {
+                method: 'POST',
+                body: JSON.stringify({ topic_id, mastery_level, status })
+            });
+
+            if (res.success) {
+                document.getElementById('topicTestModal').style.display = 'none';
+                await renderProgress();
+            } else {
+                alert('Failed to update topic mastery: ' + (res.message || 'Unknown error'));
+            }
+        });
+    }
+
+    const refreshAnalyticsBtn = document.getElementById('refreshAnalyticsBtn');
+    if (refreshAnalyticsBtn) {
+        refreshAnalyticsBtn.addEventListener('click', async () => {
+            refreshAnalyticsBtn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Syncing...";
+            await renderProgress();
+            refreshAnalyticsBtn.innerHTML = "<i class='bx bx-refresh'></i> Sync Analytics";
+        });
+    }
+
+    // Real-time socket listener for learning graph updates
+    if (typeof socket !== 'undefined' && socket) {
+        socket.on('learning_graph_updated', () => {
+            renderProgress();
+        });
+    }
+
 
     const taskList = document.getElementById('taskList');
     const addTaskInput = document.querySelector('.add-task input');
@@ -688,55 +1328,432 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // 6. AI Chatbot (Matches index.html Logic & IDs)
+    // 6. Aadhi AI Academic Voice & Text Tutor (Phase 2 Upgrade)
     const chatToggle = document.getElementById('chatToggle');
     const chatbotWindow = document.getElementById('chatbotWindow');
     const chatClose = document.getElementById('chatClose');
     const chatBody = document.getElementById('chatBody');
     const chatInput = document.getElementById('chatInput');
     const chatSend = document.getElementById('chatSend');
+    const chatMicBtn = document.getElementById('chatMicBtn');
+    const chatAudioToggleBtn = document.getElementById('chatAudioToggleBtn');
+    const chatAudioIcon = document.getElementById('chatAudioIcon');
+    const chatVoiceFocusBtn = document.getElementById('chatVoiceFocusBtn');
+    const aadhiStatusDot = document.getElementById('aadhiStatusDot');
+    const aadhiModeBadge = document.getElementById('aadhiModeBadge');
+    const aadhiSubStatus = document.getElementById('aadhiSubStatus');
+    const aadhiVoiceWaveContainer = document.getElementById('aadhiVoiceWaveContainer');
+    const voiceWaveStatusText = document.getElementById('voiceWaveStatusText');
+    const voiceWaveStopBtn = document.getElementById('voiceWaveStopBtn');
+    const chatSmartChips = document.getElementById('chatSmartChips');
+    const tutorModesBar = document.getElementById('tutorModesBar');
 
-    // Toggle Chat Window
+    // Voice Focus Modal Elements
+    const aadhiVoiceFocusModal = document.getElementById('aadhiVoiceFocusModal');
+    const closeVoiceFocusModal = document.getElementById('closeVoiceFocusModal');
+    const voiceOrbWrapper = document.getElementById('voiceOrbWrapper');
+    const voiceFocusStateBadge = document.getElementById('voiceFocusStateBadge');
+    const vfUserText = document.getElementById('vfUserText');
+    const vfAadhiText = document.getElementById('vfAadhiText');
+    const vfMainMicBtn = document.getElementById('vfMainMicBtn');
+    const vfMicHintText = document.getElementById('vfMicHintText');
+    const vfQuickPrompts = document.getElementById('vfQuickPrompts');
+
+    // State Variables
+    let activeTutorMode = 'explain';
+    let autoSpeakEnabled = localStorage.getItem('notezilla_aadhi_autospeak') !== 'false';
+    let isListening = false;
+    let isSpeaking = false;
+    let activeUtterance = null;
+    let currentAcademicContext = { subject_name: '', subject_code: '', note_title: '', topic_name: '' };
+
+    // Initial Audio Toggle UI Sync
+    if (chatAudioToggleBtn && chatAudioIcon) {
+        if (!autoSpeakEnabled) {
+            chatAudioToggleBtn.classList.remove('active');
+            chatAudioIcon.className = 'bx bx-volume-mute';
+        }
+    }
+
+    // Toggle Chatbot Window
     if (chatToggle && chatbotWindow) {
         chatToggle.onclick = () => {
             chatbotWindow.classList.toggle('active');
             if (chatbotWindow.classList.contains('active')) {
-                chatInput.focus();
+                chatInput && chatInput.focus();
             }
         };
     }
 
     if (chatClose && chatbotWindow) {
-        chatClose.onclick = () => chatbotWindow.classList.remove('active');
+        chatClose.onclick = () => {
+            stopAadhiSpeech();
+            stopVoiceRecognition();
+            chatbotWindow.classList.remove('active');
+        };
     }
 
-    // Quick Prompts Logic (Event Delegation)
-    if (chatBody) {
-        chatBody.addEventListener('click', (e) => {
-            const btn = e.target.closest('button');
-            if (btn && btn.parentElement.classList.contains('quick-prompts')) {
-                chatInput.value = btn.textContent;
-                handleSendMessage();
-                // Hide quick prompts once clicked
-                btn.parentElement.style.display = 'none';
+    // Auto-Speak Toggle
+    if (chatAudioToggleBtn && chatAudioIcon) {
+        chatAudioToggleBtn.onclick = () => {
+            autoSpeakEnabled = !autoSpeakEnabled;
+            localStorage.setItem('notezilla_aadhi_autospeak', autoSpeakEnabled ? 'true' : 'false');
+            chatAudioToggleBtn.classList.toggle('active', autoSpeakEnabled);
+            chatAudioIcon.className = autoSpeakEnabled ? 'bx bx-volume-full' : 'bx bx-volume-mute';
+            if (!autoSpeakEnabled) stopAadhiSpeech();
+            showToast(autoSpeakEnabled ? 'Voice output enabled' : 'Voice output muted', 'info');
+        };
+    }
+
+    // Voice Focus Modal Open/Close
+    if (chatVoiceFocusBtn && aadhiVoiceFocusModal) {
+        chatVoiceFocusBtn.onclick = () => {
+            aadhiVoiceFocusModal.style.display = 'flex';
+        };
+    }
+
+    if (closeVoiceFocusModal && aadhiVoiceFocusModal) {
+        closeVoiceFocusModal.onclick = () => {
+            stopAadhiSpeech();
+            stopVoiceRecognition();
+            aadhiVoiceFocusModal.style.display = 'none';
+        };
+    }
+
+    // Status Helper
+    const setTutorStatus = (status, text) => {
+        if (aadhiStatusDot) {
+            aadhiStatusDot.className = `aadhi-status-dot ${status}`;
+        }
+        if (aadhiSubStatus) {
+            aadhiSubStatus.textContent = text || (status === 'listening' ? 'Listening to voice...' : status === 'thinking' ? 'Synthesizing lesson...' : status === 'speaking' ? 'Explaining verbally...' : 'Ready to teach • Voice Enabled');
+        }
+        if (voiceOrbWrapper) {
+            voiceOrbWrapper.className = `voice-orb-wrapper ${status}`;
+        }
+        if (voiceFocusStateBadge) {
+            const labelMap = {
+                idle: '<span class="pulse-dot"></span> Ready to Listen',
+                listening: '<span class="pulse-dot" style="background:#ef4444;"></span> Listening to your voice...',
+                thinking: '<span class="pulse-dot" style="background:#f59e0b;"></span> Formulating explanation...',
+                speaking: '<span class="pulse-dot" style="background:#10b981;"></span> Aadhi Speaking...'
+            };
+            voiceFocusStateBadge.innerHTML = labelMap[status] || labelMap.idle;
+        }
+    };
+
+    // Tutor Mode Switcher Logic
+    const modeBadgeMap = {
+        explain: { icon: 'bx-bulb', text: 'Explainer' },
+        socratic: { icon: 'bx-compass', text: 'Socratic' },
+        exam_drill: { icon: 'bx-target-lock', text: 'Viva Drill' },
+        general: { icon: 'bx-support', text: 'Support' }
+    };
+
+    const updateTutorMode = (newMode) => {
+        activeTutorMode = newMode;
+        document.querySelectorAll('.tutor-mode-pill').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === newMode);
+        });
+        document.querySelectorAll('.vf-mode-pill').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.vfmode === newMode);
+        });
+
+        if (aadhiModeBadge && modeBadgeMap[newMode]) {
+            aadhiModeBadge.innerHTML = `<i class='bx ${modeBadgeMap[newMode].icon}'></i> ${modeBadgeMap[newMode].text}`;
+        }
+
+        renderDefaultSmartChips();
+    };
+
+    if (tutorModesBar) {
+        tutorModesBar.addEventListener('click', (e) => {
+            const btn = e.target.closest('.tutor-mode-pill');
+            if (btn && btn.dataset.mode) updateTutorMode(btn.dataset.mode);
+        });
+    }
+
+    if (aadhiVoiceFocusModal) {
+        aadhiVoiceFocusModal.addEventListener('click', (e) => {
+            const btn = e.target.closest('.vf-mode-pill');
+            if (btn && btn.dataset.vfmode) updateTutorMode(btn.dataset.vfmode);
+        });
+    }
+
+    // Smart Chips Renderer
+    const renderSmartChips = (chips = []) => {
+        if (!chatSmartChips) return;
+        if (!chips || chips.length === 0) {
+            renderDefaultSmartChips();
+            return;
+        }
+        chatSmartChips.innerHTML = chips.map(chip => `
+            <button class="smart-chip-btn" data-chip="${escapeHtml(chip)}">
+                <i class='bx bx-right-arrow-alt'></i> ${escapeHtml(chip)}
+            </button>
+        `).join('');
+    };
+
+    const renderDefaultSmartChips = () => {
+        if (!chatSmartChips) return;
+        const defaultsByMode = {
+            explain: ['Explain B-Trees in DBMS', 'Virtual Memory analogy', 'Show code example'],
+            socratic: ['Give me a subtle hint', 'What are common edge cases?', 'Why does this trade-off exist?'],
+            exam_drill: ['Start Viva Drill on Algorithms', 'Anna Univ 2-mark question', 'How will this be evaluated?'],
+            general: ['Check my weak concepts', 'Show notes for my department', 'Help navigate Notezilla']
+        };
+        const chips = defaultsByMode[activeTutorMode] || defaultsByMode.explain;
+        chatSmartChips.innerHTML = chips.map(chip => `
+            <button class="smart-chip-btn" data-chip="${escapeHtml(chip)}">
+                <i class='bx bx-right-arrow-alt'></i> ${escapeHtml(chip)}
+            </button>
+        `).join('');
+    };
+
+    if (chatSmartChips) {
+        chatSmartChips.addEventListener('click', (e) => {
+            const btn = e.target.closest('.smart-chip-btn');
+            if (btn && btn.dataset.chip) {
+                handleSendMessage(btn.dataset.chip);
             }
         });
     }
 
-    async function handleSendMessage() {
-        const msg = chatInput.value.trim();
+    if (vfQuickPrompts) {
+        vfQuickPrompts.addEventListener('click', (e) => {
+            const btn = e.target.closest('.vf-prompt-btn');
+            if (btn) {
+                handleSendMessage(btn.textContent.trim());
+            }
+        });
+    }
+
+    // ==================== SPEECH SYNTHESIS (TTS) ====================
+    let selectedVoice = null;
+    const initSpeechVoices = () => {
+        if (!('speechSynthesis' in window)) return;
+        const voices = window.speechSynthesis.getVoices();
+        if (!voices || voices.length === 0) return;
+        // Prioritize natural English accents (Indian English, UK, or Natural US)
+        selectedVoice = voices.find(v => v.lang === 'en-IN' || v.name.toLowerCase().includes('india'))
+            || voices.find(v => v.name.includes('Google UK English Female') || v.name.includes('Samantha') || v.name.includes('Natural'))
+            || voices.find(v => v.lang.startsWith('en'))
+            || voices[0];
+    };
+
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = initSpeechVoices;
+        initSpeechVoices();
+    }
+
+    const speakAadhiResponse = (text, activeBtn = null) => {
+        if (!('speechSynthesis' in window) || !text) return;
+
+        stopAadhiSpeech();
+
+        activeUtterance = new SpeechSynthesisUtterance(text);
+        if (selectedVoice) activeUtterance.voice = selectedVoice;
+        activeUtterance.rate = 1.04;
+        activeUtterance.pitch = 1.0;
+
+        activeUtterance.onstart = () => {
+            isSpeaking = true;
+            setTutorStatus('speaking');
+            if (aadhiVoiceWaveContainer) {
+                aadhiVoiceWaveContainer.style.display = 'flex';
+                if (voiceWaveStatusText) voiceWaveStatusText.textContent = 'Aadhi is explaining verbally...';
+            }
+            if (activeBtn) {
+                activeBtn.classList.add('speaking');
+                activeBtn.innerHTML = "<i class='bx bx-volume-full bx-flashing'></i> Playing...";
+            }
+        };
+
+        activeUtterance.onend = () => {
+            isSpeaking = false;
+            setTutorStatus('idle');
+            if (aadhiVoiceWaveContainer) aadhiVoiceWaveContainer.style.display = 'none';
+            if (activeBtn) {
+                activeBtn.classList.remove('speaking');
+                activeBtn.innerHTML = "<i class='bx bx-volume-full'></i> Listen";
+            }
+        };
+
+        activeUtterance.onerror = () => {
+            isSpeaking = false;
+            setTutorStatus('idle');
+            if (aadhiVoiceWaveContainer) aadhiVoiceWaveContainer.style.display = 'none';
+            if (activeBtn) {
+                activeBtn.classList.remove('speaking');
+                activeBtn.innerHTML = "<i class='bx bx-volume-full'></i> Listen";
+            }
+        };
+
+        window.speechSynthesis.speak(activeUtterance);
+    };
+
+    const stopAadhiSpeech = () => {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
+        isSpeaking = false;
+        if (aadhiVoiceWaveContainer && !isListening) {
+            aadhiVoiceWaveContainer.style.display = 'none';
+        }
+        document.querySelectorAll('.msg-listen-btn.speaking').forEach(btn => {
+            btn.classList.remove('speaking');
+            btn.innerHTML = "<i class='bx bx-volume-full'></i> Listen";
+        });
+        setTutorStatus('idle');
+    };
+
+    if (voiceWaveStopBtn) {
+        voiceWaveStopBtn.onclick = () => {
+            stopAadhiSpeech();
+            stopVoiceRecognition();
+        };
+    }
+
+    // Listen Button Click in Chat Messages (Event Delegation)
+    if (chatBody) {
+        chatBody.addEventListener('click', (e) => {
+            const btn = e.target.closest('.msg-listen-btn');
+            if (btn) {
+                const msgBox = btn.closest('.chat-msg.bot');
+                const speechText = msgBox?.dataset?.speech;
+                if (btn.classList.contains('speaking')) {
+                    stopAadhiSpeech();
+                } else if (speechText) {
+                    speakAadhiResponse(speechText, btn);
+                }
+            }
+        });
+    }
+
+    // ==================== SPEECH RECOGNITION (STT) ====================
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+
+    if (SpeechRecognition) {
+        try {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                stopAadhiSpeech();
+                setTutorStatus('listening');
+                if (chatMicBtn) chatMicBtn.classList.add('listening');
+                if (vfMainMicBtn) vfMainMicBtn.classList.add('listening');
+                if (vfMicHintText) vfMicHintText.textContent = 'Listening to your voice... Speak clearly.';
+                if (aadhiVoiceWaveContainer) {
+                    aadhiVoiceWaveContainer.style.display = 'flex';
+                    if (voiceWaveStatusText) voiceWaveStatusText.textContent = 'Listening to your voice...';
+                }
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                const currentText = finalTranscript || interimTranscript;
+                if (chatInput) chatInput.value = currentText;
+                if (vfUserText) vfUserText.textContent = `"${currentText}"`;
+            };
+
+            recognition.onspeechend = () => {
+                stopVoiceRecognition();
+                const spokenText = chatInput?.value?.trim();
+                if (spokenText) {
+                    handleSendMessage(spokenText, true);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.warn('Speech recognition notice:', event.error);
+                stopVoiceRecognition();
+                if (event.error === 'not-allowed') {
+                    showToast('Microphone access blocked. Please enable permissions.', 'error');
+                }
+            };
+
+            recognition.onend = () => {
+                stopVoiceRecognition();
+            };
+        } catch (recErr) {
+            console.warn('Web Speech Recognition init note:', recErr);
+        }
+    }
+
+    const startVoiceRecognition = () => {
+        if (!recognition) {
+            showToast('Voice input is not supported in this browser. Try Chrome or Edge.', 'warning');
+            return;
+        }
+        try {
+            recognition.start();
+        } catch (_) {
+            recognition.stop();
+        }
+    };
+
+    const stopVoiceRecognition = () => {
+        isListening = false;
+        if (chatMicBtn) chatMicBtn.classList.remove('listening');
+        if (vfMainMicBtn) vfMainMicBtn.classList.remove('listening');
+        if (vfMicHintText) vfMicHintText.textContent = 'Click microphone to speak';
+        if (aadhiVoiceWaveContainer && !isSpeaking) {
+            aadhiVoiceWaveContainer.style.display = 'none';
+        }
+        if (!isSpeaking) setTutorStatus('idle');
+        try {
+            if (recognition) recognition.stop();
+        } catch (_) {}
+    };
+
+    if (chatMicBtn) {
+        chatMicBtn.onclick = () => {
+            if (isListening) stopVoiceRecognition();
+            else startVoiceRecognition();
+        };
+    }
+
+    if (vfMainMicBtn) {
+        vfMainMicBtn.onclick = () => {
+            if (isListening) stopVoiceRecognition();
+            else startVoiceRecognition();
+        };
+    }
+
+    // ==================== SEND MESSAGE CONTROLLER ====================
+    async function handleSendMessage(customMsg = null, fromVoice = false) {
+        const msg = (customMsg || chatInput?.value || '').trim();
         if (!msg) return;
 
-        // Add user message
+        stopAadhiSpeech();
+
+        // Add user message to thread
         const userMsgEl = document.createElement('div');
         userMsgEl.className = 'chat-msg user';
         userMsgEl.textContent = msg;
         chatBody.appendChild(userMsgEl);
-        
-        chatInput.value = '';
+
+        if (chatInput) chatInput.value = '';
         chatBody.scrollTop = chatBody.scrollHeight;
 
+        // Update Voice Focus modal if active
+        if (vfUserText) vfUserText.textContent = `"${msg}"`;
+
         // Show typing indicator
+        setTutorStatus('thinking');
         const typingEl = document.createElement('div');
         typingEl.className = 'chat-msg bot typing';
         typingEl.id = 'typing-indicator';
@@ -745,46 +1762,110 @@ document.addEventListener('DOMContentLoaded', () => {
         chatBody.scrollTop = chatBody.scrollHeight;
 
         try {
-            const res = await apiFetch('/chat', { 
-                method: 'POST', 
-                body: JSON.stringify({ message: msg }) 
+            const res = await apiFetch('/chat', {
+                method: 'POST',
+                body: JSON.stringify({
+                    message: msg,
+                    tutorMode: activeTutorMode,
+                    academicContext: currentAcademicContext,
+                    voiceActive: fromVoice
+                })
             });
-            
+
             // Remove typing indicator
             const typingIndicator = document.getElementById('typing-indicator');
             if (typingIndicator) typingIndicator.remove();
 
-            const botMsg = res.success ? res.response : "I'm sorry, I couldn't connect to my brain. Try asking about REC departments!";
+            setTutorStatus('idle');
+
+            const botMsg = res.success && res.response ? res.response : "I'm having trouble connecting right now. Please try asking again!";
+            const speechText = res.speechText || botMsg;
+
             const botMsgEl = document.createElement('div');
             botMsgEl.className = 'chat-msg bot';
-            // Use marked for rich formatting
-            botMsgEl.innerHTML = marked.parse(botMsg);
+            botMsgEl.dataset.speech = speechText;
+
+            // Rich formatting with marked
+            const parsedHtml = (window.marked && typeof marked.parse === 'function') ? marked.parse(botMsg) : `<p>${escapeHtml(botMsg)}</p>`;
+            botMsgEl.innerHTML = `
+                <div class="bot-msg-content">${parsedHtml}</div>
+                <div class="msg-voice-action">
+                    <button class="msg-listen-btn" title="Listen to Aadhi speaking this">
+                        <i class='bx bx-volume-full'></i> Listen
+                    </button>
+                </div>
+            `;
             chatBody.appendChild(botMsgEl);
 
-            // Render math if KaTeX is loaded
+            // Render Math with KaTeX if available
             if (window.renderMathInElement) {
-                renderMathInElement(botMsgEl, {
-                    delimiters: [
-                        {left: '$$', right: '$$', display: true},
-                        {left: '$', right: '$', display: false},
-                        {left: '\\(', right: '\\)', display: false},
-                        {left: '\\[', right: '\\]', display: true}
-                    ],
-                    throwOnError : false
-                });
+                try {
+                    renderMathInElement(botMsgEl, {
+                        delimiters: [
+                            { left: '$$', right: '$$', display: true },
+                            { left: '$', right: '$', display: false },
+                            { left: '\\(', right: '\\)', display: false },
+                            { left: '\\[', right: '\\]', display: true }
+                        ],
+                        throwOnError: false
+                    });
+                } catch (_) {}
             }
-            // Add copy button to bot response
-            addCopyButton(botMsgEl);
+
+            // Add code copy button if function exists
+            if (typeof addCopyButton === 'function') addCopyButton(botMsgEl);
+
+            // Render suggested smart chips
+            renderSmartChips(res.suggestedChips || []);
+
+            // Update Voice Focus Modal Transcript
+            if (vfAadhiText) {
+                vfAadhiText.innerHTML = (window.marked && typeof marked.parse === 'function') ? marked.parse(botMsg) : escapeHtml(botMsg);
+            }
+
             chatBody.scrollTop = chatBody.scrollHeight;
-        } catch(e) { 
-            console.error(e);
+
+            // Auto-Speak if enabled or if user spoke
+            if ((autoSpeakEnabled || fromVoice) && speechText) {
+                const listenBtn = botMsgEl.querySelector('.msg-listen-btn');
+                speakAadhiResponse(speechText, listenBtn);
+            }
+        } catch (e) {
+            console.error('Aadhi Chat error:', e);
             const typingIndicator = document.getElementById('typing-indicator');
             if (typingIndicator) typingIndicator.remove();
+            setTutorStatus('idle');
+            showToast('Unable to reach Aadhi Tutor. Check your internet connection.', 'error');
         }
     }
 
-    if (chatSend) chatSend.onclick = handleSendMessage;
+    if (chatSend) chatSend.onclick = () => handleSendMessage();
     if (chatInput) chatInput.onkeypress = (e) => { if (e.key === 'Enter') handleSendMessage(); };
+
+    // Initial default smart chips render
+    renderDefaultSmartChips();
+
+    // Global Window Access API for Contextual Tutoring from Notes & Diagnostics
+    window.openAadhiTutor = (options = {}) => {
+        const { mode, subject, note, topic, initialPrompt } = options;
+        if (mode) updateTutorMode(mode);
+        if (subject || note || topic) {
+            currentAcademicContext = {
+                subject_name: subject || '',
+                note_title: note || '',
+                topic_name: topic || ''
+            };
+        }
+
+        if (chatbotWindow) {
+            chatbotWindow.classList.add('active');
+            if (chatInput) chatInput.focus();
+        }
+
+        if (initialPrompt) {
+            handleSendMessage(initialPrompt);
+        }
+    };
 
     // 7. Live Clock
     function startLiveClock() {

@@ -534,49 +534,279 @@
 
 
 
-            <!-- Progress Tracker View (Hidden by default) -->
-            <div id="progress-view" class="dashboard-grid view-section" style="display: none;">
-                <div class="welcome-banner glass-panel">
+            <!-- AI Learning Analytics & Progress Tracker View (Section 3 Upgrade) -->
+            <div id="progress-view" class="dashboard-grid view-section analytics-dashboard-view" style="display: none;">
+                <!-- Hero Header -->
+                <div class="welcome-banner glass-panel analytics-hero-banner">
                     <div class="welcome-text">
-                        <h1>Productivity <span class="highlight">Tracker</span></h1>
-                        <p>Track your academic achievements and study habits over the last 30 days.</p>
+                        <div class="analytics-badge-tag"><i class='bx bxs-brain'></i> AI Learning Intelligence v2.0</div>
+                        <h1>Knowledge Radar & <span class="highlight">Learning Analytics</span></h1>
+                        <p>Real-time subject mastery diagnostics, 30-day activity velocity, and AI weak concept recovery.</p>
+                    </div>
+                    <div class="analytics-hero-actions">
+                        <button id="editLearningProfileBtn" class="btn-glass analytics-action-btn" title="Configure Target CGPA & Learning Pace">
+                            <i class='bx bx-slider-alt'></i> Learning Profile
+                        </button>
+                        <button id="refreshAnalyticsBtn" class="btn-gradient analytics-action-btn" title="Recalculate Knowledge Graphs">
+                            <i class='bx bx-refresh'></i> Sync Analytics
+                        </button>
                     </div>
                 </div>
 
-                <!-- Stats Overview -->
-                <div class="productivity-stats-grid">
-                    <div class="glass-panel productivity-stat-card tasks-stat">
-                        <i class='bx bx-check-double'></i>
-                        <div><span>Tasks completed</span><h2 id="totalTasksCount">0</h2><small id="tasksCompletionMeta">of 0 tasks</small></div>
-                    </div>
-                    <div class="glass-panel productivity-stat-card sessions-stat">
-                        <i class='bx bx-calendar-check'></i>
-                        <div><span>Sessions completed</span><h2 id="totalSessionsCount">0</h2><small id="sessionsCompletionMeta">of 0 sessions</small></div>
-                    </div>
-                    <div class="glass-panel productivity-stat-card notes-stat">
-                        <i class='bx bx-book-reader'></i>
-                        <div><span>Notes studied</span><h2 id="notesStudiedCount">0</h2><small>last 30 days</small></div>
-                    </div>
-                    <div class="glass-panel productivity-stat-card days-stat">
-                        <i class='bx bx-calendar-star'></i>
-                        <div><span>Active study days</span><h2 id="activeStudyDays">0</h2><small>last 30 days</small></div>
-                    </div>
-                    <div class="glass-panel productivity-stat-card score-stat">
-                        <i class='bx bx-trending-up'></i>
-                        <div><span>Productivity score</span><h2 id="productivityScore">0%</h2><small>goals + study consistency</small></div>
-                    </div>
-                </div>
-
-                <div class="work-history-container glass-panel" style="padding: 0; overflow: hidden;">
-                    <div class="dropdown-header" style="background: rgba(255, 255, 255, 0.02); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;">
-                        <h3>Work History (Last 30 Days)</h3>
-                        <div class="filter-controls" style="display: flex; gap: 8px;">
-                            <span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">All Activities</span>
+                <!-- 4 KPI Summary Cards -->
+                <div class="analytics-kpi-grid">
+                    <div class="glass-panel analytics-kpi-card mastery-kpi">
+                        <div class="kpi-icon-wrapper"><i class='bx bx-radar'></i></div>
+                        <div class="kpi-content">
+                            <span class="kpi-label">Overall Mastery</span>
+                            <div class="kpi-val-row">
+                                <h2 id="overallMasteryValue">0%</h2>
+                                <span class="kpi-tag" id="masteryTierTag">Analyzing</span>
+                            </div>
+                            <div class="kpi-progress-track">
+                                <div class="kpi-progress-bar" id="overallMasteryBar" style="width: 0%;"></div>
+                            </div>
+                            <small id="masteryCountMeta">0 of 0 topics mastered</small>
                         </div>
                     </div>
-                    <div id="progress-history-list" style="max-height: 500px; overflow-y: auto;">
+
+                    <div class="glass-panel analytics-kpi-card profile-kpi">
+                        <div class="kpi-icon-wrapper"><i class='bx bx-target-lock'></i></div>
+                        <div class="kpi-content">
+                            <span class="kpi-label">Target Academic Goal</span>
+                            <div class="kpi-val-row">
+                                <h2 id="targetCgpaDisplay">8.50</h2>
+                                <span class="kpi-tag pace-tag" id="studyPaceTag">Balanced</span>
+                            </div>
+                            <small id="weeklyHoursMeta">12 hrs/week goal</small>
+                            <small class="kpi-subtext" id="learningStyleMeta">Visual Learner</small>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel analytics-kpi-card streak-kpi">
+                        <div class="kpi-icon-wrapper"><i class='bx bx-pulse'></i></div>
+                        <div class="kpi-content">
+                            <span class="kpi-label">30-Day Activity Velocity</span>
+                            <div class="kpi-val-row">
+                                <h2 id="activeDaysCountDisplay">0</h2>
+                                <span class="kpi-tag active-tag">Active Days</span>
+                            </div>
+                            <small id="activityActionsMeta">0 total study actions</small>
+                            <small class="kpi-subtext" id="streakSubtext">Study consistency: High</small>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel analytics-kpi-card weak-kpi">
+                        <div class="kpi-icon-wrapper"><i class='bx bx-shield-quarter'></i></div>
+                        <div class="kpi-content">
+                            <span class="kpi-label">Knowledge Gap Alerts</span>
+                            <div class="kpi-val-row">
+                                <h2 id="weakTopicsCountDisplay">0</h2>
+                                <span class="kpi-tag alert-tag" id="weakAlertTag">Needs Attention</span>
+                            </div>
+                            <small id="retentionDecayMeta">0 retention decay warnings</small>
+                            <small class="kpi-subtext" style="color: #f87171;">Topics below 60% proficiency</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Graphs Dual Layout (Radar + Heatmap) -->
+                <div class="analytics-charts-grid">
+                    <!-- Card 1: Knowledge Radar Chart -->
+                    <div class="glass-panel analytics-chart-card radar-chart-panel">
+                        <div class="chart-card-header">
+                            <div>
+                                <h3><i class='bx bx-pie-chart-alt-2'></i> Topic Mastery Radar</h3>
+                                <p>Multi-axis competency distribution across your active curriculum.</p>
+                            </div>
+                            <div class="radar-legend-tag">
+                                <span class="legend-dot"></span> Current Competency
+                            </div>
+                        </div>
+
+                        <div class="radar-svg-container" id="radarSvgContainer">
+                            <svg id="radarSvg" viewBox="0 0 440 380" class="radar-svg" preserveAspectRatio="xMidYMid meet">
+                                <!-- Dynamic SVG elements generated by student-dashboard.js -->
+                            </svg>
+                            <div id="radarTooltip" class="radar-interactive-tooltip" style="display: none;"></div>
+                        </div>
+
+                        <!-- Subject Competency Breakdown Pills -->
+                        <div class="radar-chips-container" id="radarSubjectChips">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Card 2: 30-Day Study Activity Matrix (Heatmap) -->
+                    <div class="glass-panel analytics-chart-card heatmap-chart-panel">
+                        <div class="chart-card-header">
+                            <div>
+                                <h3><i class='bx bx-calendar-event'></i> 30-Day Study Activity Matrix</h3>
+                                <p>Continuous engagement heatmap tracking daily notes, tasks, and problem sets.</p>
+                            </div>
+                            <div class="heatmap-legend">
+                                <span>Less</span>
+                                <span class="legend-cell level-0"></span>
+                                <span class="legend-cell level-1"></span>
+                                <span class="legend-cell level-2"></span>
+                                <span class="legend-cell level-3"></span>
+                                <span class="legend-cell level-4"></span>
+                                <span>More</span>
+                            </div>
+                        </div>
+
+                        <div class="heatmap-wrapper">
+                            <div class="heatmap-days-grid" id="heatmapDaysGrid">
+                                <!-- 30 days matrix populated dynamically -->
+                            </div>
+                            <div id="heatmapTooltip" class="heatmap-interactive-tooltip" style="display: none;"></div>
+                        </div>
+
+                        <div class="heatmap-summary-stats">
+                            <div class="h-stat-item">
+                                <span class="h-stat-num" id="hmStreakNum">0</span>
+                                <span class="h-stat-lbl">Day Active Streak</span>
+                            </div>
+                            <div class="h-stat-item">
+                                <span class="h-stat-num" id="hmPeakDayNum">-</span>
+                                <span class="h-stat-lbl">Peak Study Day</span>
+                            </div>
+                            <div class="h-stat-item">
+                                <span class="h-stat-num" id="hmTotalSessionsNum">0</span>
+                                <span class="h-stat-lbl">Total Logged Sessions</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Weak Concept Recovery Engine & Remediation -->
+                <div class="glass-panel recovery-engine-panel">
+                    <div class="recovery-header">
+                        <div class="recovery-title-block">
+                            <div class="engine-badge"><i class='bx bxs-magic-wand'></i> Smart Recovery Engine</div>
+                            <h3>AI Weak Concept Diagnostics & Remedial Action Plans</h3>
+                            <p>Concepts scored below 60% are analyzed by Gemini to build personalized, step-by-step recovery roadmaps.</p>
+                        </div>
+                    </div>
+
+                    <div class="weak-concepts-grid" id="weakConceptsList">
+                        <!-- Populated dynamically by student-dashboard.js -->
+                    </div>
+                </div>
+
+                <!-- Spaced Repetition Retention Decay Watchlist -->
+                <div class="glass-panel retention-watchlist-panel">
+                    <div class="chart-card-header">
+                        <div>
+                            <h3><i class='bx bx-history'></i> Spaced Repetition Decay Watchlist</h3>
+                            <p>Topics not reviewed for over 12 days require a rapid refresher to prevent memory decay.</p>
+                        </div>
+                    </div>
+                    <div class="retention-items-grid" id="retentionAlertsList">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Preserved Work History Section -->
+                <div class="work-history-container glass-panel" style="padding: 0; overflow: hidden;">
+                    <div class="dropdown-header" style="background: rgba(255, 255, 255, 0.02); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3>Activity Log (Last 30 Days)</h3>
+                        <div class="filter-controls" style="display: flex; gap: 8px;">
+                            <span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary);">Verified Activity Feed</span>
+                        </div>
+                    </div>
+                    <div id="progress-history-list" style="max-height: 400px; overflow-y: auto;">
                         <!-- Progress items will be rendered here dynamically -->
                     </div>
+                </div>
+            </div>
+
+            <!-- AI Remedial Recovery Plan Modal -->
+            <div id="aiRecoveryModal" class="custom-modal-backdrop" style="display: none;">
+                <div class="glass-panel recovery-modal-dialog">
+                    <div class="modal-top-bar">
+                        <div class="modal-badge"><i class='bx bxs-sparkles'></i> Gemini AI Tutor Plan</div>
+                        <button id="closeRecoveryModalBtn" class="modal-close-icon"><i class='bx bx-x'></i></button>
+                    </div>
+                    <div class="modal-body-content" id="recoveryModalContent">
+                        <div class="loading-spinner-box">
+                            <div class="spinner"></div>
+                            <p>Generating personalized concept recovery plan...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Learning Profile Customization Modal -->
+            <div id="learningProfileModal" class="custom-modal-backdrop" style="display: none;">
+                <div class="glass-panel learning-profile-dialog">
+                    <div class="modal-top-bar">
+                        <div class="modal-badge"><i class='bx bx-user-pin'></i> Diagnostic Learning Profile</div>
+                        <button id="closeProfileModalBtn" class="modal-close-icon"><i class='bx bx-x'></i></button>
+                    </div>
+                    <form id="learningProfileForm" class="profile-modal-form">
+                        <div class="form-group-item">
+                            <label for="profileTargetCgpa">Target CGPA / Academic Goal</label>
+                            <input type="number" id="profileTargetCgpa" step="0.01" min="5.0" max="10.0" value="8.50" required class="modal-input">
+                        </div>
+                        <div class="form-group-item">
+                            <label for="profileStudyPace">Study Pace</label>
+                            <select id="profileStudyPace" class="modal-select">
+                                <option value="relaxed">Relaxed (4-6 hrs/week)</option>
+                                <option value="balanced" selected>Balanced (10-14 hrs/week)</option>
+                                <option value="intensive">Intensive (FAANG / Exam Prep 20+ hrs/week)</option>
+                            </select>
+                        </div>
+                        <div class="form-group-item">
+                            <label for="profileWeeklyHours">Weekly Dedicated Hours</label>
+                            <input type="number" id="profileWeeklyHours" min="2" max="60" value="12" class="modal-input">
+                        </div>
+                        <div class="form-group-item">
+                            <label for="profileLearningStyle">Preferred Learning Style</label>
+                            <select id="profileLearningStyle" class="modal-select">
+                                <option value="visual" selected>Visual (Mindmaps, Diagrams, Radar Graphs)</option>
+                                <option value="practical">Practical / Code First (Sandbox drills, Labs)</option>
+                                <option value="theoretical">Theoretical & Analytical (Textbooks, Deep Proofs)</option>
+                            </select>
+                        </div>
+                        <div class="modal-actions-row">
+                            <button type="button" id="cancelProfileModalBtn" class="btn-glass">Cancel</button>
+                            <button type="submit" class="btn-gradient"><i class='bx bx-save'></i> Save Preferences</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Topic Self-Assessment / Test Modal -->
+            <div id="topicTestModal" class="custom-modal-backdrop" style="display: none;">
+                <div class="glass-panel topic-test-dialog">
+                    <div class="modal-top-bar">
+                        <div class="modal-badge"><i class='bx bx-check-shield'></i> Update Topic Mastery</div>
+                        <button id="closeTestModalBtn" class="modal-close-icon"><i class='bx bx-x'></i></button>
+                    </div>
+                    <form id="topicTestForm" class="profile-modal-form">
+                        <input type="hidden" id="testTopicId">
+                        <div class="test-topic-name-banner">
+                            <h4 id="testTopicNameHeading">Topic Name</h4>
+                            <span id="testTopicSubjectHeading">Subject</span>
+                        </div>
+                        <div class="form-group-item">
+                            <label for="testMasteryScoreSlider">Mastery Confidence Score: <strong id="sliderScoreVal">75%</strong></label>
+                            <input type="range" id="testMasteryScoreSlider" min="10" max="100" step="5" value="75" class="modal-range">
+                        </div>
+                        <div class="form-group-item">
+                            <label for="testTopicStatusSelect">Proficiency Tier</label>
+                            <select id="testTopicStatusSelect" class="modal-select">
+                                <option value="learning">Learning / Developing</option>
+                                <option value="review_needed">Needs Revision / Review</option>
+                                <option value="mastered">Mastered / Proficient (80%+)</option>
+                            </select>
+                        </div>
+                        <div class="modal-actions-row">
+                            <button type="button" id="cancelTestModalBtn" class="btn-glass">Cancel</button>
+                            <button type="submit" class="btn-gradient"><i class='bx bx-check-double'></i> Update Mastery</button>
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -958,23 +1188,91 @@
         </div>
     </div>
 
-    <!-- AI Chatbot (Matches index.html UI) -->
+    <!-- Aadhi AI Academic Tutor - Text + Voice (Phase 2 Upgrade) -->
     <div class="chatbot-container" id="chatbotWidget">
-        <div class="chatbot-window" id="chatbotWindow">
+        <div class="chatbot-window glass-panel" id="chatbotWindow">
+            <!-- Header with Tutor Info, Mode Pills & Voice Controls -->
             <div class="chat-header">
-                <img src="/images/logo.avif" alt="Aadhi">
-                <div class="chat-header-info">
-                    <h4>Aadhi</h4>
-                    <p>AI Support Assistant</p>
+                <div class="chat-avatar-wrapper">
+                    <img src="/images/logo.avif" alt="Aadhi AI Tutor" class="aadhi-avatar-img">
+                    <span class="aadhi-status-dot idle" id="aadhiStatusDot" title="Tutor Ready"></span>
                 </div>
-                <button class="chat-close" id="chatClose">&times;</button>
+                <div class="chat-header-info">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h4>Aadhi AI Tutor</h4>
+                        <span class="aadhi-badge-live" id="aadhiModeBadge"><i class='bx bx-brain'></i> Explainer</span>
+                    </div>
+                    <p id="aadhiSubStatus">Ready to teach &bull; Voice Enabled</p>
+                </div>
+                <div class="chat-header-actions">
+                    <button class="chat-action-btn" id="chatVoiceFocusBtn" title="Launch Hands-Free Voice Focus Mode">
+                        <i class='bx bx-expand-alt'></i>
+                    </button>
+                    <button class="chat-action-btn active" id="chatAudioToggleBtn" title="Toggle Voice Speech Output (TTS)">
+                        <i class='bx bx-volume-full' id="chatAudioIcon"></i>
+                    </button>
+                    <button class="chat-close" id="chatClose" title="Minimize">&times;</button>
+                </div>
             </div>
+
+            <!-- Tutor Mode Selector Bar -->
+            <div class="tutor-modes-bar" id="tutorModesBar">
+                <button class="tutor-mode-pill active" data-mode="explain">
+                    <i class='bx bx-bulb'></i> Concept Explainer
+                </button>
+                <button class="tutor-mode-pill" data-mode="socratic">
+                    <i class='bx bx-compass'></i> Socratic Guide
+                </button>
+                <button class="tutor-mode-pill" data-mode="exam_drill">
+                    <i class='bx bx-target-lock'></i> Viva Drill
+                </button>
+                <button class="tutor-mode-pill" data-mode="general">
+                    <i class='bx bx-support'></i> Support
+                </button>
+            </div>
+
+            <!-- Live Voice Waveform Visualizer (Shown when Listening or Speaking) -->
+            <div class="aadhi-voice-wave-container" id="aadhiVoiceWaveContainer" style="display: none;">
+                <div class="voice-wave-bars">
+                    <span class="v-bar"></span>
+                    <span class="v-bar"></span>
+                    <span class="v-bar"></span>
+                    <span class="v-bar"></span>
+                    <span class="v-bar"></span>
+                    <span class="v-bar"></span>
+                    <span class="v-bar"></span>
+                </div>
+                <span class="voice-wave-status-text" id="voiceWaveStatusText">Listening to your voice...</span>
+                <button class="voice-wave-stop-btn" id="voiceWaveStopBtn" title="Stop listening / Stop speaking">
+                    <i class='bx bx-stop-circle'></i>
+                </button>
+            </div>
+
+            <!-- Chat Message Thread -->
             <div class="chat-body" id="chatBody">
-                <div class="chat-msg bot">Hi there! 👋 I'm Aadhi, Notezilla's AI assistant. How can I help you today?</div>
+                <div class="chat-msg bot" data-speech="Hello! I'm Aadhi, your AI Academic Tutor. How can I help you master your curriculum today?">
+                    <div class="bot-msg-content">
+                        Hello! 👋 I'm <strong>Aadhi</strong>, your AI Academic Tutor. Ask me any engineering concept, request an intuitive analogy, or click the mic to start a voice study session!
+                    </div>
+                    <div class="msg-voice-action">
+                        <button class="msg-listen-btn" title="Listen to Aadhi speaking this"><i class='bx bx-volume-full'></i> Listen</button>
+                    </div>
+                </div>
             </div>
+
+            <!-- Suggested Smart Chips -->
+            <div class="chat-smart-chips" id="chatSmartChips">
+                <!-- Dynamically filled with personalized follow-up prompts -->
+            </div>
+
+            <!-- Chat Input Area with Text & Glowing Microphone -->
             <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Type your message...">
-                <button id="chatSend">
+                <button class="chat-mic-btn" id="chatMicBtn" title="Click to talk with Aadhi (Voice Input)">
+                    <i class='bx bx-microphone' id="chatMicIcon"></i>
+                    <span class="mic-ping-ring"></span>
+                </button>
+                <input type="text" id="chatInput" placeholder="Ask Aadhi any academic doubt or click mic...">
+                <button id="chatSend" title="Send message">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -984,10 +1282,74 @@
             </div>
         </div>
 
-        <div class="chatbot-toggle" id="chatToggle">
+        <div class="chatbot-toggle" id="chatToggle" title="Open Aadhi AI Tutor">
             <div class="chatbot-toggle-bg"></div>
-            <div class="chatbot-greeting">Hi, I'm Aadhi! 👋</div>
+            <div class="chatbot-greeting">Voice Tutor Aadhi 🎙️</div>
             <img src="/images/logo.avif" alt="Aadhi Chatbot">
+        </div>
+    </div>
+
+    <!-- Full-Screen / Focus Hands-Free Voice Tutor Modal -->
+    <div class="modal-overlay" id="aadhiVoiceFocusModal" style="display: none;">
+        <div class="voice-focus-container glass-panel">
+            <div class="voice-focus-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="/images/logo.avif" alt="Aadhi Voice Tutor" style="width: 36px; height: 36px; border-radius: 50%;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;">Aadhi Voice Tutor &bull; Hands-Free Focus</h3>
+                        <p style="margin: 0; font-size: 12px; color: #94a3b8;" id="voiceFocusContextLabel">Interactive Verbal Academic Session</p>
+                    </div>
+                </div>
+                <button class="close-preview-panel" id="closeVoiceFocusModal"><i class='bx bx-x'></i></button>
+            </div>
+
+            <div class="voice-focus-orb-stage">
+                <div class="voice-orb-wrapper" id="voiceOrbWrapper">
+                    <div class="voice-orb-core">
+                        <i class='bx bx-brain' style="font-size: 44px; color: #fff;"></i>
+                    </div>
+                    <div class="voice-orb-ring ring-1"></div>
+                    <div class="voice-orb-ring ring-2"></div>
+                    <div class="voice-orb-ring ring-3"></div>
+                </div>
+                <div class="voice-focus-state-badge" id="voiceFocusStateBadge">
+                    <span class="pulse-dot"></span> Ready to Listen
+                </div>
+            </div>
+
+            <!-- Live Speech Transcripts -->
+            <div class="voice-focus-transcript-box">
+                <div class="vf-transcript-user" id="vfUserTranscript">
+                    <span class="vf-label"><i class='bx bx-user'></i> You said:</span>
+                    <p id="vfUserText">Tap the microphone below to ask any doubt verbally...</p>
+                </div>
+                <div class="vf-transcript-aadhi" id="vfAadhiTranscript">
+                    <span class="vf-label"><i class='bx bx-bot'></i> Aadhi:</span>
+                    <div id="vfAadhiText">"Hello! Ask me about any concept from your notes, request a viva question, or discuss an engineering problem."</div>
+                </div>
+            </div>
+
+            <!-- Voice Focus Quick Actions & Mic Control -->
+            <div class="voice-focus-controls">
+                <div class="vf-mode-pills">
+                    <button class="vf-mode-pill active" data-vfmode="explain"><i class='bx bx-bulb'></i> Explain</button>
+                    <button class="vf-mode-pill" data-vfmode="socratic"><i class='bx bx-compass'></i> Socratic</button>
+                    <button class="vf-mode-pill" data-vfmode="exam_drill"><i class='bx bx-target-lock'></i> Viva Drill</button>
+                </div>
+
+                <div class="vf-mic-stage">
+                    <button class="vf-main-mic-btn" id="vfMainMicBtn" title="Start talking">
+                        <i class='bx bx-microphone'></i>
+                    </button>
+                    <span style="font-size: 13px; color: #94a3b8; margin-top: 8px;" id="vfMicHintText">Click microphone to speak</span>
+                </div>
+
+                <div class="vf-quick-prompts" id="vfQuickPrompts">
+                    <button class="vf-prompt-btn">Quiz me on my weak topics</button>
+                    <button class="vf-prompt-btn">Explain Page Replacement algorithms</button>
+                    <button class="vf-prompt-btn">Ask an Anna University 2-mark question</button>
+                </div>
+            </div>
         </div>
     </div>
 

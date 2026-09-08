@@ -928,13 +928,468 @@ app.post('/api/user/activity', authenticateToken, async (req, res) => {
             .insert({ user_id: req.userId, action_type, title, description })
             .select().single();
         if (error) throw error;
+
+        // Organically update topic mastery when a note is studied
+        if (action_type === 'note' && title) {
+            try {
+                // Extract subject from description if available (e.g., "Subject: Database Management Systems")
+                let subjectId = null;
+                const subjectMatch = (description || '').match(/Subject:\s*([^,\n]+)/i);
+                if (subjectMatch) {
+                    const subjectName = subjectMatch[1].trim();
+                    const { data: matchedSub } = await supabase
+                        .from('subjects')
+                        .select('id')
+                        .ilike('name', `%${subjectName}%`)
+                        .limit(1)
+                        .maybeSingle();
+                    if (matchedSub) subjectId = matchedSub.id;
+                }
+
+                // Check existing mastery record for this topic
+                const { data: existing } = await supabase
+                    .from('student_topic_mastery')
+                    .select('*')
+                    .eq('student_id', req.userId)
+                    .eq('topic_name', title.trim())
+                    .maybeSingle();
+
+                if (existing) {
+                    const newCount = (existing.review_count || 1) + 1;
+                    const newMastery = Math.min(100, (existing.mastery_level || 40) + 15);
+                    const newStatus = newMastery >= 80 ? 'mastered' : newMastery < 60 ? 'review_needed' : 'learning';
+
+                    await supabase
+                        .from('student_topic_mastery')
+                        .update({
+                            review_count: newCount,
+                            mastery_level: newMastery,
+                            status: newStatus,
+                            last_tested_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', existing.id);
+                } else {
+                    await supabase
+                        .from('student_topic_mastery')
+                        .insert({
+                            student_id: req.userId,
+                            subject_id: subjectId,
+                            topic_name: title.trim(),
+                            mastery_level: 45,
+                            status: 'learning',
+                            review_count: 1,
+                            last_tested_at: new Date().toISOString()
+                        });
+                }
+            } catch (masteryErr) {
+                console.warn('Organic mastery update notice:', masteryErr.message);
+            }
+        }
+
         res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
-// ==================== STAR SYSTEM ROUTES ====================
+// ==================== AI LEARNING ANALYTICS & PROGRESS DASHBOARD ====================
+
+/**
+ * GET /api/user/analytics/learning-graph
+ * Fetches comprehensive knowledge radar data, 30-day activity matrix,
+ * weak concepts diagnostics, and spaced repetition decay alerts.
+ * Strictly driven by real database subjects and authentic user actions.
+ */
+app.get('/api/user/analytics/learning-graph', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.userId;
+        const cutoff30 = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000));
+        const cutoff30Iso = cutoff30.toISOString();
+
+        // 1. Fetch user info & learning profile
+        const [userRes, profileRes] = await Promise.all([
+            supabase.from('users').select('id, name, department, semester').eq('id', userId).single(),
+            supabase.from('student_learning_profiles').select('*').eq('student_id', userId).maybeSingle()
+        ]);
+
+        const user = userRes.data || {};
+        let profile = profileRes.data;
+
+        // Auto-initialize default profile if not exists
+        if (!profile) {
+            const { data: newProfile } = await supabase
+                .from('student_learning_profiles')
+                .insert({
+                    student_id: userId,
+                    target_cgpa: 8.50,
+                    study_pace: 'balanced',
+                    weekly_study_hours: 12,
+                    learning_style: 'visual',
+                    strengths: ['Analytical Thinking', 'Consistent Daily Study'],
+                    weak_topics: []
+                })
+                .select()
+                .maybeSingle();
+            profile = newProfile || {
+                target_cgpa: 8.50,
+                study_pace: 'balanced',
+                weekly_study_hours: 12,
+                learning_style: 'visual',
+                strengths: ['Analytical Thinking'],
+                weak_topics: []
+            };
+        }
+
+        // 2. Fetch student topic mastery records (strictly from genuine database actions)
+        const { data: masteryRecords, error: masteryErr } = await supabase
+            .from('student_topic_mastery')
+            .select('*, subjects(id, name, code, department)')
+            .eq('student_id', userId)
+            .order('mastery_level', { ascending: true });
+
+        if (masteryErr) console.warn('Topic mastery fetch warning:', masteryErr.message);
+
+        let topicMastery = masteryRecords || [];
+
+        // Fetch real curriculum subjects for student's department & semester
+        const { data: deptSubjects } = await supabase
+            .from('subjects')
+            .select('id, name, code, department, semester')
+            .eq('department', user.department || 'CSE')
+            .order('semester, code')
+            .limit(6);
+
+        // 3. Calculate Radar Graph Vertices
+        let radarData = [];
+        if (topicMastery.length > 0) {
+            const subjectClusterMap = {};
+            topicMastery.forEach(item => {
+                const subjName = item.subjects?.name || item.topic_name.split(' ')[0] || 'Core Domain';
+                if (!subjectClusterMap[subjName]) {
+                    subjectClusterMap[subjName] = { total: 0, count: 0, topics: [] };
+                }
+                subjectClusterMap[subjName].total += Number(item.mastery_level || 0);
+                subjectClusterMap[subjName].count += 1;
+                subjectClusterMap[subjName].topics.push(item.topic_name);
+            });
+
+            radarData = Object.keys(subjectClusterMap).map(subj => {
+                const data = subjectClusterMap[subj];
+                return {
+                    subject: subj,
+                    mastery: Math.round(data.total / (data.count || 1)),
+                    topic_count: data.count,
+                    topics: data.topics
+                };
+            });
+        } else if (deptSubjects && deptSubjects.length > 0) {
+            // New student: populate radar axes with their real department subjects awaiting study
+            radarData = deptSubjects.map(sub => ({
+                subject: sub.name,
+                code: sub.code,
+                mastery: 0,
+                topic_count: 0,
+                topics: []
+            }));
+        } else {
+            radarData = [
+                { subject: 'Algorithms & Data Structures', mastery: 0, topic_count: 0, topics: [] },
+                { subject: 'System Programming', mastery: 0, topic_count: 0, topics: [] },
+                { subject: 'Database Systems', mastery: 0, topic_count: 0, topics: [] },
+                { subject: 'Computer Networks', mastery: 0, topic_count: 0, topics: [] }
+            ];
+        }
+
+        // 3. Fetch 30-day activity logs for heatmap matrix
+        const { data: rawActivities } = await supabase
+            .from('activity_logs')
+            .select('action_type, title, created_at')
+            .eq('user_id', userId)
+            .gte('created_at', cutoff30Iso)
+            .order('created_at', { ascending: true });
+
+        const activities = rawActivities || [];
+
+        // Build continuous 30-day date map
+        const activityMatrix = [];
+        const dateCountMap = {};
+        activities.forEach(act => {
+            const dayStr = act.created_at ? act.created_at.slice(0, 10) : '';
+            if (dayStr) {
+                dateCountMap[dayStr] = (dateCountMap[dayStr] || 0) + 1;
+            }
+        });
+
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(Date.now() - (i * 24 * 60 * 60 * 1000));
+            const dStr = d.toISOString().slice(0, 10);
+            const count = dateCountMap[dStr] || 0;
+            // Activity intensity scale: 0 (none), 1 (1-2), 2 (3-4), 3 (5-7), 4 (8+)
+            const level = count === 0 ? 0 : count <= 2 ? 1 : count <= 4 ? 2 : count <= 7 ? 3 : 4;
+            activityMatrix.push({
+                date: dStr,
+                count,
+                level,
+                day_name: d.toLocaleDateString('en-US', { weekday: 'short' })
+            });
+        }
+        // 4. Identify Weak Concepts (< 60% mastery) from real tested topics
+        const weakConcepts = topicMastery
+            .filter(t => Number(t.mastery_level) < 60)
+            .sort((a, b) => Number(a.mastery_level) - Number(b.mastery_level))
+            .map(t => ({
+                id: t.id,
+                topic_name: t.topic_name,
+                subject_name: t.subjects?.name || 'Academic Subject',
+                mastery_level: Number(t.mastery_level),
+                status: t.status,
+                review_count: t.review_count || 0,
+                last_tested_at: t.last_tested_at,
+                recommended_action: Number(t.mastery_level) < 45
+                    ? 'Critical: Review high-yield notes & schedule revision'
+                    : 'Practice targeted questions to reach proficiency'
+            }));
+
+        // 6. Spaced Repetition Decay Alerts (topics tested > 12 days ago)
+        const nowMs = Date.now();
+        const retentionAlerts = topicMastery
+            .filter(t => {
+                if (!t.last_tested_at) return true;
+                const daysDiff = (nowMs - new Date(t.last_tested_at).getTime()) / (1000 * 60 * 60 * 24);
+                return daysDiff >= 12;
+            })
+            .map(t => {
+                const daysSince = Math.round((nowMs - new Date(t.last_tested_at || nowMs).getTime()) / (1000 * 60 * 60 * 24));
+                return {
+                    id: t.id,
+                    topic_name: t.topic_name,
+                    subject_name: t.subjects?.name || 'Core',
+                    days_since_review: Math.max(1, daysSince),
+                    urgency: daysSince >= 20 ? 'High' : 'Medium'
+                };
+            });
+
+        // 7. Overall Aggregate Metrics
+        const totalMasterySum = topicMastery.reduce((acc, curr) => acc + Number(curr.mastery_level || 0), 0);
+        const overallMastery = topicMastery.length ? Math.round(totalMasterySum / topicMastery.length) : 0;
+        const activeDaysCount = Object.keys(dateCountMap).length;
+
+        res.json({
+            success: true,
+            data: {
+                profile,
+                overall_mastery: overallMastery,
+                radar_data: radarData,
+                topic_mastery: topicMastery,
+                weak_concepts: weakConcepts,
+                retention_alerts: retentionAlerts,
+                activity_matrix: activityMatrix,
+                stats: {
+                    total_topics: topicMastery.length,
+                    mastered_count: topicMastery.filter(t => Number(t.mastery_level) >= 80).length,
+                    learning_count: topicMastery.filter(t => Number(t.mastery_level) >= 60 && Number(t.mastery_level) < 80).length,
+                    weak_count: weakConcepts.length,
+                    active_days_30: activeDaysCount,
+                    total_study_actions: activities.length
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Learning graph error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * POST /api/user/analytics/mastery-update
+ * Updates a topic mastery record after practice, quiz, or self-assessment.
+ */
+app.post('/api/user/analytics/mastery-update', authenticateToken, async (req, res) => {
+    try {
+        const { topic_id, topic_name, subject_id, mastery_level, status } = req.body;
+        const userId = req.userId;
+
+        let result;
+        if (topic_id) {
+            const { data, error } = await supabase
+                .from('student_topic_mastery')
+                .update({
+                    mastery_level: Math.max(0, Math.min(100, parseInt(mastery_level))),
+                    status: status || (parseInt(mastery_level) >= 80 ? 'mastered' : parseInt(mastery_level) < 60 ? 'review_needed' : 'learning'),
+                    last_tested_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', topic_id)
+                .eq('student_id', userId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            result = data;
+        } else if (topic_name) {
+            const calculatedStatus = status || (parseInt(mastery_level) >= 80 ? 'mastered' : parseInt(mastery_level) < 60 ? 'review_needed' : 'learning');
+            const { data, error } = await supabase
+                .from('student_topic_mastery')
+                .upsert({
+                    student_id: userId,
+                    subject_id: subject_id || null,
+                    topic_name: topic_name.trim(),
+                    mastery_level: Math.max(0, Math.min(100, parseInt(mastery_level))),
+                    status: calculatedStatus,
+                    last_tested_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'student_id,subject_id,topic_name' })
+                .select()
+                .single();
+
+            if (error) throw error;
+            result = data;
+        } else {
+            return res.status(400).json({ success: false, message: 'topic_id or topic_name is required' });
+        }
+
+        // Log learning activity
+        await supabase.from('activity_logs').insert({
+            user_id: userId,
+            action_type: 'mastery',
+            title: `Practiced ${result.topic_name}`,
+            description: `Updated mastery to ${result.mastery_level}% (${result.status})`
+        });
+
+        // Real-time broadcast
+        io.to(`user_${userId}`).emit('learning_graph_updated', {
+            topic_id: result.id,
+            topic_name: result.topic_name,
+            mastery_level: result.mastery_level,
+            status: result.status
+        });
+
+        res.json({ success: true, data: result });
+    } catch (error) {
+        console.error('Mastery update error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * GET /api/user/analytics/profile
+ * Fetches user diagnostic learning profile
+ */
+app.get('/api/user/analytics/profile', authenticateToken, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('student_learning_profiles')
+            .select('*')
+            .eq('student_id', req.userId)
+            .maybeSingle();
+
+        if (error) throw error;
+        res.json({
+            success: true,
+            data: data || {
+                target_cgpa: 8.50,
+                study_pace: 'balanced',
+                weekly_study_hours: 12,
+                learning_style: 'visual',
+                strengths: ['Consistent Daily Practice'],
+                weak_topics: []
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * PUT /api/user/analytics/profile
+ * Updates student diagnostic preferences and goals
+ */
+app.put('/api/user/analytics/profile', authenticateToken, async (req, res) => {
+    try {
+        const { target_cgpa, study_pace, weekly_study_hours, learning_style, strengths, weak_topics } = req.body;
+        const { data, error } = await supabase
+            .from('student_learning_profiles')
+            .upsert({
+                student_id: req.userId,
+                target_cgpa: target_cgpa ? parseFloat(target_cgpa) : 8.50,
+                study_pace: study_pace || 'balanced',
+                weekly_study_hours: weekly_study_hours ? parseInt(weekly_study_hours) : 12,
+                learning_style: learning_style || 'visual',
+                strengths: strengths || [],
+                weak_topics: weak_topics || [],
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'student_id' })
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * POST /api/user/analytics/recovery-plan
+ * AI Weak Concept Recovery Engine: generates a targeted 3-step recovery guide
+ */
+app.post('/api/user/analytics/recovery-plan', authenticateToken, async (req, res) => {
+    try {
+        const { topic_name, subject_name, mastery_level } = req.body;
+        if (!topic_name) return res.status(400).json({ success: false, message: 'topic_name is required' });
+
+        const prompt = `As an expert AI Academic Tutor for Notezilla, create a high-impact remedial recovery plan for a student struggling with the topic "${topic_name}" in subject "${subject_name || 'Engineering'}". Their current mastery score is ${mastery_level || 40}%.
+
+Respond with JSON only in this exact format:
+{
+  "topic": "${topic_name}",
+  "diagnostic_reason": "Brief explanation of why students find this concept tricky and where common misconceptions occur.",
+  "recovery_steps": [
+    { "step": 1, "title": "Core Intuition", "action": "Clear 2-sentence intuitive mental model to understand the principle without confusing jargon." },
+    { "step": 2, "title": "Key Rule / Formula", "action": "The essential algorithm, theorem, formula, or relationship to memorize." },
+    { "step": 3, "title": "Micro Practice Drill", "action": "A quick practice challenge or question the student can solve right now to verify understanding." }
+  ],
+  "retention_tip": "A practical mnemonic or tip for the next review."
+}`;
+
+        let plan;
+        try {
+            const apiKey = process.env.GEMINI_API_KEY;
+            if (apiKey) {
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                const result = await model.generateContent(prompt);
+                const text = result.response.text();
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    plan = JSON.parse(jsonMatch[0]);
+                }
+            }
+        } catch (aiErr) {
+            console.warn('AI Recovery generation fallback:', aiErr.message);
+        }
+
+        if (!plan) {
+            // High-quality deterministic fallback
+            plan = {
+                topic: topic_name,
+                diagnostic_reason: `Students typically struggle with ${topic_name} due to intricate edge cases and abstract state transitions.`,
+                recovery_steps: [
+                    { step: 1, title: 'Foundational Intuition', action: `Break down ${topic_name} into its core components. Visualize how input data transforms at each step before looking at complex formulas.` },
+                    { step: 2, title: 'Step-by-Step Rule Verification', action: 'Write out the primary rules, constraints, and standard patterns on paper. Contrast with the most common edge case.' },
+                    { step: 3, title: 'Targeted Micro Drill', action: `Solve 2 fundamental problems focusing purely on ${topic_name} without using calculators or lookups.` }
+                ],
+                retention_tip: 'Schedule your next quick 5-minute refresher in 48 hours to lock in long-term memory retention.'
+            };
+        }
+
+        res.json({ success: true, data: plan });
+    } catch (error) {
+        console.error('Recovery plan error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 
 /**
  * STAR an Entity
@@ -2474,34 +2929,84 @@ function buildChatUserProfile(userContext = {}) {
 }
 
 /**
- * POST Ollama/LangChain Chatbot Helper
  * POST /api/chat
+ * Centralized Aadhi AI Academic Tutor Endpoint
+ * Supports contextual tutoring modes: 'explain', 'socratic', 'exam_drill', 'general'
+ * Injects student learning profile, weak topics, and returns speechText for TTS
  */
 app.post('/api/chat', async (req, res) => {
     try {
-        const { message, userContext } = req.body;
+        const { message, userContext, tutorMode, academicContext, voiceActive } = req.body;
         const cleanMessage = typeof message === 'string' ? message.trim().slice(0, 1500) : '';
 
         if (!cleanMessage) {
             return res.status(200).json({
                 success: true,
-                response: "Please type a question about Notezilla, your account, notes, uploads, or approvals."
+                response: "Hello! I'm Aadhi, your AI Academic Tutor. How can I help you master your curriculum today?",
+                speechText: "Hello! I am Aadhi, your AI Academic Tutor. How can I help you master your curriculum today?",
+                suggestedChips: ["Explain a concept", "Start a viva drill", "Check my weak topics"],
+                tutorMode: tutorMode || 'explain'
             });
         }
 
-        const responseText = await aiService.chatWithAadhi(cleanMessage, userContext);
+        // Dynamically enrich student academic profile if authenticated
+        let mergedUserContext = { ...(userContext || {}) };
+        const authHeader = req.headers['authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.split(' ')[1];
+                const decoded = jwt.verify(token, jwtSecret);
+                if (decoded && decoded.id) {
+                    const [userRes, profileRes, weakRes] = await Promise.all([
+                        supabase.from('users').select('name, department, semester, role').eq('id', decoded.id).maybeSingle(),
+                        supabase.from('student_learning_profiles').select('*').eq('student_id', decoded.id).maybeSingle(),
+                        supabase.from('student_topic_mastery').select('topic_name, mastery_level').eq('student_id', decoded.id).lt('mastery_level', 60).limit(5)
+                    ]);
+
+                    if (userRes.data) {
+                        mergedUserContext.name = userRes.data.name || mergedUserContext.name;
+                        mergedUserContext.department = userRes.data.department || mergedUserContext.department;
+                        mergedUserContext.semester = userRes.data.semester || mergedUserContext.semester;
+                        mergedUserContext.role = userRes.data.role || mergedUserContext.role;
+                    }
+
+                    if (profileRes.data) {
+                        mergedUserContext.target_cgpa = profileRes.data.target_cgpa;
+                        mergedUserContext.study_pace = profileRes.data.study_pace;
+                        mergedUserContext.learning_style = profileRes.data.learning_style;
+                        mergedUserContext.strengths = profileRes.data.strengths;
+                    }
+
+                    if (weakRes.data && weakRes.data.length > 0) {
+                        mergedUserContext.weak_topics = weakRes.data.map(w => `${w.topic_name} (${w.mastery_level}%)`);
+                    }
+                }
+            } catch (_) {
+                // Anonymous or unverified token - proceed with supplied userContext
+            }
+        }
+
+        const tutorResult = await aiService.chatWithAadhi(
+            cleanMessage,
+            mergedUserContext,
+            tutorMode || 'explain',
+            academicContext || {}
+        );
 
         return res.status(200).json({
             success: true,
-            provider: 'openrouter',
-            model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3-8b-instruct:free',
-            response: responseText.trim() || "Sorry, I'm having trouble analyzing that right now."
+            provider: 'google-gemini',
+            model: 'gemini-2.5-flash',
+            response: (tutorResult.response || '').trim() || "I'm having trouble analyzing that topic right now. Please try again.",
+            speechText: (tutorResult.speechText || '').trim(),
+            suggestedChips: tutorResult.suggestedChips || [],
+            tutorMode: tutorResult.tutorMode || tutorMode || 'explain'
         });
     } catch (error) {
-        console.error('OpenRouter Chatbot error:', error);
+        console.error('Aadhi AI Tutor error:', error);
         res.status(500).json({
             success: false,
-            message: 'Error interacting with the Aadhi AI chatbot. Please try again later.'
+            message: 'Error interacting with Aadhi AI Tutor. Please try again later.'
         });
     }
 });
