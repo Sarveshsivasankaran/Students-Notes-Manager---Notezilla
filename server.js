@@ -14,9 +14,11 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { Pool } = require('pg');
 require('dotenv').config();
 
 const { supabase, initializeDatabase } = require('./models/db');
+const pgPool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL }) : null;
 
 const app = express();
 const http = require('http');
@@ -31,6 +33,12 @@ const {
     parseTimetableAnalysis
 } = require('./faculty-timetable-utils');
 const { corsOrigin } = require('./deployment-config');
+const {
+    CURRICULUM_STREAMS,
+    GATE_PLACEMENT_CODES,
+    parseSyllabusUnits,
+    getCourseOutcomesAndBooks
+} = require('./curriculum-utils');
 
 // Middleware
 app.set('trust proxy', 1);
@@ -81,6 +89,26 @@ const authenticateToken = (req, res, next) => {
         req.userRole = user.role;
         next();
     });
+};
+
+/**
+ * Optional Authentication Middleware
+ * Extracts userId if valid JWT Bearer token is provided, otherwise continues anonymously
+ */
+const optionalAuthenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token) {
+        jwt.verify(token, jwtSecret, (err, user) => {
+            if (!err && user) {
+                req.userId = user.userId;
+                req.userRole = user.role;
+            }
+            next();
+        });
+    } else {
+        next();
+    }
 };
 
 /**
@@ -1850,62 +1878,443 @@ app.get('/api/faculty/:id/notes', async (req, res) => {
     }
 });
 
-// ==================== SUBJECT ROUTES ====================
+// ==================== COURSE & CURRICULUM EXPLORER ROUTES ====================
 
 /**
- * GET All Subjects with Filters
- * GET /api/subjects?department=CSE&semester=4
+ * GET Curriculum Streams & Available Academic Tracks
+ * GET /api/curriculum/streams
  */
-app.get('/api/subjects', async (req, res) => {
+app.get('/api/curriculum/streams', (req, res) => {
     try {
-        const { department, semester, search } = req.query;
-
-        let query = supabase
-            .from('subjects')
-            .select(`
-                id,
-                name,
-                code,
-                department,
-                semester,
-                credits,
-                description
-            `);
-
-        if (search) {
-            const cleanSearch = String(search).replace(/[^a-zA-Z0-9\s]/g, '').trim();
-            if (cleanSearch) {
-                query = query.or(`name.ilike.%${cleanSearch}%,code.ilike.%${cleanSearch}%`);
-            }
-        }
-
-        if (department) {
-            query = query.eq('department', department);
-        }
-
-        if (semester) {
-            query = query.eq('semester', parseInt(semester));
-        }
-
-        const { data, error } = await query.order('semester, code');
-
-        if (error) throw error;
-
         res.status(200).json({
             success: true,
-            data
+            streams: CURRICULUM_STREAMS
         });
     } catch (error) {
-        console.error('Subjects list error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching subjects'
-        });
+        console.error('Curriculum streams error:', error);
+        res.status(500).json({ success: false, message: 'Error fetching curriculum streams' });
     }
 });
 
 /**
- * GET Subject Details with Notes
+ * GET All Subjects with Curriculum Stream Filters, Faculty Mapping & Notes Count
+ * GET /api/subjects?department=CSE&semester=4&curriculum_stream=all&search=algo&enrolled_only=false
+ */
+app.get('/api/subjects', optionalAuthenticateToken, async (req, res) => {
+    try {
+        const { department, semester, curriculum_stream, search, enrolled_only } = req.query;
+        const studentId = req.userId || null;
+
+        if (pgPool) {
+            let whereClauses = [];
+            let params = [];
+            let pIdx = 1;
+
+            if (department && department !== 'all') {
+                whereClauses.push(`s.department = $${pIdx++}`);
+                params.push(department);
+            }
+
+            if (semester && semester !== 'all') {
+                whereClauses.push(`s.semester = $${pIdx++}`);
+                params.push(parseInt(semester));
+            }
+
+            if (search) {
+                const cleanSearch = String(search).trim();
+                whereClauses.push(`(s.name ILIKE $${pIdx} OR s.code ILIKE $${pIdx} OR s.description ILIKE $${pIdx})`);
+                params.push(`%${cleanSearch}%`);
+                pIdx++;
+            }
+
+            // Stream filtering
+            if (curriculum_stream === 'gate_placement') {
+                const codeList = Array.from(GATE_PLACEMENT_CODES);
+                whereClauses.push(`s.code = ANY($${pIdx++})`);
+                params.push(codeList);
+            } else if (curriculum_stream === 'foundation_stem') {
+                whereClauses.push(`s.semester IN (1, 2)`);
+            }
+
+            if (enrolled_only === 'true' && studentId) {
+                whereClauses.push(`sce.id IS NOT NULL`);
+            }
+
+            const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+            // Query subjects with joined faculty, verified notes count, and student enrollment status
+            const querySql = `
+                SELECT 
+                    s.id,
+                    s.code,
+                    s.name,
+                    s.department,
+                    s.semester,
+                    s.credits,
+                    s.description,
+                    s.syllabus,
+                    f.id as faculty_id,
+                    u.name as faculty_name,
+                    f.qualifications as faculty_qualifications,
+                    f.office_hours as faculty_office_hours,
+                    f.photo_url as faculty_photo_url,
+                    f.average_rating as faculty_rating,
+                    COUNT(DISTINCT n.id) as notes_count,
+                    CASE WHEN sce.id IS NOT NULL THEN true ELSE false END as is_enrolled,
+                    ROUND(AVG(stm.mastery_level), 0) as student_mastery
+                FROM subjects s
+                LEFT JOIN faculty_subjects fs ON s.id = fs.subject_id
+                LEFT JOIN faculty f ON fs.faculty_id = f.id
+                LEFT JOIN users u ON f.user_id = u.id
+                LEFT JOIN notes n ON s.id = n.subject_id AND n.is_verified = true
+                LEFT JOIN student_course_enrollments sce ON s.id = sce.subject_id AND sce.student_id = $${pIdx}
+                LEFT JOIN student_topic_mastery stm ON s.id = stm.subject_id AND stm.student_id = $${pIdx}
+                ${whereSql}
+                GROUP BY s.id, s.code, s.name, s.department, s.semester, s.credits, s.description, s.syllabus, f.id, u.name, f.qualifications, f.office_hours, f.photo_url, f.average_rating, sce.id
+                ORDER BY s.semester ASC, s.code ASC;
+            `;
+
+            params.push(studentId);
+
+            const result = await pgPool.query(querySql, params);
+            const enrichedSubjects = result.rows.map(sub => {
+                const units = parseSyllabusUnits(sub.syllabus, sub.code, sub.name);
+                return {
+                    id: sub.id,
+                    code: sub.code,
+                    name: sub.name,
+                    department: sub.department,
+                    semester: sub.semester,
+                    credits: sub.credits || 3,
+                    description: sub.description,
+                    syllabus: sub.syllabus,
+                    units_count: units.length,
+                    units_summary: units.map(u => ({ unit_number: u.unit_number, title: u.title })),
+                    notes_count: parseInt(sub.notes_count || 0),
+                    is_enrolled: Boolean(sub.is_enrolled),
+                    mastery_score: sub.student_mastery ? parseInt(sub.student_mastery) : null,
+                    is_gate_placement: GATE_PLACEMENT_CODES.has(sub.code),
+                    faculty: sub.faculty_name ? {
+                        id: sub.faculty_id,
+                        name: sub.faculty_name,
+                        qualifications: sub.faculty_qualifications,
+                        office_hours: sub.faculty_office_hours,
+                        photo_url: sub.faculty_photo_url,
+                        rating: sub.faculty_rating || '4.80'
+                    } : null
+                };
+            });
+
+            return res.status(200).json({
+                success: true,
+                count: enrichedSubjects.length,
+                data: enrichedSubjects,
+                streams: CURRICULUM_STREAMS
+            });
+        }
+
+        // Graceful Supabase fallback if pgPool not active
+        let query = supabase.from('subjects').select('*');
+        if (department && department !== 'all') query = query.eq('department', department);
+        if (semester && semester !== 'all') query = query.eq('semester', parseInt(semester));
+        if (search) query = query.or(`name.ilike.%${search}%,code.ilike.%${search}%`);
+
+        const { data, error } = await query.order('semester, code');
+        if (error) throw error;
+
+        return res.status(200).json({
+            success: true,
+            count: (data || []).length,
+            data: data || [],
+            streams: CURRICULUM_STREAMS
+        });
+    } catch (error) {
+        console.error('Subjects list error:', error);
+        res.status(500).json({ success: false, message: 'Error fetching subjects' });
+    }
+});
+
+/**
+ * GET Course Curriculum Deep-Dive
+ * Full 5-Unit breakdown, mapped unit notes, textbooks, course outcomes, and faculty profile
+ * GET /api/subjects/:id/curriculum
+ */
+app.get('/api/subjects/:id/curriculum', optionalAuthenticateToken, async (req, res) => {
+    try {
+        const subjectId = req.params.id;
+        const studentId = req.userId || null;
+
+        if (pgPool) {
+            // Fetch subject with assigned faculty
+            const subRes = await pgPool.query(`
+                SELECT 
+                    s.id,
+                    s.code,
+                    s.name,
+                    s.department,
+                    s.semester,
+                    s.credits,
+                    s.description,
+                    s.syllabus,
+                    f.id as faculty_id,
+                    u.name as faculty_name,
+                    u.email as faculty_email,
+                    f.bio as faculty_bio,
+                    f.qualifications as faculty_qualifications,
+                    f.office_hours as faculty_office_hours,
+                    f.photo_url as faculty_photo_url,
+                    f.average_rating as faculty_rating,
+                    f.availability as faculty_availability,
+                    CASE WHEN sce.id IS NOT NULL THEN true ELSE false END as is_enrolled
+                FROM subjects s
+                LEFT JOIN faculty_subjects fs ON s.id = fs.subject_id
+                LEFT JOIN faculty f ON fs.faculty_id = f.id
+                LEFT JOIN users u ON f.user_id = u.id
+                LEFT JOIN student_course_enrollments sce ON s.id = sce.subject_id AND sce.student_id = $2
+                WHERE s.id = $1;
+            `, [subjectId, studentId]);
+
+            if (subRes.rows.length === 0) {
+                return res.status(404).json({ success: false, message: 'Course not found' });
+            }
+
+            const subject = subRes.rows[0];
+
+            // Fetch verified notes for this subject
+            const notesRes = await pgPool.query(`
+                SELECT 
+                    id,
+                    title,
+                    type,
+                    unit,
+                    file_url,
+                    file_name,
+                    file_size,
+                    downloads,
+                    ai_summary,
+                    key_concepts,
+                    created_at
+                FROM notes
+                WHERE subject_id = $1 AND is_verified = true
+                ORDER BY unit ASC, created_at DESC;
+            `, [subjectId]);
+
+            // Parse 5 units
+            const units = parseSyllabusUnits(subject.syllabus, subject.code, subject.name);
+
+            // Map notes to each unit
+            units.forEach(u => {
+                u.notes = notesRes.rows.filter(n => parseInt(n.unit) === u.unit_number);
+            });
+
+            // Get outcomes and textbooks
+            const catalog = getCourseOutcomesAndBooks(subject.code, subject.name, subject.department);
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    id: subject.id,
+                    code: subject.code,
+                    name: subject.name,
+                    department: subject.department,
+                    semester: subject.semester,
+                    credits: subject.credits || 3,
+                    regulation: catalog.regulation,
+                    credits_breakdown: catalog.credits_breakdown,
+                    description: subject.description,
+                    is_enrolled: Boolean(subject.is_enrolled),
+                    is_gate_placement: GATE_PLACEMENT_CODES.has(subject.code),
+                    units,
+                    notes_count: notesRes.rows.length,
+                    textbooks: catalog.books,
+                    course_outcomes: catalog.outcomes,
+                    faculty: subject.faculty_name ? {
+                        id: subject.faculty_id,
+                        name: subject.faculty_name,
+                        email: subject.faculty_email,
+                        bio: subject.faculty_bio,
+                        qualifications: subject.faculty_qualifications,
+                        office_hours: subject.faculty_office_hours,
+                        photo_url: subject.faculty_photo_url,
+                        rating: subject.faculty_rating || '4.80',
+                        availability: subject.faculty_availability || 'available'
+                    } : null
+                }
+            });
+        }
+
+        // Fallback for simple single subject query
+        const { data: subject, error: subjectError } = await supabase
+            .from('subjects')
+            .select('*')
+            .eq('id', subjectId)
+            .single();
+
+        if (subjectError || !subject) {
+            return res.status(404).json({ success: false, message: 'Subject not found' });
+        }
+
+        const { data: notes } = await supabase
+            .from('notes')
+            .select('*')
+            .eq('subject_id', subjectId)
+            .eq('is_verified', true);
+
+        const units = parseSyllabusUnits(subject.syllabus, subject.code, subject.name);
+        units.forEach(u => {
+            u.notes = (notes || []).filter(n => parseInt(n.unit) === u.unit_number);
+        });
+
+        const catalog = getCourseOutcomesAndBooks(subject.code, subject.name, subject.department);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                ...subject,
+                units,
+                notes_count: (notes || []).length,
+                textbooks: catalog.books,
+                course_outcomes: catalog.outcomes
+            }
+        });
+    } catch (error) {
+        console.error('Curriculum deep-dive error:', error);
+        res.status(500).json({ success: false, message: 'Error fetching curriculum details' });
+    }
+});
+
+/**
+ * Toggle Student Course Enrollment / Semester Pinning
+ * POST /api/subjects/:id/enroll
+ */
+app.post('/api/subjects/:id/enroll', authenticateToken, async (req, res) => {
+    try {
+        const subjectId = req.params.id;
+        const studentId = req.userId;
+
+        if (!pgPool) {
+            return res.status(500).json({ success: false, message: 'Database pool not available' });
+        }
+
+        // Check if subject exists
+        const subCheck = await pgPool.query('SELECT id, code, name, semester, credits FROM subjects WHERE id = $1;', [subjectId]);
+        if (subCheck.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Subject not found' });
+        }
+        const subject = subCheck.rows[0];
+
+        // Check current enrollment
+        const enrCheck = await pgPool.query(
+            'SELECT id FROM student_course_enrollments WHERE student_id = $1 AND subject_id = $2;',
+            [studentId, subjectId]
+        );
+
+        let isEnrolled = false;
+        let actionMessage = '';
+
+        if (enrCheck.rows.length > 0) {
+            // Unenroll / unpin
+            await pgPool.query(
+                'DELETE FROM student_course_enrollments WHERE student_id = $1 AND subject_id = $2;',
+                [studentId, subjectId]
+            );
+            isEnrolled = false;
+            actionMessage = `Unpinned ${subject.code} from your semester courses`;
+        } else {
+            // Enroll / pin
+            await pgPool.query(
+                'INSERT INTO student_course_enrollments (student_id, subject_id, semester, status) VALUES ($1, $2, $3, $4);',
+                [studentId, subjectId, subject.semester, 'active']
+            );
+            isEnrolled = true;
+            actionMessage = `Pinned ${subject.code} (${subject.name}) to your active semester courses!`;
+        }
+
+        // Calculate total enrolled semester credits
+        const statsRes = await pgPool.query(`
+            SELECT 
+                COUNT(DISTINCT s.id) as enrolled_count,
+                COALESCE(SUM(s.credits), 0) as total_credits
+            FROM student_course_enrollments sce
+            JOIN subjects s ON sce.subject_id = s.id
+            WHERE sce.student_id = $1;
+        `, [studentId]);
+
+        const enrolledCount = parseInt(statsRes.rows[0].enrolled_count || 0);
+        const totalCredits = parseInt(statsRes.rows[0].total_credits || 0);
+
+        res.status(200).json({
+            success: true,
+            is_enrolled: isEnrolled,
+            message: actionMessage,
+            enrolled_count: enrolledCount,
+            total_credits: totalCredits,
+            subject: {
+                id: subject.id,
+                code: subject.code,
+                name: subject.name,
+                credits: subject.credits
+            }
+        });
+    } catch (error) {
+        console.error('Course enrollment error:', error);
+        res.status(500).json({ success: false, message: 'Error updating course enrollment' });
+    }
+});
+
+/**
+ * GET Student Enrolled Courses
+ * GET /api/user/enrolled-courses
+ */
+app.get('/api/user/enrolled-courses', authenticateToken, async (req, res) => {
+    try {
+        const studentId = req.userId;
+        if (!pgPool) {
+            return res.status(500).json({ success: false, message: 'Database pool not available' });
+        }
+
+        const result = await pgPool.query(`
+            SELECT 
+                s.id,
+                s.code,
+                s.name,
+                s.department,
+                s.semester,
+                s.credits,
+                s.description,
+                s.syllabus,
+                u.name as faculty_name,
+                f.office_hours as faculty_office_hours,
+                f.photo_url as faculty_photo_url,
+                COUNT(DISTINCT n.id) as notes_count,
+                sce.enrolled_at
+            FROM student_course_enrollments sce
+            JOIN subjects s ON sce.subject_id = s.id
+            LEFT JOIN faculty_subjects fs ON s.id = fs.subject_id
+            LEFT JOIN faculty f ON fs.faculty_id = f.id
+            LEFT JOIN users u ON f.user_id = u.id
+            LEFT JOIN notes n ON s.id = n.subject_id AND n.is_verified = true
+            WHERE sce.student_id = $1
+            GROUP BY s.id, s.code, s.name, s.department, s.semester, s.credits, s.description, s.syllabus, u.name, f.office_hours, f.photo_url, sce.enrolled_at
+            ORDER BY s.semester ASC, s.code ASC;
+        `, [studentId]);
+
+        const totalCredits = result.rows.reduce((sum, r) => sum + (parseInt(r.credits) || 3), 0);
+
+        res.status(200).json({
+            success: true,
+            count: result.rows.length,
+            total_credits: totalCredits,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error('Enrolled courses error:', error);
+        res.status(500).json({ success: false, message: 'Error fetching enrolled courses' });
+    }
+});
+
+/**
+ * Legacy Subject Details with Notes (Maintained for Backwards Compatibility)
  * GET /api/subjects/:id
  */
 app.get('/api/subjects/:id', async (req, res) => {
@@ -1923,7 +2332,6 @@ app.get('/api/subjects/:id', async (req, res) => {
             });
         }
 
-        // Get notes for this subject
         const { data: notes, error: notesError } = await supabase
             .from('notes')
             .select(`

@@ -5,6 +5,17 @@ const socket = io(window.NotezillaRuntime.socketUrl, {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+    function escapeHtml(value = '') {
+        return String(value).replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+    }
+    window.escapeHtml = escapeHtml;
+
     let bookmarkedNoteIds = [];
     let bookmarkedNoteUrls = [];
     let bookmarkedNotesList = [];
@@ -252,69 +263,495 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
     if (dropdownLogoutBtn) dropdownLogoutBtn.addEventListener('click', handleLogout);
 
-    // 4.1 Explore Subjects Logic
+    // ════════════════════════════════════════════════════════════
+    // 4.1 COURSE & CURRICULUM EXPLORER CONTROLLER (Section 3 Upgrade)
+    // ════════════════════════════════════════════════════════════
+    let curriculumState = {
+        stream: 'autonomous_2023',
+        department: 'all',
+        semester: 'all',
+        enrolledOnly: false,
+        searchQuery: '',
+        courses: [],
+        enrolledCredits: 0
+    };
+
     const subjectsResultsGrid = document.getElementById('subjectsResultsGrid');
     const subjectSearchInput = document.getElementById('subjectSearchInput');
+    const filterEnrolledToggleBtn = document.getElementById('filterEnrolledToggleBtn');
+    const resetCurriculumFiltersBtn = document.getElementById('resetCurriculumFiltersBtn');
+    const curriculumResultsCount = document.getElementById('curriculumResultsCount');
+    const curriculumActiveFilterTag = document.getElementById('curriculumActiveFilterTag');
+    const curriculumEnrolledCreditsVal = document.getElementById('curriculumEnrolledCreditsVal');
+    const curriculumTotalCoursesCount = document.getElementById('curriculumTotalCoursesCount');
 
-    const renderSubjects = async (filterText = '') => {
-        if (!subjectsResultsGrid) return;
-        subjectsResultsGrid.innerHTML = '<div class="col-span-3" style="text-align:center; padding: 40px;"><i class="bx bx-loader-alt bx-spin" style="font-size: 32px; color: var(--primary);"></i></div>';
-        
-        let endpoint = `/subjects?${filterText ? `search=${filterText}` : `department=${user.department || ''}`}`;
-        const res = await apiFetch(endpoint);
-        
-        if (!res.success || !res.data || res.data.length === 0) {
-            subjectsResultsGrid.innerHTML = '<div class="col-span-3" style="text-align:center; padding: 40px; color: var(--text-muted);"><p>No subjects found.</p></div>';
-            return;
+    // Modals & Elements
+    const curriculumModal = document.getElementById('curriculumModal');
+    const closeCurriculumModalBtn = document.getElementById('closeCurriculumModalBtn');
+    const cModalPinBtn = document.getElementById('cModalPinBtn');
+    let activeModalCourse = null;
+
+    // Helper for department accent color
+    const getDeptTheme = (dept = '') => {
+        const d = String(dept).toUpperCase();
+        if (d === 'CSE') return { color: '#6366f1', bg: 'rgba(99, 102, 241, 0.12)', border: 'rgba(99, 102, 241, 0.3)' };
+        if (d === 'IT') return { color: '#0ea5e9', bg: 'rgba(14, 165, 233, 0.12)', border: 'rgba(14, 165, 233, 0.3)' };
+        if (d === 'ECE') return { color: '#ec4899', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.3)' };
+        if (d === 'EEE') return { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.3)' };
+        if (d === 'MECH') return { color: '#f97316', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.3)' };
+        if (d === 'CIVIL') return { color: '#14b8a6', bg: 'rgba(20, 184, 166, 0.12)', border: 'rgba(20, 184, 166, 0.3)' };
+        if (d === 'BIOMED') return { color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.3)' };
+        if (d === 'AI&DS') return { color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.12)', border: 'rgba(139, 92, 246, 0.3)' };
+        return { color: '#6366f1', bg: 'rgba(99, 102, 241, 0.12)', border: 'rgba(99, 102, 241, 0.3)' };
+    };
+
+    // Load active enrolled credits
+    const loadEnrolledCredits = async () => {
+        try {
+            const res = await apiFetch('/user/enrolled-courses');
+            if (res && res.success) {
+                curriculumState.enrolledCredits = res.total_credits || 0;
+                if (curriculumEnrolledCreditsVal) {
+                    curriculumEnrolledCreditsVal.textContent = `${res.total_credits || 0} Credits`;
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to load enrolled credits:', e);
         }
+    };
 
-        subjectsResultsGrid.innerHTML = '';
-        res.data.forEach(sub => {
-            const card = document.createElement('div');
-            card.className = 'subject-card';
-            card.onclick = () => {
-                document.getElementById('nav-notes').click();
-                document.getElementById('notesSearchInput').value = sub.name;
-            };
-            card.innerHTML = `
-                <div class="subject-card-top">
-                    <div class="subject-tag-new">${sub.department || 'Programming'}</div>
-                    <div class="subject-graphic">
-                        <svg viewBox="0 0 200 150" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <!-- Monitor Outline -->
-                            <rect x="30" y="20" width="140" height="90" rx="8" fill="#F0F7FF" stroke="#1E3A8A" stroke-width="6"/>
-                            <!-- Monitor Base -->
-                            <path d="M90 110 H110 L115 130 H85 L90 110Z" fill="#1E3A8A"/>
-                            <rect x="75" y="130" width="50" height="6" rx="3" fill="#1E3A8A"/>
-                            <!-- Screen Bottom Bezel -->
-                            <rect x="27" y="90" width="146" height="20" fill="#1E3A8A"/>
-                            <!-- Code lines -->
-                            <rect x="45" y="35" width="30" height="6" rx="3" fill="#F97316"/>
-                            <rect x="80" y="35" width="20" height="6" rx="3" fill="#0EA5E9"/>
-                            <rect x="105" y="35" width="40" height="6" rx="3" fill="#1E3A8A"/>
-                            
-                            <rect x="45" y="50" width="20" height="6" rx="3" fill="#1E3A8A"/>
-                            <rect x="70" y="50" width="45" height="6" rx="3" fill="#0EA5E9"/>
-                            
-                            <rect x="45" y="65" width="45" height="6" rx="3" fill="#F97316"/>
-                            <rect x="95" y="65" width="25" height="6" rx="3" fill="#1E3A8A"/>
-                            <rect x="125" y="65" width="20" height="6" rx="3" fill="#0EA5E9"/>
-                            
-                            <rect x="45" y="80" width="35" height="6" rx="3" fill="#0EA5E9"/>
-                            <rect x="85" y="80" width="40" height="6" rx="3" fill="#1E3A8A"/>
-                        </svg>
+    // Main fetch & render function
+    const renderSubjects = async () => {
+        if (!subjectsResultsGrid) return;
+
+        subjectsResultsGrid.innerHTML = `
+            <div class="col-span-3" style="text-align:center; padding: 60px 20px;">
+                <i class="bx bx-loader-alt bx-spin" style="font-size: 38px; color: var(--primary);"></i>
+                <p style="margin-top: 12px; color: var(--text-muted); font-size: 14px;">Loading curriculum roadmaps & verified notes...</p>
+            </div>
+        `;
+
+        const params = new URLSearchParams();
+        if (curriculumState.stream && curriculumState.stream !== 'all') params.set('curriculum_stream', curriculumState.stream);
+        if (curriculumState.department && curriculumState.department !== 'all') params.set('department', curriculumState.department);
+        if (curriculumState.semester && curriculumState.semester !== 'all') params.set('semester', curriculumState.semester);
+        if (curriculumState.searchQuery) params.set('search', curriculumState.searchQuery);
+        if (curriculumState.enrolledOnly) params.set('enrolled_only', 'true');
+
+        try {
+            const res = await apiFetch(`/subjects?${params.toString()}`);
+            if (!res || !res.success || !res.data || res.data.length === 0) {
+                subjectsResultsGrid.innerHTML = `
+                    <div class="col-span-3 empty-curriculum-state glass-panel">
+                        <i class='bx bx-book-content' style="font-size: 48px; color: var(--text-muted); margin-bottom: 12px;"></i>
+                        <h3 style="font-size: 18px; margin-bottom: 6px;">No courses found</h3>
+                        <p style="color: var(--text-muted); font-size: 14px; max-width: 440px; margin: 0 auto 16px;">
+                            ${curriculumState.enrolledOnly ? 'You have not pinned any courses for this filter yet. Pin courses to build your active semester timetable!' : 'Try selecting a different department, semester, or search query.'}
+                        </p>
+                        <button class="btn-glass" onclick="window.resetCurriculumFilters()"><i class='bx bx-reset'></i> Reset Filters</button>
                     </div>
-                </div>
-                <div class="subject-card-bottom">
-                    <h2 class="subject-code-new">${sub.code || 'N/A'}</h2>
-                    <p class="subject-name-new">${sub.name}</p>
+                `;
+                if (curriculumResultsCount) curriculumResultsCount.textContent = 'Showing 0 Courses';
+                return;
+            }
+
+            curriculumState.courses = res.data;
+            if (curriculumTotalCoursesCount && !curriculumState.enrolledOnly && curriculumState.stream === 'autonomous_2023') {
+                curriculumTotalCoursesCount.textContent = res.data.length;
+            }
+            if (curriculumResultsCount) {
+                curriculumResultsCount.textContent = `Showing ${res.data.length} Course${res.data.length === 1 ? '' : 's'}`;
+            }
+
+            // Update active filter tag
+            if (curriculumActiveFilterTag) {
+                const streamName = curriculumState.stream === 'gate_placement' ? 'GATE & Placement Core' :
+                                   curriculumState.stream === 'foundation_stem' ? 'Foundation STEM' :
+                                   curriculumState.stream === 'all' ? 'All Curricula' : 'Autonomous Engineering (Reg 2023)';
+                const deptText = curriculumState.department !== 'all' ? ` • Dept: ${curriculumState.department}` : '';
+                const semText = curriculumState.semester !== 'all' ? ` • Sem ${curriculumState.semester}` : '';
+                const pinText = curriculumState.enrolledOnly ? ' • [Pinned Only]' : '';
+                curriculumActiveFilterTag.textContent = `${streamName}${deptText}${semText}${pinText}`;
+            }
+
+            subjectsResultsGrid.innerHTML = '';
+
+            res.data.forEach(sub => {
+                const theme = getDeptTheme(sub.department);
+                const card = document.createElement('div');
+                card.className = 'curriculum-course-card glass-panel';
+                card.style.setProperty('--card-accent', theme.color);
+
+                const facultyInitial = sub.faculty && sub.faculty.name ? sub.faculty.name.split(' ').filter(n => !n.startsWith('Dr.') && !n.startsWith('Prof.')).map(n => n[0]).join('').slice(0, 2) : 'AU';
+
+                card.innerHTML = `
+                    <div class="c-card-top">
+                        <div class="c-card-badges">
+                            <span class="c-dept-tag" style="background: ${theme.bg}; color: ${theme.color}; border: 1px solid ${theme.border};">
+                                ${escapeHtml(sub.department || 'ENGG')}
+                            </span>
+                            <span class="c-sem-tag">SEM ${sub.semester}</span>
+                            <span class="c-credits-tag">${sub.credits} CREDITS</span>
+                            ${sub.is_gate_placement ? `<span class="c-gate-tag" title="Tested in GATE CS/IT & Tech Placements"><i class='bx bx-rocket'></i> GATE</span>` : ''}
+                        </div>
+                        <button class="c-pin-btn ${sub.is_enrolled ? 'pinned' : ''}" title="${sub.is_enrolled ? 'Unpin from Semester' : 'Pin to Semester'}" onclick="event.stopPropagation(); window.toggleCourseEnrollment('${sub.id}', this)">
+                            <i class='bx ${sub.is_enrolled ? 'bxs-pin' : 'bx-pin'}'></i>
+                        </button>
+                    </div>
+
+                    <div class="c-card-content" onclick="window.openCurriculumModal('${sub.id}')">
+                        <div class="c-code-row">
+                            <span class="c-course-code">${escapeHtml(sub.code)}</span>
+                            ${sub.mastery_score ? `<span class="c-mastery-chip"><i class='bx bx-check-shield'></i> ${sub.mastery_score}% Mastery</span>` : ''}
+                        </div>
+                        <h3 class="c-course-title" title="${escapeHtml(sub.name)}">${escapeHtml(sub.name)}</h3>
+                        <p class="c-course-desc">${escapeHtml(sub.description || 'Comprehensive syllabus following Autonomous Regulation 2023.')}</p>
+
+                        <!-- Assigned Faculty Bar -->
+                        <div class="c-card-faculty">
+                            <div class="c-fac-mini-avatar" style="background: ${theme.bg}; color: ${theme.color};">
+                                ${sub.faculty && sub.faculty.photo_url ? `<img src="${sub.faculty.photo_url}" alt="${escapeHtml(sub.faculty.name)}" onerror="this.style.display='none'">` : facultyInitial}
+                            </div>
+                            <div class="c-fac-mini-info">
+                                <span class="c-fac-name">${sub.faculty ? escapeHtml(sub.faculty.name) : 'Autonomous Faculty Board'}</span>
+                                <span class="c-fac-hours"><i class='bx bx-time'></i> ${sub.faculty && sub.faculty.office_hours ? escapeHtml(sub.faculty.office_hours.split('(')[0]) : 'Mon-Fri Regular Hours'}</span>
+                            </div>
+                        </div>
+
+                        <!-- 5-Unit Progress Track Indicator -->
+                        <div class="c-unit-timeline-bar" title="5 Standard Syllabus Units">
+                            <span class="u-segment" title="Unit 1">U1</span>
+                            <span class="u-segment" title="Unit 2">U2</span>
+                            <span class="u-segment" title="Unit 3">U3</span>
+                            <span class="u-segment" title="Unit 4">U4</span>
+                            <span class="u-segment" title="Unit 5">U5</span>
+                        </div>
+                    </div>
+
+                    <div class="c-card-footer">
+                        <div class="c-notes-metric">
+                            <i class='bx bx-file-blank'></i>
+                            <span>${sub.notes_count} ${sub.notes_count === 1 ? 'Note' : 'Notes'}</span>
+                        </div>
+                        <div class="c-card-actions">
+                            <button class="btn-glass c-action-btn c-deepdive-btn" onclick="window.openCurriculumModal('${sub.id}')">
+                                <i class='bx bx-book-open'></i> Syllabus
+                            </button>
+                            <button class="btn-gradient c-action-btn c-tutor-btn" title="Launch Aadhi AI Tutor on this course" onclick="event.stopPropagation(); window.openAadhiTutor({ mode: 'explain', subject: '${escapeHtml(sub.code)}: ${escapeHtml(sub.name)}', initialPrompt: 'I want to study ${escapeHtml(sub.code)} (${escapeHtml(sub.name)}). Can you give me a high-level syllabus breakdown and explain the most crucial unit?' })">
+                                <i class='bx bx-bot'></i> Ask Aadhi
+                            </button>
+                        </div>
+                    </div>
+                `;
+                subjectsResultsGrid.appendChild(card);
+            });
+        } catch (err) {
+            console.error('Failed to load curriculum courses:', err);
+            subjectsResultsGrid.innerHTML = `
+                <div class="col-span-3" style="text-align:center; padding: 40px; color: #ef4444;">
+                    <p>Failed to load courses. Please check connection.</p>
                 </div>
             `;
-            subjectsResultsGrid.appendChild(card);
+        }
+    };
+
+    // Curriculum Modal Open
+    window.openCurriculumModal = async (courseId) => {
+        if (!curriculumModal) return;
+        curriculumModal.style.display = 'flex';
+        document.body.classList.add('modal-open');
+
+        const modalBody = document.getElementById('curriculumModalBody');
+        if (modalBody) {
+            modalBody.style.opacity = '0.5';
+        }
+
+        try {
+            const res = await apiFetch(`/subjects/${courseId}/curriculum`);
+            if (!res || !res.success || !res.data) {
+                showToast('Failed to load course curriculum dossier', 'error');
+                return;
+            }
+
+            const c = res.data;
+            activeModalCourse = c;
+
+            // Header tags
+            const cCode = document.getElementById('cModalCode');
+            const cDept = document.getElementById('cModalDept');
+            const cCredits = document.getElementById('cModalCredits');
+            const cPinStatus = document.getElementById('cModalPinStatus');
+            const cPinBtn = document.getElementById('cModalPinBtn');
+
+            if (cCode) cCode.textContent = c.code;
+            if (cDept) cDept.textContent = c.department;
+            if (cCredits) cCredits.textContent = `${c.credits} Credits`;
+            if (cPinStatus) cPinStatus.style.display = c.is_enrolled ? 'inline-flex' : 'none';
+            if (cPinBtn) {
+                cPinBtn.innerHTML = c.is_enrolled ? `<i class='bx bxs-pin'></i> Unpin Course` : `<i class='bx bx-pin'></i> Pin Course`;
+                cPinBtn.classList.toggle('active-pin', c.is_enrolled);
+            }
+
+            // Titles
+            const cTitle = document.getElementById('cModalTitle');
+            const cReg = document.getElementById('cModalRegulation');
+            const cDesc = document.getElementById('cModalDescription');
+            const cBreakdown = document.getElementById('cModalCreditsBreakdown');
+
+            if (cTitle) cTitle.textContent = c.name;
+            if (cReg) cReg.textContent = `${c.regulation || 'Autonomous Regulation 2023'} • ${c.department} Department`;
+            if (cDesc) cDesc.textContent = c.description || 'Comprehensive curriculum aligned with AICTE outcome-based education.';
+            if (cBreakdown) {
+                cBreakdown.innerHTML = `
+                    <span><i class='bx bx-time-five'></i> ${escapeHtml(c.credits_breakdown || 'Lecture: 3 | Tutorial: 0 | Practical: 0')}</span>
+                    <span><i class='bx bx-book-bookmark'></i> 45 Standard Lecture Hours</span>
+                    <span><i class='bx bx-file'></i> ${c.notes_count || 0} Verified Materials</span>
+                `;
+            }
+
+            // Faculty
+            const fSec = document.getElementById('cModalFacultySection');
+            const fName = document.getElementById('cModalFacultyName');
+            const fQual = document.getElementById('cModalFacultyQual');
+            const fHours = document.getElementById('cModalFacultyHours');
+            const fImg = document.getElementById('cModalFacultyImg');
+            const fEmail = document.getElementById('cModalFacultyEmailLink');
+
+            if (c.faculty) {
+                if (fSec) fSec.style.display = 'flex';
+                if (fName) fName.textContent = c.faculty.name;
+                if (fQual) fQual.textContent = c.faculty.qualifications || 'Professor of Engineering';
+                if (fHours) fHours.innerHTML = `<i class='bx bx-time'></i> ${escapeHtml(c.faculty.office_hours || 'Mon, Wed 10:00 AM - 12:30 PM')}`;
+                if (fImg) fImg.src = c.faculty.photo_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80';
+                if (fEmail) fEmail.href = `mailto:${c.faculty.email || 'faculty@rajalakshmi.edu.in'}`;
+            } else {
+                if (fSec) fSec.style.display = 'none';
+            }
+
+            // 5 Units Roadmap
+            const unitsContainer = document.getElementById('cModalUnitsContainer');
+            if (unitsContainer) {
+                unitsContainer.innerHTML = '';
+                (c.units || []).forEach(unit => {
+                    const uCard = document.createElement('div');
+                    uCard.className = 'c-unit-card glass-panel';
+                    
+                    const topicPillsHtml = (unit.topics || []).map(t => `<span class="unit-topic-pill">${escapeHtml(t)}</span>`).join('');
+
+                    let notesHtml = '';
+                    if (unit.notes && unit.notes.length > 0) {
+                        notesHtml = `
+                            <div class="unit-notes-row">
+                                <span class="unit-notes-header"><i class='bx bx-file'></i> Verified Faculty Notes:</span>
+                                <div class="unit-notes-cards-list">
+                                    ${unit.notes.map(n => `
+                                        <div class="u-note-card">
+                                            <div class="u-note-info">
+                                                <span class="u-note-title" title="${escapeHtml(n.title)}">${escapeHtml(n.title)}</span>
+                                                <span class="u-note-meta">${n.file_size ? `${(n.file_size / (1024*1024)).toFixed(1)} MB` : 'PDF'} • ${n.downloads || 0} Downloads</span>
+                                            </div>
+                                            <button class="btn-glass u-note-view-btn" onclick="window.open('${escapeHtml(n.file_url)}', '_blank')">
+                                                <i class='bx bx-download'></i> Download
+                                            </button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        notesHtml = `
+                            <div class="unit-notes-empty">
+                                <span>No verified PDF uploaded yet for Unit ${unit.unit_number}. Notes are in verification queue.</span>
+                            </div>
+                        `;
+                    }
+
+                    uCard.innerHTML = `
+                        <div class="c-unit-header">
+                            <div class="u-number-box">Unit ${unit.unit_number}</div>
+                            <div class="u-title-box">
+                                <h4>${escapeHtml(unit.title)}</h4>
+                                <span class="u-hours-badge"><i class='bx bx-time'></i> ${unit.hours || 9} Lecture Hours</span>
+                            </div>
+                            <button class="btn-gradient u-aadhi-btn" onclick="window.launchAadhiOnUnit('${escapeHtml(c.code)}', '${escapeHtml(c.name)}', ${unit.unit_number}, '${escapeHtml(unit.title)}')">
+                                <i class='bx bx-bot'></i> Ask Aadhi on Unit ${unit.unit_number}
+                            </button>
+                        </div>
+                        <div class="c-unit-topics-box">
+                            <span class="topics-label">Syllabus Concepts:</span>
+                            <div class="topics-pills-wrap">${topicPillsHtml}</div>
+                        </div>
+                        ${notesHtml}
+                    `;
+                    unitsContainer.appendChild(uCard);
+                });
+            }
+
+            // Outcomes & Books
+            const outcomesList = document.getElementById('cModalOutcomesList');
+            if (outcomesList) {
+                outcomesList.innerHTML = (c.course_outcomes || []).map(co => `<li><i class='bx bx-check-circle'></i> <span>${escapeHtml(co)}</span></li>`).join('');
+            }
+
+            const booksList = document.getElementById('cModalTextbooksList');
+            if (booksList) {
+                booksList.innerHTML = (c.textbooks || []).map(b => `
+                    <div class="c-book-item">
+                        <i class='bx bx-book'></i>
+                        <div>
+                            <strong>${escapeHtml(b.title)}</strong>
+                            <p>${escapeHtml(b.author)} • ${escapeHtml(b.edition)} (${escapeHtml(b.publisher)})</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            if (modalBody) modalBody.style.opacity = '1';
+        } catch (err) {
+            console.error('Curriculum modal load error:', err);
+            showToast('Error loading curriculum', 'error');
+        }
+    };
+
+    // Close modal
+    window.closeCurriculumModal = () => {
+        if (curriculumModal) curriculumModal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        activeModalCourse = null;
+    };
+    if (closeCurriculumModalBtn) closeCurriculumModalBtn.addEventListener('click', window.closeCurriculumModal);
+
+    // Toggle Enrollment
+    window.toggleCourseEnrollment = async (courseId, btnElement) => {
+        try {
+            const res = await apiFetch(`/subjects/${courseId}/enroll`, { method: 'POST' });
+            if (res && res.success) {
+                showToast(res.message, res.is_enrolled ? 'success' : 'info');
+                curriculumState.enrolledCredits = res.total_credits || 0;
+                if (curriculumEnrolledCreditsVal) {
+                    curriculumEnrolledCreditsVal.textContent = `${res.total_credits || 0} Credits`;
+                }
+
+                // If modal is open for this course, sync modal state
+                if (activeModalCourse && activeModalCourse.id === courseId) {
+                    activeModalCourse.is_enrolled = res.is_enrolled;
+                    const cPinStatus = document.getElementById('cModalPinStatus');
+                    const cPinBtn = document.getElementById('cModalPinBtn');
+                    if (cPinStatus) cPinStatus.style.display = res.is_enrolled ? 'inline-flex' : 'none';
+                    if (cPinBtn) {
+                        cPinBtn.innerHTML = res.is_enrolled ? `<i class='bx bxs-pin'></i> Unpin Course` : `<i class='bx bx-pin'></i> Pin Course`;
+                        cPinBtn.classList.toggle('active-pin', res.is_enrolled);
+                    }
+                }
+
+                // Re-render grid to update card pin state
+                renderSubjects();
+            } else {
+                showToast(res && res.message ? res.message : 'Unable to update enrollment', 'error');
+            }
+        } catch (e) {
+            console.error('Enrollment toggle error:', e);
+            showToast('Enrollment action failed', 'error');
+        }
+    };
+
+    if (cModalPinBtn) {
+        cModalPinBtn.addEventListener('click', () => {
+            if (activeModalCourse) window.toggleCourseEnrollment(activeModalCourse.id, cModalPinBtn);
+        });
+    }
+
+    // Launch Aadhi on Unit
+    window.launchAadhiOnUnit = (code, name, unitNum, unitTitle) => {
+        window.closeCurriculumModal();
+        window.openAadhiTutor({
+            mode: 'explain',
+            subject: `${code}: ${name}`,
+            topic: `Unit ${unitNum}: ${unitTitle}`,
+            initialPrompt: `I am preparing for ${code} (${name}), specifically Unit ${unitNum}: ${unitTitle}. Can you break down the most essential concepts, formulas, and typical exam questions?`
         });
     };
 
-    if (subjectSearchInput) subjectSearchInput.addEventListener('input', (e) => renderSubjects(e.target.value));
+    // Filter Listeners
+    // 1. Stream Tabs
+    const streamTabs = document.querySelectorAll('#curriculumStreamTabs .stream-tab-btn');
+    streamTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            streamTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            curriculumState.stream = tab.getAttribute('data-stream');
+            renderSubjects();
+        });
+    });
+
+    // 2. Department Pills
+    const deptPills = document.querySelectorAll('#curriculumDeptPills .filter-pill');
+    deptPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            deptPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            curriculumState.department = pill.getAttribute('data-dept');
+            renderSubjects();
+        });
+    });
+
+    // 3. Semester Pills
+    const semPills = document.querySelectorAll('#curriculumSemPills .filter-pill');
+    semPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            semPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            curriculumState.semester = pill.getAttribute('data-sem');
+            renderSubjects();
+        });
+    });
+
+    // 4. "My Semester Courses" Enrolled Toggle Button
+    if (filterEnrolledToggleBtn) {
+        filterEnrolledToggleBtn.addEventListener('click', () => {
+            curriculumState.enrolledOnly = !curriculumState.enrolledOnly;
+            filterEnrolledToggleBtn.classList.toggle('active-enrolled-toggle', curriculumState.enrolledOnly);
+            filterEnrolledToggleBtn.innerHTML = curriculumState.enrolledOnly ? `<i class='bx bxs-pin'></i> All Courses` : `<i class='bx bx-pin'></i> My Semester Courses`;
+            renderSubjects();
+        });
+    }
+
+    // 5. Search Input
+    let searchDebounceTimer = null;
+    if (subjectSearchInput) {
+        subjectSearchInput.addEventListener('input', (e) => {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                curriculumState.searchQuery = e.target.value.trim();
+                renderSubjects();
+            }, 250);
+        });
+    }
+
+    // 6. Reset Filters
+    window.resetCurriculumFilters = () => {
+        curriculumState.stream = 'autonomous_2023';
+        curriculumState.department = 'all';
+        curriculumState.semester = 'all';
+        curriculumState.enrolledOnly = false;
+        curriculumState.searchQuery = '';
+
+        if (subjectSearchInput) subjectSearchInput.value = '';
+        if (filterEnrolledToggleBtn) {
+            filterEnrolledToggleBtn.classList.remove('active-enrolled-toggle');
+            filterEnrolledToggleBtn.innerHTML = `<i class='bx bx-pin'></i> My Semester Courses`;
+        }
+
+        streamTabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-stream') === 'autonomous_2023'));
+        deptPills.forEach(p => p.classList.toggle('active', p.getAttribute('data-dept') === 'all'));
+        semPills.forEach(p => p.classList.toggle('active', p.getAttribute('data-sem') === 'all'));
+
+        renderSubjects();
+    };
+    if (resetCurriculumFiltersBtn) resetCurriculumFiltersBtn.addEventListener('click', window.resetCurriculumFilters);
+
+    // Initial load of enrolled credits
+    loadEnrolledCredits();
 
     // 4.2 Announcements Logic
     const announcementsListFull = document.getElementById('announcements-list-full');
@@ -1974,14 +2411,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let facultyAvailabilityRefreshInFlight = false;
     let activeFacultyDriveFilter = 'all';
     let activeFacultyModalStack = [];
-
-    const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-    }[char]));
 
     const getNoteFileUrl = (note) => note.file_url || note.fileUrl || note.url || '';
     const getNoteFileName = (note) => note.file_name || note.fileName || note.title || note.name || 'Untitled material';

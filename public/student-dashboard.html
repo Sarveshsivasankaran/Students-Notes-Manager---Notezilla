@@ -39,7 +39,7 @@
                 <li id="nav-subjects">
                     <a href="javascript:void(0)">
                         <i class='bx bx-book-open'></i>
-                        <span class="link-name">Explore Subjects</span>
+                        <span class="link-name">Curriculum Explorer</span>
                     </a>
                 </li>
                 <li id="nav-faculty">
@@ -493,22 +493,103 @@
                 </div>
             </div>
 
-            <!-- Explore Subjects View -->
-            <div id="subjects-view" class="dashboard-grid view-section" style="display: none;">
-                <div class="view-header" style="margin-bottom: 24px;">
-                    <h1 style="font-size: 28px; font-weight: 700;">Explore <span class="highlight" style="color: var(--primary-light);">Subjects</span></h1>
-                    <p style="color: var(--text-muted); font-size: 15px;">Access the central repository for all subjects.</p>
-                </div>
-
-                <div class="search-container glass-panel" style="padding: 24px; margin-bottom: 24px; margin-top: 24px;">
-                    <div class="search-bar" style="width: 100%; border-radius: 12px; height: 50px;">
-                        <i class='bx bx-search'></i>
-                        <input type="text" id="subjectSearchInput" placeholder="Search for subjects in database...">
+            <!-- Course & Curriculum Explorer View (Section 3 Upgrade) -->
+            <div id="subjects-view" class="dashboard-grid view-section curriculum-explorer-view" style="display: none;">
+                <!-- Hero Banner -->
+                <div class="welcome-banner glass-panel curriculum-hero-banner">
+                    <div class="welcome-text">
+                        <div class="curriculum-badge-pill"><i class='bx bxs-graduation'></i> AICTE & Anna University Autonomous Reg 2023</div>
+                        <h1 style="font-size: 28px; font-weight: 700; margin-top: 8px;">Course & Curriculum <span class="highlight" style="color: var(--primary-light);">Explorer</span></h1>
+                        <p style="color: var(--text-muted); font-size: 15px;">Explore 5-unit syllabus roadmaps, verified professor notes, and launch 1-click Aadhi AI tutoring.</p>
+                    </div>
+                    <div class="curriculum-hero-stats">
+                        <div class="curriculum-stat-chip">
+                            <span class="chip-label">Catalog Courses</span>
+                            <span class="chip-val" id="curriculumTotalCoursesCount">29</span>
+                        </div>
+                        <div class="curriculum-stat-chip active-credits-chip">
+                            <span class="chip-label">My Pinned Credits</span>
+                            <span class="chip-val" id="curriculumEnrolledCreditsVal">--</span>
+                        </div>
+                        <button id="filterEnrolledToggleBtn" class="btn-glass filter-enrolled-btn" title="Toggle between all courses and pinned semester courses">
+                            <i class='bx bx-pin'></i> My Semester Courses
+                        </button>
                     </div>
                 </div>
 
-                <div class="bento-grid" id="subjectsResultsGrid">
-                    <!-- Subject cards will be rendered dynamically -->
+                <!-- Multi-Curriculum Stream Tabs (Section 4.10) -->
+                <div class="curriculum-stream-selector glass-panel">
+                    <div class="stream-tabs-scroll" id="curriculumStreamTabs">
+                        <button class="stream-tab-btn active" data-stream="autonomous_2023">
+                            <i class='bx bxs-graduation'></i> Autonomous Engineering (Reg 2023)
+                        </button>
+                        <button class="stream-tab-btn" data-stream="gate_placement">
+                            <i class='bx bx-rocket'></i> GATE & Placement Core
+                        </button>
+                        <button class="stream-tab-btn" data-stream="foundation_stem">
+                            <i class='bx bx-atom'></i> Foundation STEM (Sem 1-2)
+                        </button>
+                        <button class="stream-tab-btn" data-stream="all">
+                            <i class='bx bx-grid-alt'></i> All Curricula
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Department & Semester Filter Pills -->
+                <div class="curriculum-filters-container glass-panel">
+                    <!-- Search Input -->
+                    <div class="curriculum-search-row">
+                        <div class="search-bar curriculum-search-bar">
+                            <i class='bx bx-search'></i>
+                            <input type="text" id="subjectSearchInput" placeholder="Search by course name, code (e.g. CS3401, DBMS), professor, or syllabus topics...">
+                        </div>
+                        <button id="resetCurriculumFiltersBtn" class="btn-glass reset-filter-btn" title="Reset All Filters">
+                            <i class='bx bx-reset'></i> Reset
+                        </button>
+                    </div>
+
+                    <!-- Department Pills -->
+                    <div class="filter-pills-row">
+                        <span class="filter-label"><i class='bx bx-building'></i> Department:</span>
+                        <div class="pills-scroll" id="curriculumDeptPills">
+                            <button class="filter-pill active" data-dept="all">All Departments</button>
+                            <button class="filter-pill" data-dept="CSE">CSE</button>
+                            <button class="filter-pill" data-dept="IT">IT</button>
+                            <button class="filter-pill" data-dept="ECE">ECE</button>
+                            <button class="filter-pill" data-dept="EEE">EEE</button>
+                            <button class="filter-pill" data-dept="MECH">MECH</button>
+                            <button class="filter-pill" data-dept="CIVIL">CIVIL</button>
+                            <button class="filter-pill" data-dept="BioMed">BioMed</button>
+                            <button class="filter-pill" data-dept="AI&DS">AI & DS</button>
+                        </div>
+                    </div>
+
+                    <!-- Semester Pills -->
+                    <div class="filter-pills-row">
+                        <span class="filter-label"><i class='bx bx-calendar'></i> Semester:</span>
+                        <div class="pills-scroll" id="curriculumSemPills">
+                            <button class="filter-pill active" data-sem="all">All Semesters</button>
+                            <button class="filter-pill" data-sem="1">Sem 1</button>
+                            <button class="filter-pill" data-sem="2">Sem 2</button>
+                            <button class="filter-pill" data-sem="3">Sem 3</button>
+                            <button class="filter-pill" data-sem="4">Sem 4</button>
+                            <button class="filter-pill" data-sem="5">Sem 5</button>
+                            <button class="filter-pill" data-sem="6">Sem 6</button>
+                            <button class="filter-pill" data-sem="7">Sem 7</button>
+                            <button class="filter-pill" data-sem="8">Sem 8</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Filter Tags & Count -->
+                <div class="curriculum-results-header">
+                    <span class="results-count-text" id="curriculumResultsCount">Showing Courses</span>
+                    <div class="results-active-tag" id="curriculumActiveFilterTag">Track: Autonomous Engineering</div>
+                </div>
+
+                <!-- Enriched Bento Course Grid -->
+                <div class="bento-grid curriculum-course-grid" id="subjectsResultsGrid">
+                    <!-- Dynamic enriched course cards injected here -->
                 </div>
             </div>
 
@@ -807,6 +888,80 @@
                             <button type="submit" class="btn-gradient"><i class='bx bx-check-double'></i> Update Mastery</button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <!-- Interactive Course & Curriculum Deep-Dive Modal -->
+            <div id="curriculumModal" class="custom-modal-backdrop" style="display: none;">
+                <div class="glass-panel curriculum-modal-dialog">
+                    <div class="modal-top-bar curriculum-modal-top-bar">
+                        <div class="modal-badge-group">
+                            <span class="curriculum-code-badge" id="cModalCode">CS3401</span>
+                            <span class="curriculum-dept-badge" id="cModalDept">CSE</span>
+                            <span class="curriculum-credits-badge" id="cModalCredits">4 Credits</span>
+                            <span class="curriculum-pinned-badge" id="cModalPinStatus" style="display:none;"><i class='bx bx-pin'></i> Pinned</span>
+                        </div>
+                        <div class="modal-top-actions">
+                            <button id="cModalPinBtn" class="btn-glass c-modal-pin-btn" title="Pin / Unpin this Course"><i class='bx bx-pin'></i> Pin Course</button>
+                            <button id="closeCurriculumModalBtn" class="modal-close-icon"><i class='bx bx-x'></i></button>
+                        </div>
+                    </div>
+
+                    <div class="curriculum-modal-scrollable-body" id="curriculumModalBody">
+                        <!-- Header Title & Regulation -->
+                        <div class="c-modal-header-section">
+                            <h2 id="cModalTitle">Course Title</h2>
+                            <p class="c-modal-reg-text" id="cModalRegulation">Autonomous Reg 2023 | Choice Based Credit System</p>
+                            <p class="c-modal-desc" id="cModalDescription">Course description...</p>
+                            <div class="c-modal-meta-row" id="cModalCreditsBreakdown">
+                                <span><i class='bx bx-time-five'></i> Lecture: 3 | Tutorial: 1 | Practical: 0</span>
+                                <span id="cModalTotalHours"><i class='bx bx-book-bookmark'></i> 45 Total Lecture Hours</span>
+                            </div>
+                        </div>
+
+                        <!-- Faculty Mini Dossier -->
+                        <div class="c-modal-faculty-card glass-panel" id="cModalFacultySection">
+                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80" id="cModalFacultyImg" class="c-fac-avatar" alt="Faculty">
+                            <div class="c-fac-info">
+                                <div class="c-fac-title-row">
+                                    <h4 id="cModalFacultyName">Faculty Name</h4>
+                                    <span class="c-fac-rating" id="cModalFacultyRating"><i class='bx bxs-star'></i> 4.85</span>
+                                </div>
+                                <p class="c-fac-qual" id="cModalFacultyQual">Ph.D. in Computer Science</p>
+                                <p class="c-fac-hours" id="cModalFacultyHours"><i class='bx bx-time'></i> Office Hours: Mon, Wed 10:00 AM - 12:30 PM</p>
+                            </div>
+                            <div class="c-fac-actions">
+                                <a id="cModalFacultyEmailLink" href="#" class="btn-glass fac-email-btn"><i class='bx bx-envelope'></i> Email</a>
+                            </div>
+                        </div>
+
+                        <!-- 5-Unit Interactive Syllabus Roadmap -->
+                        <div class="c-modal-syllabus-section">
+                            <div class="section-title-row">
+                                <h3><i class='bx bx-map-alt'></i> 5-Unit Curriculum Roadmap & Verified Notes</h3>
+                                <span class="syllabus-progress-tag">Anna University Standardized</span>
+                            </div>
+                            <div class="curriculum-units-list" id="cModalUnitsContainer">
+                                <!-- Dynamic units with mapped notes and Aadhi buttons rendered here -->
+                            </div>
+                        </div>
+
+                        <!-- Course Outcomes & Reference Textbooks Card -->
+                        <div class="c-modal-outcomes-section glass-panel">
+                            <div class="c-outcomes-col">
+                                <h4><i class='bx bx-target-lock'></i> Course Learning Outcomes (COs)</h4>
+                                <ul class="c-outcomes-list" id="cModalOutcomesList">
+                                    <!-- COs rendered dynamically -->
+                                </ul>
+                            </div>
+                            <div class="c-textbooks-col">
+                                <h4><i class='bx bx-book-reader'></i> Prescribed Reference Textbooks</h4>
+                                <div class="c-textbooks-list" id="cModalTextbooksList">
+                                    <!-- Books rendered dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
