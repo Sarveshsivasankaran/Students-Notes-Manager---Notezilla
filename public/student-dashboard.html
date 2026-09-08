@@ -75,12 +75,20 @@
                         <span class="badge" style="background: var(--accent);">New</span>
                     </a>
                 </li>
+                <li id="nav-class-recorder">
+                    <a href="javascript:void(0)">
+                        <i class='bx bx-microphone'></i>
+                        <span class="link-name">Class Recorder</span>
+                        <span class="badge" style="background: linear-gradient(135deg, #10b981, #059669);">Engine 6</span>
+                    </a>
+                </li>
                 <li id="nav-profile">
                     <a href="javascript:void(0)">
                         <i class='bx bx-user-circle'></i>
                         <span class="link-name">Profile Dashboard</span>
                     </a>
                 </li>
+
             </ul>
 
             <div class="sidebar-footer">
@@ -1244,6 +1252,173 @@
     100% { transform: rotate(360deg); }
 }
 </style>
+            <!-- Smart Class Recorder & AI Lecture Summarizer View (Engine 6) -->
+            <div id="class-recorder-view" class="dashboard-grid view-section" style="display: none; padding-bottom: 40px;">
+                <div class="welcome-banner glass-panel" style="margin-bottom: 24px; position: relative; overflow: hidden; background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(99, 102, 241, 0.1)); border: 1px solid rgba(16, 185, 129, 0.3);">
+                    <div class="welcome-text">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);"><i class='bx bx-microphone'></i> Intelligent Engine 6</span>
+                            <span class="badge" style="background: rgba(255, 255, 255, 0.08); color: #cbd5e1;"><i class='bx bx-shield-quarter'></i> Participant Consent Compliant</span>
+                        </div>
+                        <h1 style="font-size: 26px; font-weight: 800;">Smart Class Recorder & <span class="highlight" style="background: linear-gradient(135deg, #10b981, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI Lecture Summarizer</span></h1>
+                        <p style="color: var(--text-muted); font-size: 14px;">Record → Transcribe → Summarize → Learn. Convert lectures, online classes, and mentor sessions into structured notes, action items, and revision questions.</p>
+                    </div>
+                </div>
+
+                <!-- Live Class Recorder Hub (Whisper AI Engine) -->
+                <div style="margin-bottom: 32px;">
+                    <div class="glass-panel" style="padding: 28px; border-radius: 24px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(16, 185, 129, 0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <h3 style="font-size: 18px; font-weight: 700; color: white; display: flex; align-items: center; gap: 10px;">
+                                    <i class='bx bx-broadcast' style="color: #10b981; font-size: 22px;"></i> Live Multilingual Class Recorder
+                                </h3>
+                                <p style="font-size: 13px; color: var(--text-muted); margin: 2px 0 0 0;">Powered by OpenAI / Groq Whisper & Gemini Multimodal Audio — Supports English, Tamil, Hindi & Tanglish</p>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);"><i class='bx bx-brain'></i> Whisper AI Multilingual</span>
+                                <span id="crRecordingStatus" class="badge" style="background: rgba(255,255,255,0.06); color: var(--text-muted);">Idle</span>
+                            </div>
+                        </div>
+
+                        <!-- Session Meta Form -->
+                        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                            <input type="text" id="crTitleInput" placeholder="Session Title (e.g. OS — Deadlocks & Banker's Algorithm)" class="glass-input" style="padding: 12px 16px; border-radius: 12px; font-size: 13px;">
+                            <input type="text" id="crSubjectInput" placeholder="Subject / Code (e.g. Operating Systems / CS3401)" class="glass-input" style="padding: 12px 16px; border-radius: 12px; font-size: 13px;">
+                            <select id="crClassTypeSelect" class="glass-input" style="padding: 12px 16px; border-radius: 12px; font-size: 13px; background: #0f172a; color: white;">
+                                <option value="lecture">Classroom Lecture</option>
+                                <option value="online">Online Class</option>
+                                <option value="meeting">Faculty Meeting</option>
+                                <option value="mentor">Mentor / Doubt Session</option>
+                            </select>
+                        </div>
+
+                        <!-- Mic Stage & Wave Visualizer -->
+                        <div style="text-align: center; padding: 32px 20px; background: rgba(0,0,0,0.3); border-radius: 20px; border: 1px dashed rgba(16, 185, 129, 0.3); margin-bottom: 20px;">
+                            <div id="crTimerDisplay" style="font-family: 'Fira Code', monospace; font-size: 44px; font-weight: 800; color: #10b981; margin-bottom: 16px; letter-spacing: 2px;">00:00:00</div>
+
+                            <div id="crWaveContainer" class="voice-wave-bars" style="display: none; justify-content: center; margin-bottom: 20px; gap: 6px;">
+                                <span class="v-bar" style="height: 24px; background: #10b981;"></span>
+                                <span class="v-bar" style="height: 42px; background: #10b981;"></span>
+                                <span class="v-bar" style="height: 28px; background: #10b981;"></span>
+                                <span class="v-bar" style="height: 50px; background: #10b981;"></span>
+                                <span class="v-bar" style="height: 32px; background: #10b981;"></span>
+                                <span class="v-bar" style="height: 45px; background: #10b981;"></span>
+                            </div>
+
+                            <div style="display: flex; justify-content: center; gap: 16px; align-items: center;">
+                                <button id="crStartRecordBtn" class="btn-gradient" style="background: linear-gradient(135deg, #10b981, #059669); padding: 14px 32px; border-radius: 30px; font-weight: 700; font-size: 15px; gap: 10px; display: inline-flex; align-items: center; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);">
+                                    <i class='bx bx-microphone' style="font-size: 22px;"></i> Start Class Recording
+                                </button>
+                                <button id="crPauseRecordBtn" class="btn-glass" style="display: none; padding: 14px 24px; border-radius: 30px; font-weight: 600; font-size: 14px;">
+                                    <i class='bx bx-pause-circle'></i> Pause
+                                </button>
+                                <button id="crStopRecordBtn" class="btn-primary" style="display: none; background: #ef4444; border-color: #ef4444; padding: 14px 28px; border-radius: 30px; font-weight: 700; font-size: 15px;">
+                                    <i class='bx bx-stop-circle'></i> Stop & Process with Whisper AI
+                                </button>
+                            </div>
+                        </div>
+
+                        <p style="font-size: 12px; color: #64748b; margin: 0; text-align: center;">
+                            <i class='bx bx-shield-quarter' style="color: #10b981;"></i> Recording is processed securely. The Whisper AI model auto-detects English, Tamil, Hindi, and Tanglish classroom discussions.
+                        </p>
+                    </div>
+                </div>
+
+
+                <!-- Processing Overlay Loader -->
+                <div id="crProcessingOverlay" class="glass-panel" style="display: none; padding: 40px; text-align: center; border-radius: 20px; margin-bottom: 32px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(16, 185, 129, 0.3);">
+                    <div class="spinner" style="width: 48px; height: 48px; border-width: 4px; border-top-color: #10b981; margin: 0 auto 16px;"></div>
+                    <h3 style="font-size: 18px; font-weight: 700; color: white; margin-bottom: 6px;">AI Lecture Intelligence Engine Active...</h3>
+                    <p style="color: var(--text-muted); font-size: 13px;">Extracting summary, key concepts, formulas, action items, revision questions, and timestamp markers.</p>
+                </div>
+
+                <!-- Active Session Output Dashboard -->
+                <div id="crOutputDashboard" class="glass-panel" style="display: none; padding: 28px; border-radius: 24px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 32px;">
+                    <!-- Dashboard Top Header with Search inside Lecture -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <h2 id="crOutTitle" style="font-size: 22px; font-weight: 800; color: white;">Operating Systems — Deadlocks</h2>
+                                <span id="crOutTypeBadge" class="badge" style="background: rgba(16,185,129,0.2); color: #10b981;">Classroom Lecture</span>
+                            </div>
+                            <p id="crOutMeta" style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0 0;">Course: Operating Systems (CS3401) &bull; Duration: 52 mins &bull; Recorded Just Now</p>
+                        </div>
+
+                        <!-- Search Inside Lecture Input -->
+                        <div style="position: relative; width: 340px;">
+                            <i class='bx bx-search' style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #10b981; font-size: 18px;"></i>
+                            <input type="text" id="crSearchInput" placeholder='Search lecture (e.g., "binary search")...' class="glass-input" style="width: 100%; padding: 10px 14px 10px 42px; border-radius: 30px; font-size: 12px; border-color: rgba(16, 185, 129, 0.3);">
+                        </div>
+                    </div>
+
+                    <!-- Search Results Dropdown / Panel -->
+                    <div id="crSearchResultsContainer" style="display: none; background: rgba(10, 10, 15, 0.9); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 14px; padding: 16px; margin-bottom: 20px;">
+                        <h4 style="font-size: 13px; font-weight: 700; color: #10b981; margin-bottom: 10px;"><i class='bx bx-target-lock'></i> Search Matches inside Lecture</h4>
+                        <div id="crSearchResultsList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    </div>
+
+                    <!-- Output Navigation Tabs -->
+                    <div style="display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 24px; overflow-x: auto;">
+                        <button class="cr-tab-btn active" data-tab="summary"><i class='bx bx-bot'></i> AI Summary & Key Points</button>
+                        <button class="cr-tab-btn" data-tab="notes"><i class='bx bx-book-open'></i> Class Notes</button>
+                        <button class="cr-tab-btn" data-tab="action"><i class='bx bx-check-square'></i> Action Items (<span id="crActionCount">0</span>)</button>
+                        <button class="cr-tab-btn" data-tab="questions"><i class='bx bx-help-circle'></i> Revision Questions</button>
+                        <button class="cr-tab-btn" data-tab="timestamps"><i class='bx bx-time-five'></i> Timestamps & Markers</button>
+                        <button class="cr-tab-btn" data-tab="transcript"><i class='bx bx-align-left'></i> Full Transcript</button>
+                    </div>
+
+                    <!-- Tab Contents -->
+                    <!-- 1. AI Summary Tab -->
+                    <div id="crTabSummary" class="cr-tab-content active">
+                        <div style="margin-bottom: 24px; padding: 18px; background: rgba(16, 185, 129, 0.05); border-left: 4px solid #10b981; border-radius: 8px;">
+                            <h4 style="font-size: 14px; font-weight: 700; color: #10b981; margin-bottom: 6px;"><i class='bx bx-sparkles'></i> Lecture Executive Summary</h4>
+                            <p id="crSummaryText" style="font-size: 14px; line-height: 1.6; color: #e2e8f0; margin: 0;"></p>
+                        </div>
+
+                        <h4 style="font-size: 15px; font-weight: 700; color: white; margin-bottom: 12px;"><i class='bx bx-bullseye' style="color: #fbbf24;"></i> Key Concepts & Faculty Directives</h4>
+                        <div id="crConceptsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;"></div>
+                    </div>
+
+                    <!-- 2. Structured Notes Tab -->
+                    <div id="crTabNotes" class="cr-tab-content" style="display: none;">
+                        <div id="crNotesContent" class="ai-md-body" style="font-size: 14px; line-height: 1.7; color: #cbd5e1; background: rgba(0,0,0,0.2); padding: 24px; border-radius: 16px;"></div>
+                    </div>
+
+                    <!-- 3. Action Items Tab -->
+                    <div id="crTabAction" class="cr-tab-content" style="display: none;">
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">AI extracted deadlines, homework assignments, and upcoming test instructions from your professor:</p>
+                        <div id="crActionItemsList" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                    </div>
+
+                    <!-- 4. Revision Questions Tab -->
+                    <div id="crTabQuestions" class="cr-tab-content" style="display: none;">
+                        <div id="crQuestionsList" style="display: flex; flex-direction: column; gap: 16px;"></div>
+                    </div>
+
+                    <!-- 5. Timestamps & Markers Tab -->
+                    <div id="crTabTimestamps" class="cr-tab-content" style="display: none;">
+                        <div id="crTimestampsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;"></div>
+                    </div>
+
+                    <!-- 6. Full Transcript Tab -->
+                    <div id="crTabTranscript" class="cr-tab-content" style="display: none;">
+                        <div id="crTranscriptText" style="font-family: 'Fira Code', monospace; font-size: 12px; line-height: 1.8; color: #94a3b8; background: #08080c; padding: 20px; border-radius: 12px; max-height: 400px; overflow-y: auto; white-space: pre-wrap;"></div>
+                    </div>
+                </div>
+
+                <!-- Saved Class Recordings Gallery -->
+                <div class="glass-panel" style="padding: 24px; border-radius: 24px; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.08);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="font-size: 18px; font-weight: 700; color: white;"><i class='bx bx-folder-open' style="color: #10b981;"></i> Saved Class Recordings Library</h3>
+                        <span id="crSavedCountBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">0 Recordings Saved</span>
+                    </div>
+
+                    <div id="crSavedGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 

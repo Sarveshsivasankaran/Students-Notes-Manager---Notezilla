@@ -361,14 +361,22 @@ const upgradedTableStatements = [
         created_at timestamp with time zone default now()
     )`,
 
-    // 26. Gamification: User Badges
-    `create table if not exists user_badges (
+    // 27. Smart Class Recorder: Class Recordings
+    `create table if not exists class_recordings (
         id uuid primary key default gen_random_uuid(),
         user_id uuid not null references users(id) on delete cascade,
-        badge_id uuid not null references badges(id) on delete cascade,
-        awarded_at timestamp with time zone default now(),
-        metadata jsonb default '{}'::jsonb,
-        unique (user_id, badge_id)
+        title text not null,
+        class_type text default 'lecture',
+        subject_name text,
+        duration_seconds integer default 0,
+        transcript text not null,
+        summary text,
+        key_concepts jsonb default '[]'::jsonb,
+        action_items jsonb default '[]'::jsonb,
+        structured_notes text,
+        revision_questions jsonb default '[]'::jsonb,
+        timestamps jsonb default '[]'::jsonb,
+        created_at timestamp with time zone default now()
     )`
 ];
 
@@ -419,7 +427,8 @@ const indexStatements = [
     `create index if not exists idx_quiz_attempts_student on quiz_attempts(student_id)`,
     `create index if not exists idx_flashcards_deck on flashcards(deck_id)`,
     `create index if not exists idx_appointments_faculty on faculty_appointments(faculty_id)`,
-    `create index if not exists idx_appointments_student on faculty_appointments(student_id)`
+    `create index if not exists idx_appointments_student on faculty_appointments(student_id)`,
+    `create index if not exists idx_class_recordings_user on class_recordings(user_id)`
 ];
 
 // ── 5. Stored Procedures (RPCs) ──
@@ -462,8 +471,9 @@ const allTables = [
     'student_topic_mastery', 'student_learning_profiles',
     'quizzes', 'quiz_questions', 'quiz_attempts',
     'flashcard_decks', 'flashcards',
-    'faculty_appointments', 'badges', 'user_badges'
+    'faculty_appointments', 'badges', 'user_badges', 'class_recordings'
 ];
+
 
 const rlsDisableStatements = allTables.map(t => `alter table if exists ${t} disable row level security`);
 

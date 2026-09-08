@@ -177,6 +177,24 @@ create table if not exists dsa_user_progress (
     updated_at timestamp with time zone default now()
 );
 
+-- 14. CLASS RECORDINGS TABLE (Smart Class Recorder Engine)
+create table if not exists class_recordings (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references users(id) on delete cascade,
+    title text not null,
+    class_type text default 'lecture', -- lecture, online, meeting, mentor
+    subject_name text,
+    duration_seconds integer default 0,
+    transcript text not null,
+    summary text,
+    key_concepts jsonb default '[]'::jsonb,
+    action_items jsonb default '[]'::jsonb,
+    structured_notes text,
+    revision_questions jsonb default '[]'::jsonb,
+    timestamps jsonb default '[]'::jsonb,
+    created_at timestamp with time zone default now()
+);
+
 -- ========================================
 -- INDEXES
 -- ========================================
@@ -189,6 +207,7 @@ create index if not exists idx_announcements_target on announcements(target_dept
 create index if not exists idx_activity_user on activity_logs(user_id);
 create index if not exists idx_dsa_day_lang on dsa_content(day, programming_language);
 create index if not exists idx_dsa_progress_user on dsa_user_progress(user_id);
+create index if not exists idx_class_recordings_user on class_recordings(user_id);
 
 -- ========================================
 -- STORED PROCEDURES (RPCs)
@@ -242,3 +261,5 @@ alter table announcements disable row level security;
 alter table activity_logs disable row level security;
 alter table dsa_content disable row level security;
 alter table dsa_user_progress disable row level security;
+alter table class_recordings disable row level security;
+

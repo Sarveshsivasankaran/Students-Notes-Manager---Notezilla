@@ -137,7 +137,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'progress': { view: document.getElementById('progress-view'), nav: document.getElementById('nav-progress') },
         'bookmarks': { view: document.getElementById('bookmarks-view'), nav: document.getElementById('nav-bookmarks') },
         'faculty': { view: document.getElementById('faculty-view'), nav: document.getElementById('nav-faculty') },
-        'dsa': { view: document.getElementById('dsa-view'), nav: document.getElementById('nav-dsa') }
+        'dsa': { view: document.getElementById('dsa-view'), nav: document.getElementById('nav-dsa') },
+        'class-recorder': { view: document.getElementById('class-recorder-view'), nav: document.getElementById('nav-class-recorder') }
     };
 
     function switchView(viewKey) {
@@ -148,19 +149,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const target = navItems[viewKey];
         if (target) {
-            if (target.view) target.view.style.display = (viewKey === 'dashboard' || viewKey === 'profile' || viewKey === 'subjects' || viewKey === 'announcements' || viewKey === 'progress' || viewKey === 'bookmarks' || viewKey === 'faculty' || viewKey === 'dsa') ? 'flex' : 'block';
+            if (target.view) target.view.style.display = (viewKey === 'dashboard' || viewKey === 'profile' || viewKey === 'subjects' || viewKey === 'announcements' || viewKey === 'progress' || viewKey === 'bookmarks' || viewKey === 'faculty' || viewKey === 'dsa' || viewKey === 'class-recorder') ? 'flex' : 'block';
             if (target.nav) target.nav.classList.add('active');
 
             // Trigger specific renders
             if (viewKey === 'subjects') renderSubjects();
             if (viewKey === 'announcements') renderAnnouncements();
-
             if (viewKey === 'progress') renderProgress();
             if (viewKey === 'bookmarks') renderBookmarks();
             if (viewKey === 'faculty') renderFaculty();
+            if (viewKey === 'class-recorder') renderClassRecorderLibrary();
         }
         closeAllDropdowns();
     }
+
 
     Object.keys(navItems).forEach(key => {
         if (navItems[key].nav) {
@@ -4425,7 +4427,528 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatInp = document.getElementById('analysisChatInput');
     if (chatInp) chatInp.onkeypress = (e) => { if (e.key === 'Enter') sendNoteChat(); };
 
+    // ════════════════════════════════════════════════════════════
+    // 6. SMART CLASS RECORDER & AI LECTURE SUMMARIZER (Engine 6)
+    // ════════════════════════════════════════════════════════════
+    let crMediaRecorder = null;
+    let crAudioChunks = [];
+    let crRecordingTimer = null;
+    let crSecondsElapsed = 0;
+    let crSpeechRecognition = null;
+    let crAccumulatedTranscript = '';
+    let crActiveRecordingSession = null;
+
+    const crTitleInput = document.getElementById('crTitleInput');
+    const crSubjectInput = document.getElementById('crSubjectInput');
+    const crClassTypeSelect = document.getElementById('crClassTypeSelect');
+    const crRecordingStatus = document.getElementById('crRecordingStatus');
+    const crTimerDisplay = document.getElementById('crTimerDisplay');
+    const crWaveContainer = document.getElementById('crWaveContainer');
+    const crStartRecordBtn = document.getElementById('crStartRecordBtn');
+    const crPauseRecordBtn = document.getElementById('crPauseRecordBtn');
+    const crStopRecordBtn = document.getElementById('crStopRecordBtn');
+    const crAudioFileInput = document.getElementById('crAudioFileInput');
+    const crManualTranscriptText = document.getElementById('crManualTranscriptText');
+    const crProcessManualBtn = document.getElementById('crProcessManualBtn');
+    const crProcessingOverlay = document.getElementById('crProcessingOverlay');
+    const crOutputDashboard = document.getElementById('crOutputDashboard');
+    const crSearchInput = document.getElementById('crSearchInput');
+    const crSearchResultsContainer = document.getElementById('crSearchResultsContainer');
+    const crSearchResultsList = document.getElementById('crSearchResultsList');
+
+    const formatTimer = (totalSeconds) => {
+        const hrs = Math.floor(totalSeconds / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+        return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    };
+
+    // Live Web Speech Recognition Initializer
+    const initSpeechRecognition = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) return null;
+
+        const rec = new SpeechRecognition();
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.lang = 'en-US';
+
+        rec.onresult = (e) => {
+            let current = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) {
+                    crAccumulatedTranscript += ' ' + e.results[i][0].transcript;
+                } else {
+                    current += e.results[i][0].transcript;
+                }
+            }
+            if (crManualTranscriptText) {
+                crManualTranscriptText.value = (crAccumulatedTranscript + ' ' + current).trim();
+            }
+        };
+
+        rec.onerror = (e) => console.warn('Speech recognition warning:', e.error);
+        rec.onend = () => {
+            if (crMediaRecorder && crMediaRecorder.state === 'recording') {
+                try { rec.start(); } catch (_) {}
+            }
+        };
+
+        return rec;
+    };
+
+    // Start Live Recording
+    const startClassRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            crAudioChunks = [];
+            crMediaRecorder = new MediaRecorder(stream);
+
+            crMediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) crAudioChunks.push(e.data);
+            };
+
+            crMediaRecorder.start(1000);
+            crSecondsElapsed = 0;
+            if (crTimerDisplay) crTimerDisplay.textContent = formatTimer(0);
+            crRecordingTimer = setInterval(() => {
+                crSecondsElapsed++;
+                if (crTimerDisplay) crTimerDisplay.textContent = formatTimer(crSecondsElapsed);
+            }, 1000);
+
+            // Speech recognition
+            crAccumulatedTranscript = '';
+            crSpeechRecognition = initSpeechRecognition();
+            if (crSpeechRecognition) {
+                try { crSpeechRecognition.start(); } catch (_) {}
+            }
+
+            // UI updates
+            if (crRecordingStatus) {
+                crRecordingStatus.textContent = 'Recording Active';
+                crRecordingStatus.style.background = 'rgba(239, 68, 68, 0.2)';
+                crRecordingStatus.style.color = '#ef4444';
+            }
+            if (crWaveContainer) crWaveContainer.style.display = 'flex';
+            if (crStartRecordBtn) crStartRecordBtn.style.display = 'none';
+            if (crPauseRecordBtn) crPauseRecordBtn.style.display = 'inline-flex';
+            if (crStopRecordBtn) crStopRecordBtn.style.display = 'inline-flex';
+
+            showToast('Class recording started. Speak clearly into mic.', 'info');
+        } catch (e) {
+            console.error('Microphone access error:', e);
+            showToast('Unable to access microphone. Check browser permissions.', 'error');
+        }
+    };
+
+    // Pause / Resume Recording
+    if (crPauseRecordBtn) {
+        crPauseRecordBtn.addEventListener('click', () => {
+            if (!crMediaRecorder) return;
+            if (crMediaRecorder.state === 'recording') {
+                crMediaRecorder.pause();
+                clearInterval(crRecordingTimer);
+                if (crSpeechRecognition) try { crSpeechRecognition.stop(); } catch (_) {}
+                crRecordingStatus.textContent = 'Paused';
+                crRecordingStatus.style.background = 'rgba(245, 158, 11, 0.2)';
+                crRecordingStatus.style.color = '#f59e0b';
+                crPauseRecordBtn.innerHTML = "<i class='bx bx-play-circle'></i> Resume";
+            } else if (crMediaRecorder.state === 'paused') {
+                crMediaRecorder.resume();
+                crRecordingTimer = setInterval(() => {
+                    crSecondsElapsed++;
+                    if (crTimerDisplay) crTimerDisplay.textContent = formatTimer(crSecondsElapsed);
+                }, 1000);
+                if (crSpeechRecognition) try { crSpeechRecognition.start(); } catch (_) {}
+                crRecordingStatus.textContent = 'Recording Active';
+                crRecordingStatus.style.background = 'rgba(239, 68, 68, 0.2)';
+                crRecordingStatus.style.color = '#ef4444';
+                crPauseRecordBtn.innerHTML = "<i class='bx bx-pause-circle'></i> Pause";
+            }
+        });
+    }
+
+    // Stop & Process Lecture Recording with Whisper AI
+    const stopClassRecording = async () => {
+        if (!crMediaRecorder) return;
+
+        clearInterval(crRecordingTimer);
+        if (crSpeechRecognition) try { crSpeechRecognition.stop(); } catch (_) {}
+
+        // Wait for MediaRecorder to stop and emit its final audio chunk
+        if (crMediaRecorder.state !== 'inactive') {
+            await new Promise((resolve) => {
+                crMediaRecorder.onstop = resolve;
+                try { crMediaRecorder.stop(); } catch (_) { resolve(); }
+            });
+        }
+        
+        if (crMediaRecorder.stream) {
+            crMediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+
+        if (crRecordingStatus) {
+            crRecordingStatus.textContent = 'Idle';
+            crRecordingStatus.style.background = 'rgba(255,255,255,0.06)';
+            crRecordingStatus.style.color = 'var(--text-muted)';
+        }
+        if (crWaveContainer) crWaveContainer.style.display = 'none';
+        if (crStartRecordBtn) crStartRecordBtn.style.display = 'inline-flex';
+        if (crPauseRecordBtn) crPauseRecordBtn.style.display = 'none';
+        if (crStopRecordBtn) crStopRecordBtn.style.display = 'none';
+
+        // Build Audio Blob from crAudioChunks
+        let audioBlob = null;
+        if (crAudioChunks && crAudioChunks.length > 0) {
+            const mimeType = crMediaRecorder.mimeType || 'audio/webm';
+            audioBlob = new Blob(crAudioChunks, { type: mimeType });
+        }
+
+        const fallbackTranscript = crAccumulatedTranscript ? crAccumulatedTranscript.trim() : '';
+        const duration = crSecondsElapsed || 0;
+
+        await processLectureRecording(audioBlob, fallbackTranscript, duration);
+    };
+
+    if (crStartRecordBtn) crStartRecordBtn.addEventListener('click', startClassRecording);
+    if (crStopRecordBtn) crStopRecordBtn.addEventListener('click', stopClassRecording);
+
+    // Process Recorded Audio Blob or Transcript with Whisper AI Backend API
+    const processLectureRecording = async (audioBlob = null, transcriptText = '', durationSec = 0) => {
+        if (crProcessingOverlay) crProcessingOverlay.style.display = 'block';
+        if (crOutputDashboard) crOutputDashboard.style.display = 'none';
+
+        const formData = new FormData();
+        if (audioBlob && audioBlob.size > 0) {
+            const mime = audioBlob.type || 'audio/webm';
+            const ext = mime.includes('mp4') ? 'mp4' : (mime.includes('ogg') ? 'ogg' : 'webm');
+            formData.append('audio', audioBlob, `class-recording.${ext}`);
+        }
+        formData.append('title', (crTitleInput && crTitleInput.value.trim()) || 'Classroom Lecture');
+        formData.append('subjectName', (crSubjectInput && crSubjectInput.value.trim()) || 'Academic Course');
+        formData.append('classType', crClassTypeSelect ? crClassTypeSelect.value : 'lecture');
+        formData.append('durationSeconds', durationSec);
+        if (transcriptText) {
+            formData.append('transcript', transcriptText);
+        }
+
+        try {
+            const res = await fetch('/api/ai/process-lecture', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const data = await res.json();
+            if (crProcessingOverlay) crProcessingOverlay.style.display = 'none';
+
+            if (res.ok && data && data.success && data.data) {
+                crActiveRecordingSession = data.data;
+                renderLectureOutputDashboard(data.data);
+                renderClassRecorderLibrary();
+                showToast('Smart Class Whisper AI session generated successfully!', 'success');
+            } else {
+                showToast((data && data.message) || 'Error processing lecture with Whisper AI', 'error');
+            }
+        } catch (err) {
+            if (crProcessingOverlay) crProcessingOverlay.style.display = 'none';
+            console.error('Lecture processing error:', err);
+            showToast('Failed to send class recording to Whisper AI server', 'error');
+        }
+    };
+
+    // Render Lecture Output Dashboard Tabs
+    const renderLectureOutputDashboard = (session) => {
+        if (!crOutputDashboard) return;
+        crOutputDashboard.style.display = 'block';
+
+        // Headers
+        const crOutTitle = document.getElementById('crOutTitle');
+        const crOutTypeBadge = document.getElementById('crOutTypeBadge');
+        const crOutMeta = document.getElementById('crOutMeta');
+
+        if (crOutTitle) crOutTitle.textContent = session.title || 'Classroom Lecture';
+        if (crOutTypeBadge) crOutTypeBadge.textContent = (session.class_type || 'lecture').toUpperCase();
+        if (crOutMeta) {
+            const mins = Math.max(1, Math.round((session.duration_seconds || 0) / 60));
+            crOutMeta.textContent = `Course: ${session.subject_name || 'General'} • Duration: ~${mins} mins • Recorded ${new Date(session.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        }
+
+        // 1. Summary
+        const crSummaryText = document.getElementById('crSummaryText');
+        if (crSummaryText) crSummaryText.textContent = session.summary || 'Summary generated by Aadhi Smart Class AI.';
+
+        // Key Concepts
+        const crConceptsList = document.getElementById('crConceptsList');
+        if (crConceptsList) {
+            const concepts = Array.isArray(session.key_concepts) ? session.key_concepts : [];
+            crConceptsList.innerHTML = concepts.map(c => `
+                <div style="padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; display: flex; align-items: flex-start; gap: 10px;">
+                    <i class='bx bx-check-circle' style="color: #10b981; font-size: 18px; margin-top: 2px;"></i>
+                    <span style="font-size: 13px; color: #e2e8f0; font-weight: 500;">${escapeHtml(c)}</span>
+                </div>
+            `).join('');
+        }
+
+        // 2. Structured Notes
+        const crNotesContent = document.getElementById('crNotesContent');
+        if (crNotesContent) {
+            const notesMd = session.structured_notes || session.transcript || '';
+            crNotesContent.innerHTML = (window.marked && typeof marked.parse === 'function') ? marked.parse(notesMd) : escapeHtml(notesMd);
+            if (window.renderMathInElement) {
+                renderMathInElement(crNotesContent, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        // 3. Action Items
+        const crActionItemsList = document.getElementById('crActionItemsList');
+        const crActionCount = document.getElementById('crActionCount');
+        const actionItems = Array.isArray(session.action_items) ? session.action_items : [];
+        if (crActionCount) crActionCount.textContent = actionItems.length;
+
+        if (crActionItemsList) {
+            if (actionItems.length === 0) {
+                crActionItemsList.innerHTML = `<div style="color: var(--text-muted); font-size: 13px;">No explicit action items or homework extracted from this session.</div>`;
+            } else {
+                crActionItemsList.innerHTML = actionItems.map((item, idx) => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span class="badge" style="background: rgba(99,102,241,0.2); color: #818cf8; text-transform: uppercase;">${escapeHtml(item.type || 'TASK')}</span>
+                            <div>
+                                <h4 style="font-size: 14px; font-weight: 700; color: white; margin: 0 0 2px 0;">${escapeHtml(item.title)}</h4>
+                                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Due: ${escapeHtml(item.dueDate || 'Soon')} &bull; ${escapeHtml(item.details || '')}</p>
+                            </div>
+                        </div>
+                        <button class="btn-gradient" style="padding: 8px 14px; border-radius: 8px; font-size: 11px; font-weight: 600; white-space: nowrap;" onclick="window.addActionItemToPlanner('${escapeHtml(item.title)}', '${escapeHtml(item.dueDate || '')}', '${escapeHtml(item.details || '')}')">
+                            <i class='bx bx-plus-circle'></i> Add to Planner
+                        </button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 4. Revision Questions
+        const crQuestionsList = document.getElementById('crQuestionsList');
+        const questions = Array.isArray(session.revision_questions) ? session.revision_questions : [];
+        if (crQuestionsList) {
+            if (questions.length === 0) {
+                crQuestionsList.innerHTML = `<div style="color: var(--text-muted); font-size: 13px;">No revision questions available.</div>`;
+            } else {
+                crQuestionsList.innerHTML = questions.map((q, idx) => `
+                    <div style="padding: 18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 11px; font-weight: 700; color: #10b981; text-transform: uppercase;">Question ${idx + 1} &bull; ${escapeHtml(q.topic || 'Concept')}</span>
+                        </div>
+                        <h4 style="font-size: 14px; font-weight: 700; color: white; margin: 0 0 10px 0;">${escapeHtml(q.question)}</h4>
+                        <button class="btn-glass" style="padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;" onclick="const ans = this.nextElementSibling; ans.style.display = ans.style.display === 'none' ? 'block' : 'none';">
+                            <i class='bx bx-show'></i> Toggle Answer
+                        </button>
+                        <div style="display: none; margin-top: 10px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 6px; font-size: 13px; color: #e2e8f0;">
+                            <strong>Answer:</strong> ${escapeHtml(q.answer)}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 5. Timestamps
+        const crTimestampsList = document.getElementById('crTimestampsList');
+        const timestamps = Array.isArray(session.timestamps) ? session.timestamps : [];
+        if (crTimestampsList) {
+            if (timestamps.length === 0) {
+                crTimestampsList.innerHTML = `<div style="color: var(--text-muted); font-size: 13px;">No timestamp markers extracted.</div>`;
+            } else {
+                crTimestampsList.innerHTML = timestamps.map(t => `
+                    <div style="padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;">
+                        <span class="badge" style="background: rgba(16,185,129,0.2); color: #10b981; font-family: monospace; font-size: 12px; margin-bottom: 8px; display: inline-block;">📌 ${escapeHtml(t.timestamp)}</span>
+                        <h4 style="font-size: 13px; font-weight: 700; color: white; margin: 0 0 4px 0;">${escapeHtml(t.topic)}</h4>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 0;">${escapeHtml(t.details || '')}</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // 6. Transcript
+        const crTranscriptText = document.getElementById('crTranscriptText');
+        if (crTranscriptText) crTranscriptText.textContent = session.transcript || 'No transcript text stored.';
+    };
+
+    // Add action item directly into Notezilla Planner Tasks
+    window.addActionItemToPlanner = async (title, dueDate, details) => {
+        try {
+            const res = await apiFetch('/user/planner', {
+                method: 'POST',
+                body: JSON.stringify({
+                    title: title,
+                    description: details || 'Class lecture action item',
+                    task_time: dueDate || 'Class Task'
+                })
+            });
+            if (res && res.success) {
+                showToast(`Added "${title}" to your Planner!`, 'success');
+                renderPlanner();
+            } else {
+                showToast('Failed to add action item to Planner', 'error');
+            }
+        } catch (e) {
+            console.error('Add action item error:', e);
+            showToast('Failed to add task to Planner', 'error');
+        }
+    };
+
+    // Search Inside Lecture Listener
+    if (crSearchInput) {
+        let searchDebounce = null;
+        crSearchInput.addEventListener('input', (e) => {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(async () => {
+                const query = e.target.value.trim();
+                if (!query || !crActiveRecordingSession) {
+                    if (crSearchResultsContainer) crSearchResultsContainer.style.display = 'none';
+                    return;
+                }
+
+                try {
+                    const res = await apiFetch(`/user/class-recordings/${crActiveRecordingSession.id}/search`, {
+                        method: 'POST',
+                        body: JSON.stringify({ query })
+                    });
+
+                    if (res && res.success && res.matches && res.matches.length > 0) {
+                        if (crSearchResultsContainer) crSearchResultsContainer.style.display = 'block';
+                        if (crSearchResultsList) {
+                            crSearchResultsList.innerHTML = res.matches.map(m => `
+                                <div style="padding: 10px 14px; background: rgba(255,255,255,0.04); border-radius: 8px; font-size: 12px; color: white; display: flex; align-items: center; justify-content: space-between;">
+                                    <span>🔍 ${escapeHtml(m.snippet)}</span>
+                                    ${m.timestamp ? `<span class="badge" style="background: rgba(16,185,129,0.2); color: #10b981;">📌 ${escapeHtml(m.timestamp)}</span>` : ''}
+                                </div>
+                            `).join('');
+                        }
+                    } else {
+                        if (crSearchResultsContainer) crSearchResultsContainer.style.display = 'block';
+                        if (crSearchResultsList) {
+                            crSearchResultsList.innerHTML = `<div style="color: var(--text-muted); font-size: 12px;">No matches found for "${escapeHtml(query)}" inside this lecture.</div>`;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Search lecture error:', err);
+                }
+            }, 300);
+        });
+    }
+
+    // Dashboard Output Tab Switcher
+    const crTabBtns = document.querySelectorAll('.cr-tab-btn');
+    crTabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            crTabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const tabKey = btn.getAttribute('data-tab');
+            const contents = document.querySelectorAll('.cr-tab-content');
+            contents.forEach(c => c.style.display = 'none');
+
+            const targetId = `crTab${tabKey.charAt(0).toUpperCase() + tabKey.slice(1)}`;
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) targetEl.style.display = 'block';
+        });
+    });
+
+    // Render Saved Class Recordings Gallery
+    window.renderClassRecorderLibrary = async () => {
+        const crSavedGrid = document.getElementById('crSavedGrid');
+        const crSavedCountBadge = document.getElementById('crSavedCountBadge');
+        if (!crSavedGrid) return;
+
+        try {
+            const res = await apiFetch('/user/class-recordings');
+            if (res && res.success && Array.isArray(res.data)) {
+                if (crSavedCountBadge) crSavedCountBadge.textContent = `${res.data.length} Session${res.data.length === 1 ? '' : 's'} Saved`;
+
+                if (res.data.length === 0) {
+                    crSavedGrid.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
+                            <i class='bx bx-microphone-off' style="font-size: 40px; margin-bottom: 8px;"></i>
+                            <p style="margin: 0; font-size: 13px;">No class recordings saved yet. Click "Start Recording" or upload an audio file above!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                crSavedGrid.innerHTML = res.data.map(item => {
+                    const mins = Math.max(1, Math.round((item.duration_seconds || 0) / 60));
+                    const dateStr = new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+                    return `
+                        <div class="glass-panel" style="padding: 18px; border-radius: 16px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; justify-content: space-between;">
+                            <div>
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                    <span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; text-transform: uppercase;">${escapeHtml(item.class_type || 'LECTURE')}</span>
+                                    <span style="font-size: 11px; color: var(--text-muted);">${dateStr}</span>
+                                </div>
+                                <h4 style="font-size: 15px; font-weight: 700; color: white; margin: 0 0 4px 0;">${escapeHtml(item.title)}</h4>
+                                <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 12px 0;">Course: ${escapeHtml(item.subject_name || 'General')} &bull; ~${mins} mins</p>
+                                <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin: 0 0 14px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(item.summary || 'Recorded class session.')}</p>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn-gradient" style="flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 600;" onclick="window.openSavedLectureSession('${item.id}')">
+                                    <i class='bx bx-book-open'></i> Open Session
+                                </button>
+                                <button class="btn-glass" style="padding: 8px 10px; border-radius: 8px; color: #ef4444;" onclick="window.deleteClassRecordingSession('${item.id}')" title="Delete session">
+                                    <i class='bx bx-trash'></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        } catch (err) {
+            console.error('Fetch saved recordings error:', err);
+        }
+    };
+
+    // Open specific saved session
+    window.openSavedLectureSession = async (id) => {
+        try {
+            const res = await apiFetch(`/user/class-recordings/${id}`);
+            if (res && res.success && res.data) {
+                crActiveRecordingSession = res.data;
+                renderLectureOutputDashboard(res.data);
+                window.scrollTo({ top: document.getElementById('crOutputDashboard').offsetTop - 80, behavior: 'smooth' });
+            }
+        } catch (e) {
+            console.error('Open saved session error:', e);
+            showToast('Unable to open recording session', 'error');
+        }
+    };
+
+    // Delete session
+    window.deleteClassRecordingSession = async (id) => {
+        if (!confirm('Are you sure you want to delete this class recording session?')) return;
+        try {
+            const res = await apiFetch(`/user/class-recordings/${id}`, { method: 'DELETE' });
+            if (res && res.success) {
+                showToast('Session deleted', 'info');
+                renderClassRecorderLibrary();
+                if (crActiveRecordingSession && crActiveRecordingSession.id === id) {
+                    if (crOutputDashboard) crOutputDashboard.style.display = 'none';
+                    crActiveRecordingSession = null;
+                }
+            }
+        } catch (e) {
+            console.error('Delete session error:', e);
+        }
+    };
+
     // Initial Support
+
     startLiveClock();
     renderTasks();
     renderPlanner();

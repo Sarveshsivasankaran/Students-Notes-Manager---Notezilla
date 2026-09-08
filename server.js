@@ -3415,6 +3415,216 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
+// ==================== SMART CLASS RECORDER ENDPOINTS ====================
+
+/**
+ * Process Class Recording & Generate AI Summary, Notes, Action Items & Timestamps
+ * POST /api/ai/process-lecture
+ */
+app.post('/api/ai/process-lecture', authenticateToken, upload.single('audio'), async (req, res) => {
+    try {
+        const { transcript, title, subjectName, classType, durationSeconds } = req.body;
+        const audioBuffer = req.file ? req.file.buffer : null;
+        const audioMimeType = req.file ? req.file.mimetype : 'audio/webm';
+
+        if (!audioBuffer && (!transcript || typeof transcript !== 'string' || !transcript.trim())) {
+            return res.status(400).json({ success: false, message: 'Please record audio or provide a valid lecture transcript.' });
+        }
+
+        const metadata = {
+            title: title || 'Class Lecture Recording',
+            subjectName: subjectName || 'General Academic Course',
+            classType: classType || 'lecture',
+            durationSeconds: parseInt(durationSeconds) || 0
+        };
+
+        // Invoke AI processing with Whisper / Gemini Multimodal Audio transcription
+        const aiOutput = await aiService.processClassLecture(transcript || '', metadata, audioBuffer, audioMimeType);
+
+
+        // Save session output to database
+        const finalTranscript = (aiOutput.transcript || transcript || '').trim();
+        const { data: record, error: saveError } = await supabase
+            .from('class_recordings')
+            .insert({
+                user_id: req.userId,
+                title: metadata.title,
+                class_type: metadata.classType,
+                subject_name: metadata.subjectName,
+                duration_seconds: metadata.durationSeconds,
+                transcript: finalTranscript,
+                summary: aiOutput.summary || '',
+                key_concepts: aiOutput.key_concepts || [],
+                action_items: aiOutput.action_items || [],
+                structured_notes: aiOutput.structured_notes || '',
+                revision_questions: aiOutput.revision_questions || [],
+                timestamps: aiOutput.timestamps || []
+            })
+            .select()
+            .single();
+
+        if (saveError) {
+            console.error('[Class Recorder] Save to DB error:', saveError);
+        }
+
+        // Log activity
+        try {
+            await supabase.from('activity_logs').insert({
+                user_id: req.userId,
+                action_type: 'class_recorded',
+                title: `Recorded Class: ${metadata.title}`,
+                description: `Processed ${metadata.classType} transcript for ${metadata.subjectName}`
+            });
+        } catch (_) {}
+
+        res.json({
+            success: true,
+            data: record || {
+                user_id: req.userId,
+                title: metadata.title,
+                class_type: metadata.classType,
+                subject_name: metadata.subjectName,
+                duration_seconds: metadata.durationSeconds,
+                transcript: finalTranscript,
+                ...aiOutput
+            }
+        });
+    } catch (error) {
+        console.error('Process class lecture error:', error);
+        res.status(500).json({ success: false, message: error.message || 'Error processing lecture recording.' });
+    }
+});
+
+/**
+ * Get All Saved Class Recordings for Current Student
+ * GET /api/user/class-recordings
+ */
+app.get('/api/user/class-recordings', authenticateToken, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('class_recordings')
+            .select('id, title, class_type, subject_name, duration_seconds, summary, created_at, timestamps, action_items')
+            .eq('user_id', req.userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        console.error('Fetch class recordings error:', error);
+        res.status(500).json({ success: false, message: 'Unable to fetch your class recordings.' });
+    }
+});
+
+/**
+ * Get Specific Class Recording Session Details
+ * GET /api/user/class-recordings/:id
+ */
+app.get('/api/user/class-recordings/:id', authenticateToken, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('class_recordings')
+            .select('*')
+            .eq('id', req.params.id)
+            .eq('user_id', req.userId)
+            .single();
+
+        if (error || !data) {
+            return res.status(404).json({ success: false, message: 'Class recording not found.' });
+        }
+
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Fetch class recording error:', error);
+        res.status(500).json({ success: false, message: 'Error retrieving class recording details.' });
+    }
+});
+
+/**
+ * Search Inside a Lecture (Transcript & Timestamp Query)
+ * POST /api/user/class-recordings/:id/search
+ */
+app.post('/api/user/class-recordings/:id/search', authenticateToken, async (req, res) => {
+    try {
+        const { query } = req.body;
+        if (!query || !query.trim()) {
+            return res.status(400).json({ success: false, message: 'Provide a search query.' });
+        }
+
+        const { data: record, error } = await supabase
+            .from('class_recordings')
+            .select('*')
+            .eq('id', req.params.id)
+            .eq('user_id', req.userId)
+            .single();
+
+        if (error || !record) {
+            return res.status(404).json({ success: false, message: 'Recording not found.' });
+        }
+
+        const cleanQuery = query.trim().toLowerCase();
+        const matches = [];
+
+        // Match against timestamps
+        if (Array.isArray(record.timestamps)) {
+            record.timestamps.forEach(t => {
+                const text = `${t.timestamp} ${t.topic || ''} ${t.details || ''}`.toLowerCase();
+                if (text.includes(cleanQuery)) {
+                    matches.push({
+                        type: 'timestamp',
+                        timestamp: t.timestamp,
+                        topic: t.topic,
+                        details: t.details,
+                        snippet: `${t.timestamp} — ${t.topic}: ${t.details || ''}`
+                    });
+                }
+            });
+        }
+
+        // Match against transcript sentences
+        const sentences = record.transcript.split(/(?<=[.!?])\s+/);
+        sentences.forEach((sentence, idx) => {
+            if (sentence.toLowerCase().includes(cleanQuery)) {
+                matches.push({
+                    type: 'transcript',
+                    sentenceIndex: idx,
+                    snippet: sentence.trim()
+                });
+            }
+        });
+
+        res.json({
+            success: true,
+            query: cleanQuery,
+            totalMatches: matches.length,
+            matches
+        });
+    } catch (error) {
+        console.error('Search inside lecture error:', error);
+        res.status(500).json({ success: false, message: 'Error searching inside lecture.' });
+    }
+});
+
+/**
+ * Delete a Class Recording Session
+ * DELETE /api/user/class-recordings/:id
+ */
+app.delete('/api/user/class-recordings/:id', authenticateToken, async (req, res) => {
+    try {
+        const { error } = await supabase
+            .from('class_recordings')
+            .delete()
+            .eq('id', req.params.id)
+            .eq('user_id', req.userId);
+
+        if (error) throw error;
+        res.json({ success: true, message: 'Class recording deleted successfully.' });
+    } catch (error) {
+        console.error('Delete class recording error:', error);
+        res.status(500).json({ success: false, message: 'Error deleting class recording.' });
+    }
+});
+
+
 // ==================== ERROR HANDLING ====================
 
 app.use((err, req, res, next) => {

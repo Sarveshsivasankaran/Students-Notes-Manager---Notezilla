@@ -4,11 +4,24 @@ Notezilla is a full-stack academic notes platform for Rajalakshmi Engineering Co
 
 ## Highlights
 
+### Six Intelligent Learning Engines
+
+1. 🧠 **AI Content Studio**: Content → Notes → PPT → Flashcards → Video
+2. 🤖 **Aadhi AI Tutor**: Text + Voice + Context-Aware Teaching
+3. 🎯 **Adaptive Assessment**: Personalized AI Questions Based on Student Performance
+4. ✍️ **AI Answer Evaluation**: Answer → Marks → Mistakes → Concept Analysis
+5. 📊 **Personalized Learning Engine**: Learning Profile → Weak Topics → Recommendations
+6. 🎙️ **Smart Class Recorder**: Lecture → Transcript → Summary → Key Points → Notes → Questions → Timestamps → Search Inside Lecture
+
 ### Student experience
 
 - Browse subjects, faculty folders, and verified study materials.
 - Preview PDFs inside the dashboard with a selectable text layer.
 - Ask Aadhi questions about a note or generate a complete AI summary.
+- Record live classes, online lectures, or mentor sessions with **Smart Class Recorder (Engine 6)**.
+- Convert class recordings into automated speech-to-text transcripts, executive summaries, key concept cards, and structured chapter notes with LaTeX math.
+- Automatic extraction of action items (homework, assignments, upcoming test dates) with 1-click addition to personal Planner Tasks.
+- Search inside recorded lectures ("When did sir explain binary search?") with instant timestamp jump markers.
 - Highlight PDF text to create flashcards or request a focused explanation.
 - Bookmark database and Google Drive notes, with a personal Bookmarks view.
 - Discover the most-bookmarked notes across the website.
@@ -17,6 +30,7 @@ Notezilla is a full-stack academic notes platform for Rajalakshmi Engineering Co
 - View a productivity score derived from completed goals and recent study activity.
 - Upload and replace a private semester timetable image, then open it in a zoomable overlay.
 - Follow a personalized 14-day Daily DSA roadmap with code execution and progress tracking.
+
 
 ### Staff and administration
 
